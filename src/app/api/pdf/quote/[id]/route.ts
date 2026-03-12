@@ -25,7 +25,6 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  // Use logo if present in public/
   const logoCandidates = ["logo.png", "logo.jpg", "logo.jpeg", "logo.webp"];
   let logoPath: string | undefined;
   for (const name of logoCandidates) {
