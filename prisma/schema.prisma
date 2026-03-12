@@ -18,7 +18,7 @@ model Contact {
   address       String?
   postalCode    String?
   city          String?
-  country       String      @default("Deutschland")
+  country       String      @default("Österreich")
   type          ContactType @default(COMPANY)
   owner         String?
   notes         String?

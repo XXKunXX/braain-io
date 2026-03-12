@@ -59,7 +59,7 @@ export function ContactForm({
     formState: { errors },
   } = useForm<ContactFormData>({
     resolver: zodResolver(schema),
-    defaultValues: { country: "Deutschland", type: "COMPANY", ...defaultValues },
+    defaultValues: { country: "Österreich", type: "COMPANY", ...defaultValues },
   });
 
   return (
