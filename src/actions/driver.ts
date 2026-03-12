@@ -11,19 +11,35 @@ export async function getOrdersForDriverApp(dateStr: string) {
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
 
-  const orders = await prisma.order.findMany({
+  const entries = await prisma.dispositionEntry.findMany({
     where: {
       startDate: { lte: dayEnd },
       endDate: { gte: dayStart },
     },
     orderBy: { startDate: "asc" },
     include: {
-      contact: true,
-      quote: { select: { siteAddress: true } },
+      order: {
+        include: {
+          contact: true,
+          quote: { select: { siteAddress: true } },
+        },
+      },
     },
   });
 
-  return orders;
+  // Deduplicate orders (same order may be assigned to multiple resources)
+  const seen = new Set<string>();
+  return entries
+    .map((e) => ({
+      ...e.order,
+      startDate: e.startDate,
+      endDate: e.endDate,
+    }))
+    .filter((o) => {
+      if (seen.has(o.id)) return false;
+      seen.add(o.id);
+      return true;
+    });
 }
 
 export async function getOrderForDriverApp(id: string) {
