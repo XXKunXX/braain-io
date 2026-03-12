@@ -5,15 +5,14 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 const contactSchema = z.object({
-  companyName: z.string().min(1, "Firmenname ist erforderlich"),
-  contactPerson: z.string().optional(),
+  companyName: z.string().min(1, "Name ist erforderlich"),
   email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
   postalCode: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
-  type: z.enum(["COMPANY", "CONSTRUCTION_SITE", "TRANSPORT", "PRIVATE", "SUPPLIER"]),
+  type: z.enum(["COMPANY", "PRIVATE", "SUPPLIER"]),
   owner: z.string().optional().or(z.literal("")),
   notes: z.string().optional(),
 });
