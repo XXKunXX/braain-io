@@ -18,17 +18,13 @@ import { deleteAttachment } from "@/actions/attachments";
 import { toast } from "sonner";
 
 const typeLabels: Record<string, string> = {
-  COMPANY: "Unternehmen",
-  CONSTRUCTION_SITE: "Baustelle",
-  TRANSPORT: "Spedition",
+  COMPANY: "Firma",
   PRIVATE: "Privatkunde",
   SUPPLIER: "Lieferant",
 };
 
 const typeBadgeColors: Record<string, string> = {
   COMPANY: "bg-blue-100 text-blue-700",
-  CONSTRUCTION_SITE: "bg-amber-100 text-amber-700",
-  TRANSPORT: "bg-green-100 text-green-700",
   PRIVATE: "bg-purple-100 text-purple-700",
   SUPPLIER: "bg-orange-100 text-orange-700",
 };

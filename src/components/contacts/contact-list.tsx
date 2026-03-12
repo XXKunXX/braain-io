@@ -15,17 +15,13 @@ import {
 import { Building2, User, ChevronRight, Search } from "lucide-react";
 
 const typeLabels: Record<string, string> = {
-  COMPANY: "Unternehmen",
-  CONSTRUCTION_SITE: "Baustelle",
-  TRANSPORT: "Spedition",
+  COMPANY: "Firma",
   PRIVATE: "Privatkunde",
   SUPPLIER: "Lieferant",
 };
 
 const typeBadgeColors: Record<string, string> = {
   COMPANY: "bg-blue-50 text-blue-700",
-  CONSTRUCTION_SITE: "bg-amber-50 text-amber-700",
-  TRANSPORT: "bg-green-50 text-green-700",
   PRIVATE: "bg-purple-50 text-purple-700",
   SUPPLIER: "bg-orange-50 text-orange-700",
 };
