@@ -1,0 +1,32 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import { Toaster } from "@/components/ui/sonner";
+import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+});
+
+export const metadata: Metadata = {
+  title: "braain.io",
+  description: "Dispositions- und Verwaltungssoftware für Erdbau",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <ClerkProvider>
+      <html lang="de">
+        <body className={`${inter.className} antialiased`}>
+          {children}
+          <Toaster richColors />
+        </body>
+      </html>
+    </ClerkProvider>
+  );
+}

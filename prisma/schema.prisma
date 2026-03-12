@@ -1,0 +1,277 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Contacts ───────────────────────────────────────────────────────────────
+
+model Contact {
+  id            String      @id @default(cuid())
+  companyName   String
+  contactPerson String?
+  email         String?
+  phone         String?
+  address       String?
+  postalCode    String?
+  city          String?
+  country       String      @default("Deutschland")
+  type          ContactType @default(COMPANY)
+  owner         String?
+  notes         String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  requests      Request[]
+  quotes        Quote[]
+  orders        Order[]
+  deliveryNotes DeliveryNote[]
+  tasks         Task[]
+  contactNotes  ContactNote[]
+  attachments   Attachment[]
+}
+
+enum ContactType {
+  COMPANY
+  CONSTRUCTION_SITE
+  TRANSPORT
+  PRIVATE
+  SUPPLIER
+}
+
+// ─── Requests (Anfragen / Leads) ─────────────────────────────────────────────
+
+model Request {
+  id                String        @id @default(cuid())
+  title             String
+  description       String?
+  contactId         String
+  assignedTo        String?
+  status            RequestStatus @default(NEU)
+  priority          String?       @default("NORMAL")
+  siteAddress       String?
+  sitePhone         String?
+  inspectionDate    DateTime?
+  inspectionStatus  String?       @default("PLANNED")
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  quotes       Quote[]
+  tasks        Task[]
+  contactNotes ContactNote[]
+  attachments  Attachment[]
+}
+
+enum RequestStatus {
+  OPEN
+  NEU
+  BESICHTIGUNG_GEPLANT
+  BESICHTIGUNG_DURCHGEFUEHRT
+  ANGEBOT_ERSTELLT
+  IN_PROGRESS
+  DONE
+}
+
+// ─── Quotes (Angebote) ───────────────────────────────────────────────────────
+
+model Quote {
+  id          String      @id @default(cuid())
+  quoteNumber String      @unique
+  title       String
+  contactId   String
+  requestId   String?
+  status      QuoteStatus @default(DRAFT)
+  totalPrice  Decimal     @default(0) @db.Decimal(12, 2)
+  notes       String?
+  validUntil  DateTime?
+  siteAddress String?
+  assignedTo  String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  contact     Contact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  request     Request?    @relation(fields: [requestId], references: [id])
+  items       QuoteItem[]
+  orders      Order[]
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+model QuoteItem {
+  id          String  @id @default(cuid())
+  quoteId     String
+  position    Int     @default(1)
+  description String
+  quantity    Decimal @db.Decimal(10, 3)
+  unit        String  @default("t")
+  unitPrice   Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(12, 2)
+
+  quote       Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+}
+
+// ─── Orders (Aufträge) ───────────────────────────────────────────────────────
+
+model Order {
+  id          String      @id @default(cuid())
+  orderNumber String      @unique
+  contactId   String
+  quoteId     String?
+  title       String
+  startDate   DateTime
+  endDate     DateTime
+  status      OrderStatus @default(PLANNED)
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  contact            Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  quote              Quote?             @relation(fields: [quoteId], references: [id])
+  deliveryNotes      DeliveryNote[]
+  dispositionEntries DispositionEntry[]
+}
+
+enum OrderStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+
+// ─── Disposition ─────────────────────────────────────────────────────────────
+
+enum ResourceType {
+  FAHRER
+  MASCHINE
+  FAHRZEUG
+  OTHER
+}
+
+model Resource {
+  id          String             @id @default(cuid())
+  name        String
+  type        ResourceType       @default(OTHER)
+  email       String?
+  phone       String?
+  description String?
+  active      Boolean            @default(true)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  entries     DispositionEntry[]
+}
+
+model DispositionEntry {
+  id         String   @id @default(cuid())
+  resourceId String
+  orderId    String
+  startDate  DateTime
+  endDate    DateTime
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// ─── Delivery Notes (Lieferscheine) ─────────────────────────────────────────
+
+model DeliveryNote {
+  id             String   @id @default(cuid())
+  deliveryNumber String   @unique
+  orderId        String?
+  contactId      String
+  date           DateTime @default(now())
+  material       String
+  quantity       Decimal  @db.Decimal(10, 3)
+  unit           String   @default("t")
+  driver         String?
+  vehicle        String?
+  notes          String?
+  pdfUrl         String?
+  signatureUrl   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  order          Order?   @relation(fields: [orderId], references: [id])
+  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+}
+
+// ─── Tasks (Aufgaben) ────────────────────────────────────────────────────────
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  contactId   String?
+  requestId   String?
+  assignedTo  String?
+  dueDate     DateTime?
+  priority    TaskPriority @default(NORMAL)
+  status      TaskStatus   @default(OPEN)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  request     Request?     @relation(fields: [requestId], references: [id], onDelete: SetNull)
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+}
+
+// ─── Attachments ─────────────────────────────────────────────────────────────
+
+model Attachment {
+  id        String   @id @default(cuid())
+  fileName  String
+  fileSize  Int
+  mimeType  String
+  url       String
+  requestId String?
+  contactId String?
+  createdAt DateTime @default(now())
+
+  request   Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+}
+
+// ─── Contact Notes ───────────────────────────────────────────────────────────
+
+model ContactNote {
+  id        String   @id @default(cuid())
+  content   String
+  contactId String
+  requestId String?
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  request   Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+}
+
+// ─── Counter for sequential numbers ─────────────────────────────────────────
+
+model Counter {
+  id    String @id @default(cuid())
+  key   String @unique  // "quote", "order", "delivery"
+  value Int    @default(0)
+}

@@ -1,0 +1,504 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { toast } from "sonner";
+import { ArrowLeft, FileText, Mail, Pencil, Trash2, CheckCircle, Activity, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { updateQuote, updateQuoteStatus, deleteQuote, acceptQuoteAndCreateOrder } from "@/actions/quotes";
+import { sendQuoteEmail } from "@/actions/send-quote-email";
+import type { Contact, Quote, QuoteItem, Request } from "@prisma/client";
+
+type QuoteWithRelations = Quote & {
+  contact: Contact;
+  request: Request | null;
+  items: QuoteItem[];
+};
+
+const statusLabels: Record<string, string> = {
+  DRAFT: "Entwurf",
+  SENT: "Versendet",
+  ACCEPTED: "Angenommen",
+  REJECTED: "Abgelehnt",
+};
+
+const statusColors: Record<string, string> = {
+  DRAFT: "bg-zinc-100 text-zinc-600 border border-zinc-200",
+  SENT: "bg-blue-50 text-blue-700 border border-blue-200",
+  ACCEPTED: "bg-green-50 text-green-700 border border-green-200",
+  REJECTED: "bg-red-50 text-red-600 border border-red-200",
+};
+
+const UNITS = ["t", "m³", "m²", "m", "Stk", "Std", "Psch"];
+
+interface EditItem {
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+}
+
+function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{label}</p>
+      <div className="text-sm text-gray-900">{children}</div>
+    </div>
+  );
+}
+
+export function QuoteDetail({
+  quote,
+  userNames = [],
+}: {
+  quote: QuoteWithRelations;
+  userNames?: string[];
+}) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [emailTo, setEmailTo] = useState(quote.contact?.email ?? "");
+  const [emailSending, setEmailSending] = useState(false);
+
+  const [title, setTitle] = useState(quote.title);
+  const [siteAddress, setSiteAddress] = useState(quote.siteAddress ?? "");
+  const [assignedTo, setAssignedTo] = useState(quote.assignedTo ?? "");
+  const [validUntil, setValidUntil] = useState(
+    quote.validUntil ? format(new Date(quote.validUntil), "yyyy-MM-dd") : ""
+  );
+  const [notes, setNotes] = useState(quote.notes ?? "");
+  const [items, setItems] = useState<EditItem[]>(
+    quote.items.map((i) => ({
+      description: i.description,
+      quantity: Number(i.quantity),
+      unit: i.unit,
+      unitPrice: Number(i.unitPrice),
+    }))
+  );
+
+  const editTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+
+  function addItem() {
+    setItems([...items, { description: "", quantity: 1, unit: "t", unitPrice: 0 }]);
+  }
+  function removeItem(idx: number) {
+    if (items.length > 1) setItems(items.filter((_, i) => i !== idx));
+  }
+  function updateItem(idx: number, field: keyof EditItem, value: string | number) {
+    setItems(items.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    await updateQuote(quote.id, {
+      title,
+      contactId: quote.contactId,
+      requestId: quote.requestId ?? undefined,
+      siteAddress: siteAddress || undefined,
+      assignedTo: assignedTo || undefined,
+      validUntil: validUntil || undefined,
+      notes: notes || undefined,
+      items,
+    });
+    toast.success("Gespeichert");
+    setSaving(false);
+    setEditing(false);
+    router.refresh();
+  }
+
+  async function handleStatusChange(status: "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED") {
+    await updateQuoteStatus(quote.id, status);
+    toast.success("Status geändert");
+    router.refresh();
+  }
+
+  async function handleAccept() {
+    const result = await acceptQuoteAndCreateOrder(quote.id);
+    if ("error" in result && result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Angebot angenommen – Auftrag wurde erstellt");
+    router.push(`/auftraege/${result.order!.id}`);
+  }
+
+  async function handleSendEmail() {
+    if (!emailTo) return;
+    setEmailSending(true);
+    const result = await sendQuoteEmail(quote.id, emailTo);
+    setEmailSending(false);
+    if (result.error) {
+      toast.error("Fehler beim Senden: " + result.error);
+      return;
+    }
+    toast.success("Angebot per E-Mail versendet");
+    setEmailOpen(false);
+    await handleStatusChange("SENT");
+  }
+
+  async function handleDelete() {
+    if (!confirm("Angebot wirklich löschen?")) return;
+    setDeleting(true);
+    await deleteQuote(quote.id);
+    toast.success("Angebot gelöscht");
+    router.push("/angebote");
+  }
+
+  const activities = [
+    { label: "Angebot erstellt", date: quote.createdAt, color: "bg-blue-500" },
+    ...(quote.status === "SENT" ? [{ label: "Angebot versendet", date: quote.updatedAt, color: "bg-blue-500" }] : []),
+    ...(quote.status === "ACCEPTED" ? [{ label: "Angebot angenommen", date: quote.updatedAt, color: "bg-green-500" }] : []),
+    ...(quote.status === "REJECTED" ? [{ label: "Angebot abgelehnt", date: quote.updatedAt, color: "bg-red-500" }] : []),
+  ];
+
+  return (
+    <>
+    <div className="flex flex-col min-h-full">
+      {/* Header */}
+      <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 bg-white">
+        <div>
+          <Link href="/angebote" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Alle Angebote
+          </Link>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-semibold text-gray-900">{quote.quoteNumber}</h1>
+            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColors[quote.status]}`}>
+              {statusLabels[quote.status]}
+            </span>
+          </div>
+          <Link href={`/kontakte/${quote.contact.id}`} className="text-sm text-gray-500 hover:text-blue-600 transition-colors mt-0.5 block">
+            {quote.contact.companyName}
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* PDF */}
+          <Button
+            variant="outline"
+            className="rounded-lg gap-1.5"
+            onClick={() => window.open(`/api/pdf/quote/${quote.id}`, "_blank")}
+          >
+            <FileText className="h-3.5 w-3.5" />PDF
+          </Button>
+
+          {/* Per E-Mail senden */}
+          <Button
+            variant="outline"
+            className="rounded-lg gap-1.5 border-blue-200 text-blue-600 hover:bg-blue-50"
+            onClick={() => setEmailOpen(true)}
+          >
+            <Mail className="h-3.5 w-3.5" />Per E-Mail senden
+          </Button>
+          {quote.status !== "ACCEPTED" && quote.status !== "REJECTED" && (
+            <>
+              <Button
+                variant="outline"
+                className="rounded-lg gap-1.5 border-green-200 text-green-700 hover:bg-green-50"
+                onClick={handleAccept}
+              >
+                <CheckCircle className="h-3.5 w-3.5" />Angenommen
+              </Button>
+              <Button
+                variant="outline"
+                className="rounded-lg border-red-200 text-red-600 hover:bg-red-50"
+                onClick={() => handleStatusChange("REJECTED")}
+              >
+                Abgelehnt
+              </Button>
+            </>
+          )}
+
+          {/* Bearbeiten / Speichern */}
+          {editing ? (
+            <>
+              <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
+              <Button className="rounded-lg bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={saving}>
+                {saving ? "Speichert..." : "Speichern"}
+              </Button>
+            </>
+          ) : (
+            <Button variant="outline" className="rounded-lg gap-1.5" onClick={() => setEditing(true)}>
+              <Pencil className="h-3.5 w-3.5" />Bearbeiten
+            </Button>
+          )}
+
+          {/* Löschen */}
+          <Button
+            variant="outline"
+            className="rounded-lg gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
+            <Trash2 className="h-3.5 w-3.5" />{deleting ? "..." : "Löschen"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 p-6">
+        <div className="grid grid-cols-[1fr_300px] gap-6 max-w-5xl">
+          {/* Left */}
+          <div className="space-y-5">
+            {/* Anfrage als Referenz */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+              <h2 className="text-base font-semibold text-gray-900">Anfrage als Referenz</h2>
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">Anfrage wählen</p>
+                {quote.request ? (
+                  <Link
+                    href={`/anfragen/${quote.request.id}`}
+                    className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 hover:bg-blue-100 transition-colors"
+                  >
+                    <FileText className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                    <span className="text-sm font-medium text-blue-900">
+                      {quote.contact.companyName} – {quote.request.title}
+                    </span>
+                  </Link>
+                ) : (
+                  <div className="text-sm text-gray-400 italic">Keine Anfrage verknüpft</div>
+                )}
+                <p className="text-xs text-gray-400 mt-2">
+                  Beim Auswählen einer Anfrage werden relevante Daten automatisch übernommen.
+                </p>
+              </div>
+            </div>
+
+            {/* Angebotsinformationen */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
+              <h2 className="text-base font-semibold text-gray-900">Angebotsinformationen</h2>
+              <div className="border-t border-gray-100 pt-4">
+                {editing ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Projektname</Label>
+                        <Input value={title} onChange={(e) => setTitle(e.target.value)} className="h-10 rounded-lg border-gray-200" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Owner</Label>
+                        <Select value={assignedTo} onValueChange={(v) => setAssignedTo(v == null || v === "__none__" ? "" : v)}>
+                          <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
+                            <SelectValue>{assignedTo || <span className="text-gray-400">Kein Owner</span>}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Kein Owner</SelectItem>
+                            {userNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Baustellenadresse</Label>
+                        <Input value={siteAddress} onChange={(e) => setSiteAddress(e.target.value)} className="h-10 rounded-lg border-gray-200" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Gültig bis</Label>
+                        <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className="h-10 rounded-lg border-gray-200" />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notizen</Label>
+                      <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="rounded-lg border-gray-200 resize-none" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-5">
+                    <InfoRow label="Projektname">{quote.title}</InfoRow>
+                    <InfoRow label="Angebotsnummer">{quote.quoteNumber}</InfoRow>
+                    <InfoRow label="Kontakt">
+                      <Link href={`/kontakte/${quote.contact.id}`} className="text-blue-600 hover:underline">
+                        {quote.contact.companyName}
+                      </Link>
+                    </InfoRow>
+                    <InfoRow label="Baustellenadresse">{quote.siteAddress ?? "–"}</InfoRow>
+                    <InfoRow label="Angebotsdatum">
+                      {format(new Date(quote.createdAt), "dd. MMMM yyyy", { locale: de })}
+                    </InfoRow>
+                    <InfoRow label="Gültig bis">
+                      {quote.validUntil ? format(new Date(quote.validUntil), "dd. MMMM yyyy", { locale: de }) : "–"}
+                    </InfoRow>
+                    <InfoRow label="Owner">{quote.assignedTo ?? "–"}</InfoRow>
+                    {quote.notes && <InfoRow label="Notizen">{quote.notes}</InfoRow>}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Positionen */}
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">Positionen</h3>
+                {editing && (
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    <Plus className="h-3.5 w-3.5" />Position
+                  </button>
+                )}
+              </div>
+
+              {editing ? (
+                <div className="p-4 space-y-2">
+                  <div className="grid grid-cols-12 gap-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-1">
+                    <div className="col-span-4">Beschreibung</div>
+                    <div className="col-span-2">Menge</div>
+                    <div className="col-span-2">Einheit</div>
+                    <div className="col-span-2">EP (€)</div>
+                    <div className="col-span-1 text-right">GP (€)</div>
+                    <div className="col-span-1" />
+                  </div>
+                  {items.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-12 gap-2">
+                      <Input className="col-span-4 text-sm h-9" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beschreibung" />
+                      <Input className="col-span-2 text-sm h-9" type="number" min="0" step="0.001" value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
+                      <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
+                        <SelectTrigger className="col-span-2 text-sm h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Input className="col-span-2 text-sm h-9" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))} />
+                      <div className="col-span-1 flex items-center justify-end text-sm font-mono text-gray-600">
+                        {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="col-span-1 flex items-center justify-end">
+                        {items.length > 1 && (
+                          <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500">
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex justify-end pt-2 border-t border-gray-100 text-sm font-semibold text-gray-900">
+                    Gesamt: {editTotal.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                  </div>
+                </div>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider border-b border-gray-100 bg-gray-50/80">
+                      <th className="text-left px-5 py-2.5">Pos.</th>
+                      <th className="text-left px-5 py-2.5">Beschreibung</th>
+                      <th className="text-right px-5 py-2.5">Menge</th>
+                      <th className="text-left px-5 py-2.5">Einh.</th>
+                      <th className="text-right px-5 py-2.5">EP €</th>
+                      <th className="text-right px-5 py-2.5">GP €</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {quote.items.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="px-5 py-3 text-gray-400 font-mono text-xs">{item.position}</td>
+                        <td className="px-5 py-3 font-medium text-gray-900">{item.description}</td>
+                        <td className="px-5 py-3 text-right font-mono">{Number(item.quantity).toLocaleString("de-DE")}</td>
+                        <td className="px-5 py-3 text-gray-500">{item.unit}</td>
+                        <td className="px-5 py-3 text-right font-mono">{Number(item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</td>
+                        <td className="px-5 py-3 text-right font-mono font-semibold">{Number(item.total).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t border-gray-200 bg-gray-50">
+                      <td colSpan={4} />
+                      <td className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Gesamt (netto)</td>
+                      <td className="px-5 py-3 text-right font-mono font-bold text-gray-900">
+                        {Number(quote.totalPrice).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
+            </div>
+          </div>
+
+          {/* Right sidebar */}
+          <div className="space-y-5">
+            <div className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity className="h-4 w-4 text-gray-400" />
+                <h3 className="text-sm font-semibold text-gray-900">Aktivität</h3>
+              </div>
+              <div className="space-y-3">
+                {activities.map((a, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${a.color}`} />
+                    <div>
+                      <p className="text-sm text-gray-700">{a.label}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {format(new Date(a.date), "dd. MMMM yyyy", { locale: de })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* E-Mail Dialog */}
+
+    <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Angebot per E-Mail senden</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Empfänger</Label>
+            <Input
+              type="email"
+              value={emailTo}
+              onChange={(e) => setEmailTo(e.target.value)}
+              placeholder="email@beispiel.de"
+              className="h-10 rounded-lg border-gray-200"
+              autoFocus
+            />
+          </div>
+          <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600 space-y-0.5">
+            <p className="font-medium text-gray-800">Betreff: Angebot {quote.quoteNumber} – {quote.title}</p>
+            <p className="text-xs text-gray-400">Anhang: {quote.quoteNumber}.pdf</p>
+          </div>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="outline" className="rounded-lg" onClick={() => setEmailOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button
+              className="rounded-lg bg-blue-600 hover:bg-blue-700"
+              disabled={emailSending || !emailTo}
+              onClick={handleSendEmail}
+            >
+              {emailSending ? "Wird gesendet..." : "E-Mail senden"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
+  );
+}
