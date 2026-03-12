@@ -19,6 +19,12 @@ import { createOrder } from "@/actions/orders";
 import { toast } from "sonner";
 import type { Contact } from "@prisma/client";
 
+function todayAt7() {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T07:00`;
+}
+
 export function CreateOrderForm({ contacts }: { contacts: Contact[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -97,11 +103,11 @@ export function CreateOrderForm({ contacts }: { contacts: Contact[] }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-700">Startdatum *</Label>
-              <Input name="startDate" type="datetime-local" required className="h-10" />
+              <Input name="startDate" type="datetime-local" required className="h-10" defaultValue={todayAt7()} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-700">Enddatum *</Label>
-              <Input name="endDate" type="datetime-local" required className="h-10" />
+              <Input name="endDate" type="datetime-local" required className="h-10" defaultValue={todayAt7()} />
             </div>
           </div>
         </div>

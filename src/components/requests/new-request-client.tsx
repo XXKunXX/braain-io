@@ -302,6 +302,7 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
                   <Input
                     type="datetime-local"
                     value={inspectionDate}
+                    onFocus={() => { if (!inspectionDate) { const d = new Date(); const p = (n: number) => String(n).padStart(2, "0"); setInspectionDate(`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T07:00`); }}}
                     onChange={(e) => setInspectionDate(e.target.value)}
                     className="h-10 rounded-lg border-gray-200"
                   />
