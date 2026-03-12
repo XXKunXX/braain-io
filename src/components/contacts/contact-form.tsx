@@ -17,8 +17,7 @@ import {
 import type { ContactFormData } from "@/actions/contacts";
 
 const schema = z.object({
-  companyName: z.string().min(1, "Firmenname ist erforderlich"),
-  contactPerson: z.string().optional(),
+  companyName: z.string().min(1, "Name ist erforderlich"),
   email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -64,35 +63,31 @@ export function ContactForm({
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-      {/* Typ + Ansprechpartner */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-gray-700">Kontakttyp *</Label>
-          <Select
-            value={watch("type")}
-            onValueChange={(v) => v && setValue("type", v as ContactFormData["type"])}
-          >
-            <SelectTrigger className="h-11 rounded-xl border-gray-200 w-full">
-              <SelectValue>{typeLabels[watch("type")]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(typeLabels).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-gray-700">Ansprechpartner</Label>
-          <Input {...register("contactPerson")} className="h-11 rounded-xl border-gray-200" />
-        </div>
+      {/* Typ */}
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium text-gray-700">Kontakttyp *</Label>
+        <Select
+          value={watch("type")}
+          onValueChange={(v) => v && setValue("type", v as ContactFormData["type"])}
+        >
+          <SelectTrigger className="h-11 rounded-xl border-gray-200 w-full">
+            <SelectValue>{typeLabels[watch("type")]}</SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(typeLabels).map(([value, label]) => (
+              <SelectItem key={value} value={value}>
+                {label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Firmenname */}
+      {/* Name / Firmenname */}
       <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-gray-700">Firmenname *</Label>
+        <Label className="text-sm font-medium text-gray-700">
+          {watch("type") === "PRIVATE" ? "Name *" : "Firmenname *"}
+        </Label>
         <Input {...register("companyName")} className="h-11 rounded-xl border-gray-200" />
         {errors.companyName && (
           <p className="text-xs text-red-500">{errors.companyName.message}</p>
