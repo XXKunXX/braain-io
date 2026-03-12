@@ -93,7 +93,7 @@ const TABS = [
 
 type TabId = typeof TABS[number]["id"];
 
-export function ContactDetail({ contact, userNames = [] }: { contact: ContactWithRelations; userNames?: string[] }) {
+export function ContactDetail({ contact, userNames = [], currentUserName }: { contact: ContactWithRelations; userNames?: string[]; currentUserName?: string }) {
   const [activeTab, setActiveTab] = useState<TabId>("anfragen");
   const isCompany = contact.type !== "PRIVATE";
   const [notes, setNotes] = useState<NoteWithRequest[]>(contact.contactNotes);
@@ -137,7 +137,7 @@ export function ContactDetail({ contact, userNames = [] }: { contact: ContactWit
   async function handleSaveNote() {
     if (!noteText.trim()) return;
     setNoteSaving(true);
-    const result = await createContactNote({ content: noteText, contactId: contact.id });
+    const result = await createContactNote({ content: noteText, contactId: contact.id, createdBy: currentUserName });
     setNoteSaving(false);
     if (result.note) {
       setNotes((prev) => [{ ...result.note!, request: null }, ...prev]);
@@ -553,6 +553,9 @@ export function ContactDetail({ contact, userNames = [] }: { contact: ContactWit
                           </button>
                         </div>
                         <div className="flex items-center gap-3 mt-1.5">
+                          {note.createdBy && (
+                            <span className="text-xs font-medium text-gray-500">{note.createdBy}</span>
+                          )}
                           <p className="text-xs text-gray-400">
                             {format(new Date(note.createdAt), "dd. MMMM yyyy, HH:mm", { locale: de })} Uhr
                           </p>
