@@ -25,15 +25,13 @@ const schema = z.object({
   postalCode: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
-  type: z.enum(["COMPANY", "CONSTRUCTION_SITE", "TRANSPORT", "PRIVATE", "SUPPLIER"]),
+  type: z.enum(["COMPANY", "PRIVATE", "SUPPLIER"]),
   owner: z.string().optional().or(z.literal("")),
   notes: z.string().optional(),
 });
 
 const typeLabels: Record<string, string> = {
   COMPANY: "Firma",
-  CONSTRUCTION_SITE: "Baustelle",
-  TRANSPORT: "Spedition",
   PRIVATE: "Privatkunde",
   SUPPLIER: "Lieferant",
 };

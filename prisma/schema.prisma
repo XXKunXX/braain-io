@@ -36,8 +36,6 @@ model Contact {
 
 enum ContactType {
   COMPANY
-  CONSTRUCTION_SITE
-  TRANSPORT
   PRIVATE
   SUPPLIER
 }
