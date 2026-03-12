@@ -64,15 +64,17 @@ export async function createSignedDeliveryNote(data: {
   orderId: string;
   contactId: string;
   date: string;
-  material: string;
-  quantity: number;
-  unit: string;
+  lines: { material: string; quantity: number; unit: string }[];
   driver: string;
   vehicle: string;
   notes: string;
   signatureUrl: string;
   signerName: string;
 }) {
+  const materialText = data.lines
+    .map((l) => `${l.material}: ${l.quantity} ${l.unit}`)
+    .join("\n");
+  const firstLine = data.lines[0];
   const deliveryNumber = await getNextNumber("delivery");
   const deliveryNote = await prisma.deliveryNote.create({
     data: {
@@ -80,9 +82,9 @@ export async function createSignedDeliveryNote(data: {
       orderId: data.orderId,
       contactId: data.contactId,
       date: new Date(data.date),
-      material: data.material,
-      quantity: data.quantity,
-      unit: data.unit,
+      material: materialText,
+      quantity: firstLine?.quantity ?? 0,
+      unit: firstLine?.unit ?? "t",
       driver: data.driver || null,
       vehicle: data.vehicle || null,
       notes: data.notes ? `${data.notes}\nUnterschrift von: ${data.signerName}` : `Unterschrift von: ${data.signerName}`,

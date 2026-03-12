@@ -1,17 +1,25 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Camera, RotateCcw } from "lucide-react";
+import { ArrowLeft, Camera, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { createSignedDeliveryNote } from "@/actions/driver";
 import { toast } from "sonner";
 
-type Item = {
+type QuoteItem = {
   id: string;
   description: string;
   quantity: number;
   unit: string;
+};
+
+type DeliveryLine = {
+  key: string;
+  description: string;
+  quantity: string;
+  unit: string;
+  isCustom: boolean;
 };
 
 interface Props {
@@ -19,10 +27,13 @@ interface Props {
   orderTitle: string;
   contactId: string;
   contactName: string;
-  items: Item[];
+  items: QuoteItem[];
 }
 
 const UNITS = ["t", "m³", "m²", "m", "Stk", "Fuhre"];
+
+let _keyCounter = 0;
+function nextKey() { return `line-${++_keyCounter}`; }
 
 export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, items }: Props) {
   const router = useRouter();
@@ -34,15 +45,24 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
   const [loading, setLoading] = useState(false);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
 
-  const [selectedItem, setSelectedItem] = useState<string>(items[0]?.id ?? "");
-  const [customMaterial, setCustomMaterial] = useState("");
-  const [quantity, setQuantity] = useState(items[0] ? String(items[0].quantity) : "");
-  const [unit, setUnit] = useState(items[0]?.unit ?? "t");
+  // Material lines — pre-fill from quote items
+  const [lines, setLines] = useState<DeliveryLine[]>(() =>
+    items.length > 0
+      ? items.map((item) => ({
+          key: item.id,
+          description: item.description,
+          quantity: String(item.quantity),
+          unit: item.unit,
+          isCustom: false,
+        }))
+      : [{ key: nextKey(), description: "", quantity: "", unit: "t", isCustom: true }]
+  );
 
-  useEffect(() => {
+  const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
+    if (rect.width === 0) return;
     canvas.width = rect.width * window.devicePixelRatio;
     canvas.height = rect.height * window.devicePixelRatio;
     const ctx = canvas.getContext("2d");
@@ -54,6 +74,10 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
       ctx.lineJoin = "round";
     }
   }, []);
+
+  useEffect(() => {
+    initCanvas();
+  }, [initCanvas]);
 
   function getPos(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current!;
@@ -97,8 +121,7 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
-    const rect = canvas.getBoundingClientRect();
-    ctx?.clearRect(0, 0, rect.width, rect.height);
+    ctx?.clearRect(0, 0, canvas.width, canvas.height);
     setHasSignature(false);
   }
 
@@ -110,22 +133,41 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
     reader.readAsDataURL(file);
   }
 
+  function addCustomLine() {
+    setLines((prev) => [...prev, { key: nextKey(), description: "", quantity: "", unit: "t", isCustom: true }]);
+  }
+
+  function updateLine(key: string, field: keyof Omit<DeliveryLine, "key" | "isCustom">, value: string) {
+    setLines((prev) => prev.map((l) => l.key === key ? { ...l, [field]: value } : l));
+  }
+
+  function removeLine(key: string) {
+    setLines((prev) => prev.filter((l) => l.key !== key));
+  }
+
   async function handleSubmit() {
     if (!hasSignature) { toast.error("Bitte Unterschrift eintragen"); return; }
-    const material = items.length > 0
-      ? (items.find((i) => i.id === selectedItem)?.description ?? customMaterial)
-      : customMaterial;
-    if (!material) { toast.error("Bitte Material angeben"); return; }
+    const validLines = lines.filter((l) => l.description.trim() && l.quantity);
+    if (validLines.length === 0) { toast.error("Bitte mindestens ein Material angeben"); return; }
+
     const canvas = canvasRef.current!;
     const signatureUrl = canvas.toDataURL("image/png");
     setLoading(true);
     try {
       const result = await createSignedDeliveryNote({
-        orderId, contactId,
+        orderId,
+        contactId,
         date: new Date().toISOString().split("T")[0],
-        material, quantity: Number(quantity) || 0, unit,
-        driver: "", vehicle: "", notes: "",
-        signatureUrl, signerName,
+        lines: validLines.map((l) => ({
+          material: l.description,
+          quantity: Number(l.quantity) || 0,
+          unit: l.unit,
+        })),
+        driver: "",
+        vehicle: "",
+        notes: "",
+        signatureUrl,
+        signerName,
       });
       if (result.deliveryNote) {
         toast.success("Lieferschein erfolgreich erstellt");
@@ -138,47 +180,71 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
     }
   }
 
-  const selectedItemData = items.find((i) => i.id === selectedItem);
+  const submitButton = (rounded: string) => (
+    <button
+      type="button"
+      onClick={handleSubmit}
+      disabled={loading || !hasSignature}
+      className={`w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-${rounded} py-4 text-sm font-semibold text-white transition-colors`}
+    >
+      {loading ? "Wird gespeichert..." : "Lieferschein abschließen"}
+    </button>
+  );
 
   return (
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Mobile (< md) ── */}
       <div className="md:hidden max-w-lg mx-auto px-4 py-6 pb-28">
-        <BackLink orderId={orderId} />
-        <PageHeader contactName={contactName} orderTitle={orderTitle} />
-        <MaterialBlock items={items} selectedItem={selectedItem} setSelectedItem={setSelectedItem}
-          quantity={quantity} setQuantity={setQuantity} unit={unit} setUnit={setUnit}
-          customMaterial={customMaterial} setCustomMaterial={setCustomMaterial}
-          selectedItemData={selectedItemData} />
+        <Link href={`/fahrer/${orderId}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+          <ArrowLeft className="h-4 w-4" /> Zurück
+        </Link>
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-gray-900">Lieferschein erstellen</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{contactName} — {orderTitle}</p>
+        </div>
+
+        <MaterialBlock lines={lines} onUpdate={updateLine} onRemove={removeLine} onAdd={addCustomLine} />
         <PhotoBlock photoPreview={photoPreview} setPhotoPreview={setPhotoPreview} onPhoto={handlePhoto} />
-        <SignatureBlock canvasRef={canvasRef} startDraw={startDraw} draw={draw} endDraw={endDraw}
-          hasSignature={hasSignature} clearSignature={clearSignature} />
+        <SignatureBlock
+          canvasRef={canvasRef}
+          startDraw={startDraw}
+          draw={draw}
+          endDraw={endDraw}
+          hasSignature={hasSignature}
+          clearSignature={clearSignature}
+        />
         <NameBlock signerName={signerName} setSignerName={setSignerName} />
       </div>
       <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-100">
-        <SubmitButton loading={loading} disabled={!hasSignature} onSubmit={handleSubmit} rounded="2xl" />
+        {submitButton("2xl")}
       </div>
 
       {/* ── Tablet / Desktop (≥ md) ── */}
       <div className="hidden md:block max-w-5xl mx-auto px-6 lg:px-10 py-8">
-        <BackLink orderId={orderId} />
-        <PageHeader contactName={contactName} orderTitle={orderTitle} />
-        <div className="grid grid-cols-2 gap-8 mt-2">
+        <Link href={`/fahrer/${orderId}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+          <ArrowLeft className="h-4 w-4" /> Zurück
+        </Link>
+        <div className="mb-6">
+          <h1 className="text-xl font-bold text-gray-900">Lieferschein erstellen</h1>
+          <p className="text-sm text-gray-400 mt-0.5">{contactName} — {orderTitle}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-8">
           <div>
-            <MaterialBlock items={items} selectedItem={selectedItem} setSelectedItem={setSelectedItem}
-              quantity={quantity} setQuantity={setQuantity} unit={unit} setUnit={setUnit}
-              customMaterial={customMaterial} setCustomMaterial={setCustomMaterial}
-              selectedItemData={selectedItemData} />
+            <MaterialBlock lines={lines} onUpdate={updateLine} onRemove={removeLine} onAdd={addCustomLine} />
             <PhotoBlock photoPreview={photoPreview} setPhotoPreview={setPhotoPreview} onPhoto={handlePhoto} />
           </div>
           <div>
-            <SignatureBlock canvasRef={canvasRef} startDraw={startDraw} draw={draw} endDraw={endDraw}
-              hasSignature={hasSignature} clearSignature={clearSignature} />
+            <SignatureBlock
+              canvasRef={canvasRef}
+              startDraw={startDraw}
+              draw={draw}
+              endDraw={endDraw}
+              hasSignature={hasSignature}
+              clearSignature={clearSignature}
+            />
             <NameBlock signerName={signerName} setSignerName={setSignerName} />
-            <div className="mt-2">
-              <SubmitButton loading={loading} disabled={!hasSignature} onSubmit={handleSubmit} rounded="xl" />
-            </div>
+            <div className="mt-2">{submitButton("xl")}</div>
           </div>
         </div>
       </div>
@@ -188,80 +254,87 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
 
 /* ── Sub-components ── */
 
-function BackLink({ orderId }: { orderId: string }) {
-  return (
-    <Link href={`/fahrer/${orderId}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
-      <ArrowLeft className="h-4 w-4" /> Zurück
-    </Link>
-  );
-}
-
-function PageHeader({ contactName, orderTitle }: { contactName: string; orderTitle: string }) {
-  return (
-    <div className="mb-6">
-      <h1 className="text-xl font-bold text-gray-900">Lieferschein</h1>
-      <p className="text-sm text-gray-400 mt-0.5">{contactName} — {orderTitle}</p>
-    </div>
-  );
-}
-
-function MaterialBlock({ items, selectedItem, setSelectedItem, quantity, setQuantity, unit, setUnit, customMaterial, setCustomMaterial, selectedItemData }: {
-  items: Item[]; selectedItem: string; setSelectedItem: (v: string) => void;
-  quantity: string; setQuantity: (v: string) => void; unit: string; setUnit: (v: string) => void;
-  customMaterial: string; setCustomMaterial: (v: string) => void; selectedItemData: Item | undefined;
+function MaterialBlock({
+  lines,
+  onUpdate,
+  onRemove,
+  onAdd,
+}: {
+  lines: DeliveryLine[];
+  onUpdate: (key: string, field: keyof Omit<DeliveryLine, "key" | "isCustom">, value: string) => void;
+  onRemove: (key: string) => void;
+  onAdd: () => void;
 }) {
   return (
     <div className="bg-white rounded-2xl p-4 mb-4">
-      <p className="text-sm font-semibold text-gray-900 mb-3">Material</p>
-      {items.length > 0 ? (
-        <div className="space-y-2">
-          {items.map((item) => (
-            <button key={item.id} type="button"
-              onClick={() => { setSelectedItem(item.id); setQuantity(String(item.quantity)); setUnit(item.unit); }}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border transition-colors text-left ${
-                selectedItem === item.id ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:bg-gray-50"
-              }`}>
-              <span className="text-sm text-gray-900">{item.description}</span>
-              <span className="text-xs text-gray-400">{item.quantity} {item.unit}</span>
-            </button>
-          ))}
-          {selectedItemData && (
-            <div className="flex gap-2 mt-2">
+      <p className="text-sm font-semibold text-gray-900 mb-3">Materialien</p>
+      <div className="space-y-3">
+        {lines.map((line) => (
+          <div key={line.key} className="rounded-xl border border-gray-200 p-3 space-y-2">
+            {/* Description row */}
+            <div className="flex items-center gap-2">
+              {line.isCustom ? (
+                <input
+                  type="text"
+                  placeholder="Material eingeben..."
+                  value={line.description}
+                  onChange={(e) => onUpdate(line.key, "description", e.target.value)}
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                />
+              ) : (
+                <p className="flex-1 text-sm font-medium text-gray-900 py-1">{line.description}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => onRemove(line.key)}
+                className="p-1.5 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+            {/* Quantity + Unit row */}
+            <div className="flex gap-2">
               <div className="flex-1">
-                <label className="text-xs text-gray-500 mb-1 block">Menge</label>
-                <input type="number" min="0" step="0.001" value={quantity} onChange={(e) => setQuantity(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
+                <label className="text-xs text-gray-400 mb-1 block">Menge</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  placeholder="0"
+                  value={line.quantity}
+                  onChange={(e) => onUpdate(line.key, "quantity", e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400"
+                />
               </div>
               <div className="w-24">
-                <label className="text-xs text-gray-500 mb-1 block">Einheit</label>
-                <select value={unit} onChange={(e) => setUnit(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-blue-400">
+                <label className="text-xs text-gray-400 mb-1 block">Einheit</label>
+                <select
+                  value={line.unit}
+                  onChange={(e) => onUpdate(line.key, "unit", e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-blue-400"
+                >
                   {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
             </div>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-2">
-          <input type="text" placeholder="Material eingeben..." value={customMaterial} onChange={(e) => setCustomMaterial(e.target.value)}
-            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
-          <div className="flex gap-2">
-            <input type="number" min="0" step="0.001" placeholder="Menge" value={quantity} onChange={(e) => setQuantity(e.target.value)}
-              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-400" />
-            <select value={unit} onChange={(e) => setUnit(e.target.value)}
-              className="w-24 border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-blue-400">
-              {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-            </select>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="mt-3 w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-2.5 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-500 transition-colors"
+      >
+        <Plus className="h-4 w-4" />
+        Weiteres Material hinzufügen
+      </button>
     </div>
   );
 }
 
 function PhotoBlock({ photoPreview, setPhotoPreview, onPhoto }: {
-  photoPreview: string | null; setPhotoPreview: (v: string | null) => void;
+  photoPreview: string | null;
+  setPhotoPreview: (v: string | null) => void;
   onPhoto: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
@@ -270,8 +343,11 @@ function PhotoBlock({ photoPreview, setPhotoPreview, onPhoto }: {
       {photoPreview ? (
         <div className="relative">
           <img src={photoPreview} alt="Lieferung" className="w-full rounded-xl object-cover max-h-48" />
-          <button type="button" onClick={() => setPhotoPreview(null)}
-            className="absolute top-2 right-2 bg-white rounded-full p-1 shadow text-gray-500 hover:text-red-500">
+          <button
+            type="button"
+            onClick={() => setPhotoPreview(null)}
+            className="absolute top-2 right-2 bg-white rounded-full p-1 shadow text-gray-500 hover:text-red-500"
+          >
             <RotateCcw className="h-4 w-4" />
           </button>
         </div>
@@ -286,25 +362,48 @@ function PhotoBlock({ photoPreview, setPhotoPreview, onPhoto }: {
   );
 }
 
-function SignatureBlock({ canvasRef, startDraw, draw, endDraw, hasSignature, clearSignature }: {
+function SignatureBlock({
+  canvasRef,
+  startDraw,
+  draw,
+  endDraw,
+  hasSignature,
+  clearSignature,
+}: {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   startDraw: (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => void;
   draw: (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => void;
   endDraw: (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => void;
-  hasSignature: boolean; clearSignature: () => void;
+  hasSignature: boolean;
+  clearSignature: () => void;
 }) {
   return (
     <div className="bg-white rounded-2xl p-4 mb-4">
       <p className="text-sm font-semibold text-gray-900 mb-1">Kundenunterschrift</p>
       <p className="text-xs text-gray-400 mb-3">Bitte Kunden hier unterschreiben lassen</p>
-      <div className="border-2 border-dashed border-gray-200 rounded-xl overflow-hidden">
-        <canvas ref={canvasRef} className="w-full h-36 touch-none cursor-crosshair"
-          onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
-          onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw} />
+      <div className="border-2 border-dashed border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-48 touch-none cursor-crosshair"
+          style={{ touchAction: "none" }}
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={endDraw}
+        />
       </div>
+      {!hasSignature && (
+        <p className="mt-2 text-center text-xs text-gray-300 select-none">↑ Hier unterschreiben</p>
+      )}
       {hasSignature && (
-        <button type="button" onClick={clearSignature}
-          className="mt-2 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
+        <button
+          type="button"
+          onClick={clearSignature}
+          className="mt-2 inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+        >
           <RotateCcw className="h-3.5 w-3.5" /> Unterschrift löschen
         </button>
       )}
@@ -316,19 +415,13 @@ function NameBlock({ signerName, setSignerName }: { signerName: string; setSigne
   return (
     <div className="bg-white rounded-2xl p-4 mb-4">
       <p className="text-sm font-semibold text-gray-900 mb-3">Name der unterschreibenden Person</p>
-      <input type="text" placeholder="Vor- und Nachname" value={signerName} onChange={(e) => setSignerName(e.target.value)}
-        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400" />
+      <input
+        type="text"
+        placeholder="Vor- und Nachname"
+        value={signerName}
+        onChange={(e) => setSignerName(e.target.value)}
+        className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-blue-400"
+      />
     </div>
-  );
-}
-
-function SubmitButton({ loading, disabled, onSubmit, rounded }: {
-  loading: boolean; disabled: boolean; onSubmit: () => void; rounded: string;
-}) {
-  return (
-    <button type="button" onClick={onSubmit} disabled={loading || disabled}
-      className={`w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 rounded-${rounded} py-4 text-sm font-semibold text-white transition-colors`}>
-      {loading ? "Wird gespeichert..." : "Lieferschein abschließen"}
-    </button>
   );
 }
