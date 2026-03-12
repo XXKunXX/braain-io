@@ -32,8 +32,8 @@ const schema = z.object({
   contactId: z.string().optional(),
   assignedTo: z.string().optional(),
   dueDate: z.string().optional(),
-  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]).default("NORMAL"),
-  status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).default("OPEN"),
+  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]),
+  status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]),
 });
 
 export function CreateTaskDialog() {
