@@ -70,7 +70,7 @@ export async function updateOrder(id: string, data: OrderFormData) {
 
 export async function updateOrderStatus(
   id: string,
-  status: "PLANNED" | "ACTIVE" | "COMPLETED"
+  status: "PLANNED" | "ASSIGNED" | "ACTIVE" | "COMPLETED"
 ) {
   const order = await prisma.order.update({
     where: { id },

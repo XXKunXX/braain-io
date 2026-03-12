@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import {
   createDispositionEntry,
+  updateDispositionEntry,
   deleteDispositionEntry,
   createResource,
 } from "@/actions/disposition";
@@ -53,6 +54,7 @@ const TYPE_LABELS: Record<string, string> = {
 const ORDER_STATUS_DOT: Record<string, string> = {
   ACTIVE: "bg-green-500",
   PLANNED: "bg-blue-400",
+  ASSIGNED: "bg-purple-500",
   COMPLETED: "bg-gray-400",
 };
 const ENTRY_PALETTE = [
@@ -108,6 +110,14 @@ export function DispositionCalendar({
   const [dropModal, setDropModal] = useState<{ resourceId: string; orderId: string } | null>(null);
   const [dropForm, setDropForm] = useState({ startDate: "", endDate: "", notes: "" });
   const [dropSubmitting, setDropSubmitting] = useState(false);
+
+  // Edit entry modal state
+  const [editModal, setEditModal] = useState<EntryWithRelations | null>(null);
+  const [editForm, setEditForm] = useState({ startDate: "", endDate: "", notes: "" });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Collapsed sections
+  const [assignedCollapsed, setAssignedCollapsed] = useState(true);
 
   const [entryForm, setEntryForm] = useState({
     resourceId: "",
@@ -186,6 +196,7 @@ export function DispositionCalendar({
   }, [orders, search]);
   const activeOrders = filteredOrders.filter((o) => o.status === "ACTIVE");
   const plannedOrders = filteredOrders.filter((o) => o.status === "PLANNED");
+  const assignedOrders = filteredOrders.filter((o) => o.status === "ASSIGNED");
 
   const orderColorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -285,6 +296,28 @@ export function DispositionCalendar({
     if (!confirm("Eintrag löschen?")) return;
     await deleteDispositionEntry(id);
     toast.success("Eintrag gelöscht");
+    router.refresh();
+  }
+
+  function handleOpenEditModal(entry: EntryWithRelations) {
+    setEditForm({
+      startDate: format(new Date(entry.startDate), "yyyy-MM-dd'T'HH:mm"),
+      endDate: format(new Date(entry.endDate), "yyyy-MM-dd'T'HH:mm"),
+      notes: entry.notes ?? "",
+    });
+    setEditModal(entry);
+  }
+
+  async function handleEditModalSubmit() {
+    if (!editModal) return;
+    if (!editForm.startDate || !editForm.endDate) { toast.error("Start und Ende sind erforderlich"); return; }
+    if (new Date(editForm.endDate) <= new Date(editForm.startDate)) { toast.error("Ende muss nach dem Start liegen"); return; }
+    setEditSubmitting(true);
+    const result = await updateDispositionEntry(editModal.id, editForm);
+    setEditSubmitting(false);
+    if ("error" in result && result.error) { toast.error("Fehler beim Speichern"); return; }
+    toast.success("Eintrag aktualisiert");
+    setEditModal(null);
     router.refresh();
   }
 
@@ -388,6 +421,34 @@ export function DispositionCalendar({
                   Aktiv ({activeOrders.length})
                 </div>
                 {activeOrders.map((order) => (
+                  <div
+                    key={order.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, order.id)}
+                    onClick={() => setSelectedOrderId(selectedOrderId === order.id ? null : order.id)}
+                    className={`w-full text-left px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
+                      selectedOrderId === order.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
+                    }`}
+                  >
+                    <div className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${ORDER_STATUS_DOT[order.status]}`} />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-900 truncate">{order.title}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{order.contact.companyName}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {assignedOrders.length > 0 && (
+              <div>
+                <button
+                  className="w-full px-4 py-1.5 text-[10px] font-bold tracking-widest text-purple-500 uppercase bg-purple-50/60 border-b border-gray-100 flex items-center justify-between"
+                  onClick={() => setAssignedCollapsed((v) => !v)}
+                >
+                  <span>Zugeteilt ({assignedOrders.length})</span>
+                  <span>{assignedCollapsed ? "▶" : "▼"}</span>
+                </button>
+                {!assignedCollapsed && assignedOrders.map((order) => (
                   <div
                     key={order.id}
                     draggable
@@ -524,11 +585,12 @@ export function DispositionCalendar({
                         return (
                           <div
                             key={entry.id}
-                            className={`absolute top-2.5 rounded px-2 flex items-center gap-1.5 text-white text-xs font-medium group cursor-default transition-opacity ${colorClass} ${
+                            className={`absolute top-2.5 rounded px-2 flex items-center gap-1.5 text-white text-xs font-medium group cursor-pointer transition-opacity ${colorClass} ${
                               isHighlighted ? "opacity-100" : "opacity-20"
                             }`}
                             style={{ left: style.left, width: style.width, height: 36 }}
                             title={`${entry.order.title} — ${entry.order.contact.companyName}${entry.notes ? `\n${entry.notes}` : ""}`}
+                            onClick={() => handleOpenEditModal(entry)}
                           >
                             <span className="truncate flex-1">
                               {entry.order.title}
@@ -636,6 +698,67 @@ export function DispositionCalendar({
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
               <Button variant="outline" onClick={() => setShowAddResource(false)}>Abbrechen</Button>
               <Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting ? "Wird erstellt..." : "Ressource erstellen"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Edit entry */}
+      {editModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">Eintrag bearbeiten</h2>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                  {editModal.order.title} → {editModal.resource.name}
+                </p>
+              </div>
+              <button onClick={() => setEditModal(null)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Start *</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={editForm.startDate}
+                  onChange={(e) => setEditForm((d) => ({ ...d, startDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Ende *</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={editForm.endDate}
+                  onChange={(e) => setEditForm((d) => ({ ...d, endDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Notizen</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Optional..."
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm((d) => ({ ...d, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t flex items-center justify-between">
+              <button
+                className="text-xs text-red-500 hover:text-red-700"
+                onClick={() => { setEditModal(null); handleDeleteEntry(editModal.id); }}
+              >
+                Eintrag löschen
+              </button>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setEditModal(null)}>Abbrechen</Button>
+                <Button onClick={handleEditModalSubmit} disabled={editSubmitting}>
+                  {editSubmitting ? "Wird gespeichert..." : "Speichern"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

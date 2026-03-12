@@ -13,7 +13,7 @@ export async function getResources() {
 
 export async function getOrdersForDisposition() {
   return prisma.order.findMany({
-    where: { status: { in: ["ACTIVE", "PLANNED"] } },
+    where: { status: { in: ["ACTIVE", "PLANNED", "ASSIGNED"] } },
     include: { contact: true },
     orderBy: { startDate: "asc" },
   });
@@ -44,17 +44,38 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
   const parsed = entrySchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const entry = await prisma.dispositionEntry.create({
+  const [entry] = await Promise.all([
+    prisma.dispositionEntry.create({
+      data: {
+        resourceId: parsed.data.resourceId,
+        orderId: parsed.data.orderId,
+        startDate: new Date(parsed.data.startDate),
+        endDate: new Date(parsed.data.endDate),
+        notes: parsed.data.notes,
+      },
+      include: { resource: true, order: { include: { contact: true } } },
+    }),
+    prisma.order.updateMany({
+      where: { id: parsed.data.orderId, status: "PLANNED" },
+      data: { status: "ASSIGNED" },
+    }),
+  ]);
+
+  revalidatePath("/disposition");
+  revalidatePath("/auftraege");
+  return { entry };
+}
+
+export async function updateDispositionEntry(id: string, data: { startDate: string; endDate: string; notes?: string }) {
+  const entry = await prisma.dispositionEntry.update({
+    where: { id },
     data: {
-      resourceId: parsed.data.resourceId,
-      orderId: parsed.data.orderId,
-      startDate: new Date(parsed.data.startDate),
-      endDate: new Date(parsed.data.endDate),
-      notes: parsed.data.notes,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+      notes: data.notes,
     },
     include: { resource: true, order: { include: { contact: true } } },
   });
-
   revalidatePath("/disposition");
   return { entry };
 }

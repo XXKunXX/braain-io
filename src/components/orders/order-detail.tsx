@@ -29,12 +29,14 @@ type OrderWithRelations = Order & {
 
 const statusLabels: Record<string, string> = {
   PLANNED: "Geplant",
+  ASSIGNED: "Zugeteilt",
   ACTIVE: "Aktiv",
   COMPLETED: "Abgeschlossen",
 };
 
 const statusColors: Record<string, string> = {
   PLANNED: "border border-blue-200 text-blue-700 bg-blue-50",
+  ASSIGNED: "border border-purple-200 text-purple-700 bg-purple-50",
   ACTIVE: "border border-green-300 text-green-700 bg-green-50",
   COMPLETED: "border border-gray-200 text-gray-500 bg-gray-50",
 };
