@@ -35,6 +35,12 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
   const router = useRouter();
   const [search, setSearch] = useState(initialSearch ?? "");
   const [typeFilter, setTypeFilter] = useState("ALL");
+  const [ownerFilter, setOwnerFilter] = useState("ALL");
+
+  const ownerNames = useMemo(() => {
+    const names = contacts.map((c) => c.owner).filter(Boolean) as string[];
+    return [...new Set(names)].sort();
+  }, [contacts]);
 
   function handleSearch(value: string) {
     setSearch(value);
@@ -44,8 +50,11 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
   }
 
   const filtered = useMemo(
-    () => contacts.filter((c) => typeFilter === "ALL" || c.type === typeFilter),
-    [contacts, typeFilter]
+    () => contacts.filter((c) =>
+      (typeFilter === "ALL" || c.type === typeFilter) &&
+      (ownerFilter === "ALL" || c.owner === ownerFilter)
+    ),
+    [contacts, typeFilter, ownerFilter]
   );
 
   return (
@@ -63,7 +72,7 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
         </div>
         <Select value={typeFilter} onValueChange={(v) => v && setTypeFilter(v)}>
           <SelectTrigger className="w-44 bg-white">
-            <SelectValue placeholder="Alle Typen" />
+            <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Alle Typen</SelectItem>
@@ -74,6 +83,19 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
             ))}
           </SelectContent>
         </Select>
+        {ownerNames.length > 0 && (
+          <Select value={ownerFilter} onValueChange={(v) => v && setOwnerFilter(v)}>
+            <SelectTrigger className="w-44 bg-white">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Alle Owner</SelectItem>
+              {ownerNames.map((name) => (
+                <SelectItem key={name} value={name}>{name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Table */}
