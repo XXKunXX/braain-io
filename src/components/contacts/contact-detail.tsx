@@ -7,7 +7,7 @@ import { de } from "date-fns/locale";
 import {
   Building2, User, ChevronLeft, Phone, Mail, MapPin,
   Plus, FileText, Package, Truck, Receipt, FolderOpen,
-  MessageSquare, ExternalLink, StickyNote, Clock, Trash2, Paperclip,
+  MessageSquare, ExternalLink, StickyNote, Clock, Trash2, Paperclip, Upload,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -101,6 +101,32 @@ export function ContactDetail({ contact, userNames = [] }: { contact: ContactWit
   const [noteText, setNoteText] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [attachments, setAttachments] = useState<AttachmentWithRequest[]>(contact.attachments);
+  const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  async function uploadFiles(files: FileList | File[]) {
+    setUploading(true);
+    for (const file of Array.from(files)) {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("contactId", contact.id);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (res.ok) {
+        const { attachment } = await res.json();
+        setAttachments((prev) => [attachment, ...prev]);
+      } else {
+        const { error } = await res.json();
+        toast.error(error ?? "Upload fehlgeschlagen");
+      }
+    }
+    setUploading(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files.length > 0) uploadFiles(e.dataTransfer.files);
+  }
 
   async function handleDeleteAttachment(id: string) {
     await deleteAttachment(id, undefined, contact.id);
@@ -376,59 +402,85 @@ export function ContactDetail({ contact, userNames = [] }: { contact: ContactWit
 
             {activeTab === "dokumente" && (
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
-                  <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <FolderOpen className="h-4 w-4 text-gray-500" />
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center">
+                      <FolderOpen className="h-4 w-4 text-gray-500" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-900">Dokumente</h3>
                   </div>
-                  <h3 className="text-sm font-semibold text-gray-900">Dokumente</h3>
-                  <span className="text-xs text-gray-400 ml-1">aus allen Anfragen</span>
+                  <label className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
+                    <Upload className="h-3.5 w-3.5" />Hochladen
+                    <input type="file" multiple className="hidden" onChange={(e) => e.target.files && uploadFiles(e.target.files)} />
+                  </label>
                 </div>
-                {attachments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-14 gap-2">
-                    <FolderOpen className="h-8 w-8 text-gray-200" />
-                    <p className="text-sm text-gray-400">Noch keine Dokumente vorhanden</p>
-                    <p className="text-xs text-gray-300">Dateien können in Anfragen hochgeladen werden</p>
-                  </div>
-                ) : (
-                  <div className="divide-y divide-gray-100">
-                    {attachments.map((att) => (
-                      <div key={att.id} className="flex items-center gap-3 px-5 py-3.5 group hover:bg-gray-50 transition-colors">
-                        <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-base">
-                          <ContactFileIcon mimeType={att.mimeType} />
+                <div
+                  onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  className={`transition-colors ${isDragging ? "bg-blue-50" : ""}`}
+                >
+                  {attachments.length === 0 ? (
+                    <div className={`flex flex-col items-center justify-center py-10 text-center px-4 border-2 border-dashed mx-4 my-4 rounded-xl transition-colors ${isDragging ? "border-blue-400 bg-blue-50" : "border-gray-200"}`}>
+                      {uploading ? (
+                        <div className="flex items-center gap-2 text-blue-600">
+                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-sm">Wird hochgeladen…</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <a
-                            href={att.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm font-medium text-gray-800 hover:text-blue-600 transition-colors truncate block"
-                          >
-                            {att.fileName}
-                          </a>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-gray-400">{formatFileSize(att.fileSize)}</span>
-                            {att.request && (
-                              <Link href={`/anfragen/${att.request.id}`} className="text-xs text-blue-500 hover:underline truncate max-w-[200px]">
-                                {att.request.title}
-                              </Link>
-                            )}
+                      ) : (
+                        <>
+                          <FolderOpen className="h-8 w-8 text-gray-200 mb-2" />
+                          <p className="text-sm text-gray-400">Dateien hier ablegen oder</p>
+                          <label className="mt-1 text-sm text-blue-600 hover:text-blue-700 font-medium cursor-pointer">
+                            Datei auswählen
+                            <input type="file" multiple className="hidden" onChange={(e) => e.target.files && uploadFiles(e.target.files)} />
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {uploading && (
+                        <div className="px-5 py-3 flex items-center gap-2 text-blue-600 text-sm">
+                          <div className="w-3.5 h-3.5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                          Wird hochgeladen…
+                        </div>
+                      )}
+                      {attachments.map((att) => (
+                        <div key={att.id} className="flex items-center gap-3 px-5 py-3.5 group hover:bg-gray-50 transition-colors">
+                          <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-base">
+                            <ContactFileIcon mimeType={att.mimeType} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <a href={att.url} target="_blank" rel="noopener noreferrer"
+                              className="text-sm font-medium text-gray-800 hover:text-blue-600 transition-colors truncate block">
+                              {att.fileName}
+                            </a>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-xs text-gray-400">{formatFileSize(att.fileSize)}</span>
+                              {att.request && (
+                                <Link href={`/anfragen/${att.request.id}`} className="text-xs text-blue-500 hover:underline truncate max-w-[200px]">
+                                  {att.request.title}
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <span className="text-xs text-gray-400">{format(new Date(att.createdAt), "dd.MM.yyyy", { locale: de })}</span>
+                            <button onClick={() => handleDeleteAttachment(att.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span className="text-xs text-gray-400">
-                            {format(new Date(att.createdAt), "dd.MM.yyyy", { locale: de })}
-                          </span>
-                          <button
-                            onClick={() => handleDeleteAttachment(att.id)}
-                            className="text-gray-300 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                      ))}
+                      <label className={`flex items-center justify-center gap-2 px-4 py-3 cursor-pointer transition-colors ${isDragging ? "bg-blue-50 text-blue-600" : "text-gray-300 hover:text-gray-400 hover:bg-gray-50"}`}>
+                        <Upload className="h-3.5 w-3.5" />
+                        <span className="text-xs">Weitere Dateien hinzufügen</span>
+                        <input type="file" multiple className="hidden" onChange={(e) => e.target.files && uploadFiles(e.target.files)} />
+                      </label>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
