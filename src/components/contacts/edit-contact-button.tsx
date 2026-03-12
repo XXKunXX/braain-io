@@ -49,7 +49,6 @@ export function EditContactButton({ contact, userNames = [] }: { contact: Contac
             defaultValues={{
               ...contact,
               email: contact.email ?? "",
-              contactPerson: contact.contactPerson ?? "",
               phone: contact.phone ?? "",
               address: contact.address ?? "",
               postalCode: contact.postalCode ?? "",
