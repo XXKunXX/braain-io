@@ -56,6 +56,15 @@ export async function createQuote(data: QuoteFormData) {
     include: { items: true },
   });
 
+  // Update request status to ANGEBOT_ERSTELLT if linked
+  if (quoteData.requestId) {
+    await prisma.request.update({
+      where: { id: quoteData.requestId },
+      data: { status: "ANGEBOT_ERSTELLT" },
+    });
+    revalidatePath(`/anfragen/${quoteData.requestId}`);
+  }
+
   revalidatePath("/angebote");
   return { quote };
 }
