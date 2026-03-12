@@ -72,7 +72,7 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
         </div>
         <Select value={typeFilter} onValueChange={(v) => v && setTypeFilter(v)}>
           <SelectTrigger className="w-44 bg-white">
-            <SelectValue />
+            <SelectValue>{typeFilter === "ALL" ? "Alle Typen" : typeLabels[typeFilter]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Alle Typen</SelectItem>
@@ -86,7 +86,7 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
         {ownerNames.length > 0 && (
           <Select value={ownerFilter} onValueChange={(v) => v && setOwnerFilter(v)}>
             <SelectTrigger className="w-44 bg-white">
-              <SelectValue />
+              <SelectValue>{ownerFilter === "ALL" ? "Alle Owner" : ownerFilter}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">Alle Owner</SelectItem>
