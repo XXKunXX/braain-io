@@ -112,7 +112,18 @@ export async function updateQuoteStatus(
   const quote = await prisma.quote.update({
     where: { id },
     data: { status },
+    select: { id: true, status: true, requestId: true },
   });
+
+  // Set linked request to DONE when quote is won or lost
+  if ((status === "ACCEPTED" || status === "REJECTED") && quote.requestId) {
+    await prisma.request.update({
+      where: { id: quote.requestId },
+      data: { status: "DONE" },
+    });
+    revalidatePath(`/anfragen/${quote.requestId}`);
+  }
+
   revalidatePath("/angebote");
   revalidatePath(`/angebote/${id}`);
   return { quote };
