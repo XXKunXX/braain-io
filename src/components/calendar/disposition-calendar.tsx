@@ -104,6 +104,11 @@ export function DispositionCalendar({
   const dragOrderId = useRef<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ resourceId: string; dayIdx: number } | null>(null);
 
+  // Drop modal state
+  const [dropModal, setDropModal] = useState<{ resourceId: string; orderId: string } | null>(null);
+  const [dropForm, setDropForm] = useState({ startDate: "", endDate: "", notes: "" });
+  const [dropSubmitting, setDropSubmitting] = useState(false);
+
   const [entryForm, setEntryForm] = useState({
     resourceId: "",
     orderId: "",
@@ -215,6 +220,22 @@ export function DispositionCalendar({
     };
   }
 
+  // Conflict detection
+  const dropConflict = useMemo(() => {
+    if (!dropModal || !dropForm.startDate || !dropForm.endDate) return null;
+    const newStart = new Date(dropForm.startDate);
+    const newEnd = new Date(dropForm.endDate);
+    if (newEnd <= newStart) return null;
+    const conflicts = entries.filter(
+      (e) =>
+        e.resourceId === dropModal.resourceId &&
+        new Date(e.startDate) < newEnd &&
+        new Date(e.endDate) > newStart
+    );
+    if (conflicts.length === 0) return null;
+    return conflicts.map((e) => e.order.title).join(", ");
+  }, [dropModal, dropForm.startDate, dropForm.endDate, entries]);
+
   // Drag & drop handlers
   function handleDragStart(e: React.DragEvent, orderId: string) {
     dragOrderId.current = orderId;
@@ -231,18 +252,32 @@ export function DispositionCalendar({
     setDropTarget(null);
   }
 
-  async function handleDrop(e: React.DragEvent, resourceId: string, day: Date) {
+  function handleDrop(e: React.DragEvent, resourceId: string, day: Date) {
     e.preventDefault();
     setDropTarget(null);
     const orderId = dragOrderId.current;
     if (!orderId) return;
     const dateStr = format(day, "yyyy-MM-dd");
-    const result = await createDispositionEntry({ resourceId, orderId, startDate: dateStr, endDate: dateStr, notes: "" });
-    if ("error" in result && result.error) {
-      toast.error("Fehler beim Erstellen");
-      return;
-    }
+    setDropForm({ startDate: `${dateStr}T07:00`, endDate: `${dateStr}T17:00`, notes: "" });
+    setDropModal({ resourceId, orderId });
+  }
+
+  async function handleDropModalSubmit() {
+    if (!dropModal) return;
+    if (!dropForm.startDate || !dropForm.endDate) { toast.error("Start und Ende sind erforderlich"); return; }
+    if (new Date(dropForm.endDate) <= new Date(dropForm.startDate)) { toast.error("Ende muss nach dem Start liegen"); return; }
+    setDropSubmitting(true);
+    const result = await createDispositionEntry({
+      resourceId: dropModal.resourceId,
+      orderId: dropModal.orderId,
+      startDate: dropForm.startDate,
+      endDate: dropForm.endDate,
+      notes: dropForm.notes,
+    });
+    setDropSubmitting(false);
+    if ("error" in result && result.error) { toast.error("Fehler beim Erstellen"); return; }
     toast.success("Eintrag erstellt");
+    setDropModal(null);
     router.refresh();
   }
 
@@ -601,6 +636,67 @@ export function DispositionCalendar({
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
               <Button variant="outline" onClick={() => setShowAddResource(false)}>Abbrechen</Button>
               <Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting ? "Wird erstellt..." : "Ressource erstellen"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Drop – set time range */}
+      {dropModal && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-gray-900">Zeitraum festlegen</h2>
+                <p className="text-xs text-gray-500 mt-0.5 truncate">
+                  {orders.find((o) => o.id === dropModal.orderId)?.title} → {resources.find((r) => r.id === dropModal.resourceId)?.name}
+                </p>
+              </div>
+              <button onClick={() => setDropModal(null)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Start *</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={dropForm.startDate}
+                  onChange={(e) => setDropForm((d) => ({ ...d, startDate: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Ende *</label>
+                <input
+                  type="datetime-local"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={dropForm.endDate}
+                  onChange={(e) => setDropForm((d) => ({ ...d, endDate: e.target.value }))}
+                />
+              </div>
+              {dropConflict && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
+                  <span className="text-amber-500 text-sm flex-shrink-0">⚠️</span>
+                  <p className="text-xs text-amber-800">
+                    <strong>Terminkonflikt:</strong> Diese Ressource ist im gewählten Zeitraum bereits belegt mit: <strong>{dropConflict}</strong>. Du kannst trotzdem speichern.
+                  </p>
+                </div>
+              )}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Notizen</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Optional..."
+                  value={dropForm.notes}
+                  onChange={(e) => setDropForm((d) => ({ ...d, notes: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
+              <Button variant="outline" onClick={() => setDropModal(null)}>Abbrechen</Button>
+              <Button onClick={handleDropModalSubmit} disabled={dropSubmitting}>
+                {dropSubmitting ? "Wird erstellt..." : "Eintrag erstellen"}
+              </Button>
             </div>
           </div>
         </div>
