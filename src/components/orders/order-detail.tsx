@@ -180,19 +180,6 @@ export function OrderDetail({
               : "–"}
           </span>
         </StatCard>
-        <StatCard label="Startdatum & Uhrzeit">
-          <span className="text-base font-semibold text-gray-900">
-            {format(new Date(order.startDate), "dd. MMMM yyyy", { locale: de })}
-          </span>
-          <span className="text-sm text-gray-500 ml-1">
-            {format(new Date(order.startDate), "HH:mm")} Uhr
-          </span>
-        </StatCard>
-        <StatCard label="Enddatum">
-          <span className="text-base font-semibold text-gray-900">
-            {format(new Date(order.endDate), "dd. MMMM yyyy", { locale: de })}
-          </span>
-        </StatCard>
       </div>
 
       {/* ── Tabs ── */}
@@ -239,14 +226,6 @@ export function OrderDetail({
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Startdatum & Uhrzeit</Label>
-                    <Input type="datetime-local" value={editStart} onChange={(e) => setEditStart(e.target.value)} className="h-10 rounded-lg border-gray-200" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Enddatum</Label>
-                    <Input type="date" value={editEnd} onChange={(e) => setEditEnd(e.target.value)} className="h-10 rounded-lg border-gray-200" />
-                  </div>
-                  <div className="space-y-1.5">
                     <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notizen</Label>
                     <Input value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="h-10 rounded-lg border-gray-200" />
                   </div>
@@ -274,24 +253,14 @@ export function OrderDetail({
               )}
             </div>
 
-            {/* Projektzeitraum */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Projektzeitraum</h3>
-              <InfoItem icon={CalendarDays} label="Startdatum">
-                {format(new Date(order.startDate), "dd. MMMM yyyy", { locale: de })}
-              </InfoItem>
-              <InfoItem icon={CalendarDays} label="Enddatum">
-                {format(new Date(order.endDate), "dd. MMMM yyyy", { locale: de })}
-              </InfoItem>
-              {order.quote && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-400 mb-2">Verknüpftes Angebot</p>
-                  <Link href={`/angebote/${order.quote.id}`} className="text-sm font-medium text-blue-600 hover:underline">
-                    {order.quote.quoteNumber}
-                  </Link>
-                </div>
-              )}
-            </div>
+            {order.quote && (
+              <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <h3 className="text-base font-semibold text-gray-900 mb-4">Verknüpftes Angebot</h3>
+                <Link href={`/angebote/${order.quote.id}`} className="text-sm font-medium text-blue-600 hover:underline">
+                  {order.quote.quoteNumber}
+                </Link>
+              </div>
+            )}
           </div>
         )}
 
