@@ -106,20 +106,30 @@ export function ContactDetail({ contact, userNames = [], currentUserName }: { co
 
   async function uploadFiles(files: FileList | File[]) {
     setUploading(true);
-    for (const file of Array.from(files)) {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("contactId", contact.id);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (res.ok) {
-        const { attachment } = await res.json();
-        setAttachments((prev) => [attachment, ...prev]);
-      } else {
-        const { error } = await res.json();
-        toast.error(error ?? "Upload fehlgeschlagen");
+    let successCount = 0;
+    try {
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("contactId", contact.id);
+        try {
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          if (res.ok) {
+            const { attachment } = await res.json();
+            setAttachments((prev) => [attachment, ...prev]);
+            successCount++;
+          } else {
+            const data = await res.json().catch(() => ({}));
+            toast.error(data.error ?? "Upload fehlgeschlagen");
+          }
+        } catch {
+          toast.error(`Upload fehlgeschlagen: ${file.name}`);
+        }
       }
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
+    if (successCount > 0) toast.success("Datei(en) hochgeladen");
   }
 
   function handleDrop(e: React.DragEvent) {

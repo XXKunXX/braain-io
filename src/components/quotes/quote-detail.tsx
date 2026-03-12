@@ -146,15 +146,20 @@ export function QuoteDetail({
   async function handleSendEmail() {
     if (!emailTo) return;
     setEmailSending(true);
-    const result = await sendQuoteEmail(quote.id, emailTo);
-    setEmailSending(false);
-    if (result.error) {
-      toast.error("Fehler beim Senden: " + result.error);
-      return;
+    try {
+      const result = await sendQuoteEmail(quote.id, emailTo);
+      if (result.error) {
+        toast.error("Fehler beim Senden: " + result.error);
+        return;
+      }
+      toast.success("Angebot per E-Mail versendet");
+      setEmailOpen(false);
+      await handleStatusChange("SENT");
+    } catch (e) {
+      toast.error("Fehler beim Senden: " + (e instanceof Error ? e.message : "Unbekannter Fehler"));
+    } finally {
+      setEmailSending(false);
     }
-    toast.success("Angebot per E-Mail versendet");
-    setEmailOpen(false);
-    await handleStatusChange("SENT");
   }
 
   async function handleDelete() {

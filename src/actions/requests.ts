@@ -53,33 +53,38 @@ export async function createRequest(data: RequestFormData) {
     },
   });
 
-  // E-Mail-Benachrichtigung an alle Nutzer
-  try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://braain-io.vercel.app";
-    const requestUrl = `${appUrl}/anfragen/${request.id}`;
-    const client = await clerkClient();
-    const { data: users } = await client.users.getUserList({ limit: 100 });
-    const emails = users.map((u) => u.emailAddresses[0]?.emailAddress).filter(Boolean) as string[];
-    if (emails.length > 0) {
-      await sendEmail({
-        to: emails,
-        subject: `Neue Anfrage: ${request.title}`,
-        html: `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-            <h2 style="color:#111">Neue Anfrage eingegangen</h2>
-            <p><strong>Titel:</strong> ${request.title}</p>
-            <p><strong>Kontakt:</strong> ${contact?.companyName ?? "Unbekannt"}</p>
-            <p style="margin-top:24px">
-              <a href="${requestUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">
-                Anfrage öffnen →
-              </a>
-            </p>
-          </div>
-        `,
-      });
+  // E-Mail-Benachrichtigung an den zugewiesenen Owner
+  if (rest.assignedTo) {
+    try {
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://braain-io.vercel.app";
+      const requestUrl = `${appUrl}/anfragen/${request.id}`;
+      const client = await clerkClient();
+      const { data: users } = await client.users.getUserList({ limit: 100 });
+      const ownerUser = users.find((u) =>
+        `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() === rest.assignedTo
+      );
+      const ownerEmail = ownerUser?.emailAddresses[0]?.emailAddress;
+      if (ownerEmail) {
+        await sendEmail({
+          to: ownerEmail,
+          subject: `Neue Anfrage: ${request.title}`,
+          html: `
+            <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+              <h2 style="color:#111">Neue Anfrage eingegangen</h2>
+              <p><strong>Titel:</strong> ${request.title}</p>
+              <p><strong>Kontakt:</strong> ${contact?.companyName ?? "Unbekannt"}</p>
+              <p style="margin-top:24px">
+                <a href="${requestUrl}" style="background:#111;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600">
+                  Anfrage öffnen →
+                </a>
+              </p>
+            </div>
+          `,
+        });
+      }
+    } catch {
+      // E-Mail-Fehler blockieren den Anfrage-Prozess nicht
     }
-  } catch {
-    // E-Mail-Fehler blockieren den Anfrage-Prozess nicht
   }
 
   revalidatePath("/anfragen");

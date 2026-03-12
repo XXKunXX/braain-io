@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { currentUser } from "@clerk/nextjs/server";
 import { getRequest } from "@/actions/requests";
 import { getUsers } from "@/actions/users";
 import { RequestDetail } from "@/components/requests/request-detail";
@@ -9,10 +10,11 @@ export default async function AnfrageDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [request, users] = await Promise.all([getRequest(id), getUsers()]);
+  const [request, users, clerkUser] = await Promise.all([getRequest(id), getUsers(), currentUser()]);
   if (!request) notFound();
 
   const userNames = users.map((u) => `${u.firstName} ${u.lastName}`.trim()).filter(Boolean);
+  const currentUserName = clerkUser ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() : undefined;
 
   const serializedRequest = {
     ...request,
@@ -28,5 +30,5 @@ export default async function AnfrageDetailPage({
     })),
   } as unknown as typeof request;
 
-  return <RequestDetail request={serializedRequest} userNames={userNames} />;
+  return <RequestDetail request={serializedRequest} userNames={userNames} currentUserName={currentUserName} />;
 }

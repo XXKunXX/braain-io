@@ -76,9 +76,11 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 export function RequestDetail({
   request,
   userNames,
+  currentUserName,
 }: {
   request: RequestWithRelations;
   userNames: string[];
+  currentUserName?: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -160,6 +162,7 @@ export function RequestDetail({
       content: noteText,
       contactId: request.contact.id,
       requestId: request.id,
+      createdBy: currentUserName,
     });
     setNoteSaving(false);
     if (result.note) {
@@ -179,22 +182,31 @@ export function RequestDetail({
   async function uploadFiles(files: FileList | File[]) {
     const fileArray = Array.from(files);
     setUploading(true);
-    for (const file of fileArray) {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("requestId", request.id);
-      fd.append("contactId", request.contact.id);
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      if (res.ok) {
-        const { attachment } = await res.json();
-        setAttachments((prev) => [attachment, ...prev]);
-      } else {
-        const { error } = await res.json();
-        toast.error(error ?? "Upload fehlgeschlagen");
+    let successCount = 0;
+    try {
+      for (const file of fileArray) {
+        const fd = new FormData();
+        fd.append("file", file);
+        fd.append("requestId", request.id);
+        fd.append("contactId", request.contact.id);
+        try {
+          const res = await fetch("/api/upload", { method: "POST", body: fd });
+          if (res.ok) {
+            const { attachment } = await res.json();
+            setAttachments((prev) => [attachment, ...prev]);
+            successCount++;
+          } else {
+            const data = await res.json().catch(() => ({}));
+            toast.error(data.error ?? "Upload fehlgeschlagen");
+          }
+        } catch {
+          toast.error(`Upload fehlgeschlagen: ${file.name}`);
+        }
       }
+    } finally {
+      setUploading(false);
     }
-    setUploading(false);
-    toast.success("Datei(en) hochgeladen");
+    if (successCount > 0) toast.success("Datei(en) hochgeladen");
   }
 
   async function handleDeleteAttachment(id: string) {
