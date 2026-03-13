@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createQuote } from "@/actions/quotes";
+import { createContact } from "@/actions/contacts";
 import { toast } from "sonner";
 import type { Contact, Request } from "@prisma/client";
 
@@ -28,18 +29,91 @@ interface EditItem {
   unitPrice: number;
 }
 
+type Product = { id: string; name: string; description: string | null };
+
 interface Props {
   contacts: Contact[];
   userNames: string[];
+  products: Product[];
   prefillContactId?: string;
   prefillRequest?: (Request & { contact: Contact }) | null;
 }
 
-export function NewQuoteClient({ contacts, userNames, prefillContactId, prefillRequest }: Props) {
+export function NewQuoteClient({ contacts, userNames, products, prefillContactId, prefillRequest }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  // ── Contact combobox ──────────────────────────────────────────────────────
+  const [localContacts, setLocalContacts] = useState<Contact[]>(contacts);
   const [contactId, setContactId] = useState(prefillContactId ?? prefillRequest?.contactId ?? "");
+  const [contactSearch, setContactSearch] = useState(() => {
+    const pre = prefillContactId ?? prefillRequest?.contactId;
+    return pre ? (contacts.find((c) => c.id === pre)?.companyName ?? "") : "";
+  });
+  const [contactOpen, setContactOpen] = useState(false);
+  const contactRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
+        setContactOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const filteredContacts = localContacts.filter((c) =>
+    c.companyName.toLowerCase().includes(contactSearch.toLowerCase())
+  );
+
+  function selectContact(c: Contact) {
+    setContactId(c.id);
+    setContactSearch(c.companyName);
+    setContactOpen(false);
+    // Auto-fill siteAddress if not already set by prefill
+    if (!prefillRequest?.siteAddress && !siteAddress) {
+      const addr = [
+        c.address,
+        [c.postalCode, c.city].filter(Boolean).join(" "),
+      ]
+        .filter(Boolean)
+        .join(", ");
+      if (addr) setSiteAddress(addr);
+    }
+    // Auto-fill owner if not already set
+    if (!prefillRequest?.assignedTo && !assignedTo && c.owner) {
+      setAssignedTo(c.owner);
+    }
+  }
+
+  // ── New contact quick-create ──────────────────────────────────────────────
+  const [showNewContact, setShowNewContact] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newPhone, setNewPhone] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [creatingContact, setCreatingContact] = useState(false);
+
+  async function handleCreateContact() {
+    if (!newName.trim()) { toast.error("Name ist erforderlich"); return; }
+    setCreatingContact(true);
+    const result = await createContact({
+      companyName: newName.trim(),
+      phone: newPhone || undefined,
+      email: newEmail || undefined,
+      type: "COMPANY",
+    });
+    setCreatingContact(false);
+    if (!result.contact) { toast.error("Fehler beim Erstellen"); return; }
+    const c = result.contact as Contact;
+    setLocalContacts((prev) => [...prev, c]);
+    selectContact(c);
+    setShowNewContact(false);
+    setNewName(""); setNewPhone(""); setNewEmail("");
+    toast.success("Kontakt erstellt");
+  }
+
+  // ── Other form fields ─────────────────────────────────────────────────────
   const [title, setTitle] = useState(prefillRequest?.title ?? "");
   const [siteAddress, setSiteAddress] = useState(prefillRequest?.siteAddress ?? "");
   const [assignedTo, setAssignedTo] = useState(prefillRequest?.assignedTo ?? "");
@@ -61,6 +135,28 @@ export function NewQuoteClient({ contacts, userNames, prefillContactId, prefillR
     setItems(items.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
   }
 
+  // ── Product combobox per position ─────────────────────────────────────────
+  const [openProductIdx, setOpenProductIdx] = useState<number | null>(null);
+  const productRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (openProductIdx === null) return;
+      const ref = productRefs.current[openProductIdx];
+      if (ref && !ref.contains(e.target as Node)) setOpenProductIdx(null);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [openProductIdx]);
+
+  function getFilteredProducts(search: string) {
+    if (!search) return products;
+    return products.filter((p) =>
+      p.name.toLowerCase().includes(search.toLowerCase())
+    );
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!contactId) { toast.error("Bitte Kontakt auswählen"); return; }
@@ -108,37 +204,91 @@ export function NewQuoteClient({ contacts, userNames, prefillContactId, prefillR
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Projektname *</Label>
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} required className="h-10 rounded-lg border-gray-200" placeholder="Angebotsbeschreibung" />
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    className="h-10 rounded-lg border-gray-200"
+                    placeholder="Angebotsbeschreibung"
+                  />
                 </div>
+
+                {/* Contact combobox */}
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt *</Label>
-                  <Select value={contactId} onValueChange={(v) => v && setContactId(v)}>
-                    <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
-                      <SelectValue placeholder="Kontakt wählen...">
-                        {contacts.find((c) => c.id === contactId)?.companyName ?? <span className="text-gray-400">Kontakt wählen...</span>}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contacts.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.companyName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div ref={contactRef} className="relative">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        className="w-full h-10 rounded-lg border border-gray-200 px-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Kontakt suchen..."
+                        value={contactSearch}
+                        onChange={(e) => {
+                          setContactSearch(e.target.value);
+                          setContactId("");
+                          setContactOpen(true);
+                        }}
+                        onFocus={() => setContactOpen(true)}
+                      />
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    </div>
+                    {contactOpen && (
+                      <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {filteredContacts.length === 0 && contactSearch && (
+                          <div className="px-3 py-2 text-sm text-gray-400">Kein Treffer</div>
+                        )}
+                        {filteredContacts.map((c) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col"
+                            onMouseDown={() => selectContact(c)}
+                          >
+                            <span className="font-medium text-gray-900">{c.companyName}</span>
+                            {c.city && <span className="text-xs text-gray-400">{c.city}</span>}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium flex items-center gap-1.5 border-t border-gray-100"
+                          onMouseDown={() => {
+                            setContactOpen(false);
+                            setShowNewContact(true);
+                            setNewName(contactSearch);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Neuen Kontakt erstellen
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Baustellenadresse</Label>
-                  <Input value={siteAddress} onChange={(e) => setSiteAddress(e.target.value)} className="h-10 rounded-lg border-gray-200" />
+                  <Input
+                    value={siteAddress}
+                    onChange={(e) => setSiteAddress(e.target.value)}
+                    className="h-10 rounded-lg border-gray-200"
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Gültig bis</Label>
-                  <Input type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} className="h-10 rounded-lg border-gray-200" />
+                  <Input
+                    type="date"
+                    value={validUntil}
+                    onChange={(e) => setValidUntil(e.target.value)}
+                    className="h-10 rounded-lg border-gray-200"
+                  />
                 </div>
               </div>
+
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Owner</Label>
-                <Select value={assignedTo} onValueChange={(v) => setAssignedTo(v == null || v === "__none__" ? "" : v)}>
+                <Select value={assignedTo} onValueChange={(v) => setAssignedTo(v === "__none__" ? "" : v)}>
                   <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
                     <SelectValue>{assignedTo || <span className="text-gray-400">Kein Owner</span>}</SelectValue>
                   </SelectTrigger>
@@ -172,27 +322,83 @@ export function NewQuoteClient({ contacts, userNames, prefillContactId, prefillR
                 <div className="col-span-1 text-right">GP (€)</div>
                 <div className="col-span-1" />
               </div>
-              {items.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-12 gap-2">
-                  <Input className="col-span-4 text-sm h-9" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Sand, Kies, Transport..." required />
-                  <Input className="col-span-2 text-sm h-9" type="number" min="0" step="0.001" value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
-                  <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
-                    <SelectTrigger className="col-span-2 text-sm h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Input className="col-span-2 text-sm h-9" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))} />
-                  <div className="col-span-1 flex items-center justify-end text-sm font-mono text-gray-600">
-                    {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {items.map((item, idx) => {
+                const fp = getFilteredProducts(item.description);
+                const showProductDrop = openProductIdx === idx && fp.length > 0;
+                return (
+                  <div key={idx} className="grid grid-cols-12 gap-2">
+                    {/* Description with product combobox */}
+                    <div
+                      className="col-span-4 relative"
+                      ref={(el) => { productRefs.current[idx] = el; }}
+                    >
+                      <input
+                        type="text"
+                        className="w-full h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Sand, Kies, Transport..."
+                        value={item.description}
+                        required
+                        onChange={(e) => {
+                          updateItem(idx, "description", e.target.value);
+                          setOpenProductIdx(idx);
+                        }}
+                        onFocus={() => {
+                          if (products.length > 0) setOpenProductIdx(idx);
+                        }}
+                      />
+                      {showProductDrop && (
+                        <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {fp.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col"
+                              onMouseDown={() => {
+                                updateItem(idx, "description", p.name);
+                                setOpenProductIdx(null);
+                              }}
+                            >
+                              <span className="font-medium text-gray-900">{p.name}</span>
+                              {p.description && <span className="text-xs text-gray-400">{p.description}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <Input
+                      className="col-span-2 text-sm h-9"
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))}
+                    />
+                    <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
+                      <SelectTrigger className="col-span-2 text-sm h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <Input
+                      className="col-span-2 text-sm h-9"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
+                    />
+                    <div className="col-span-1 flex items-center justify-end text-sm font-mono text-gray-600">
+                      {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="col-span-1 flex items-center justify-end">
+                      {items.length > 1 && (
+                        <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="col-span-1 flex items-center justify-end">
-                    {items.length > 1 && (
-                      <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               <div className="flex justify-end pt-2 border-t border-gray-100 text-sm font-semibold text-gray-900">
                 Gesamt: {total.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
               </div>
@@ -202,7 +408,13 @@ export function NewQuoteClient({ contacts, userNames, prefillContactId, prefillR
           {/* Notizen */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-2">
             <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notizen</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} className="rounded-lg border-gray-200 resize-none" placeholder="Hinweise zum Angebot..." />
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+              className="rounded-lg border-gray-200 resize-none"
+              placeholder="Hinweise zum Angebot..."
+            />
           </div>
 
           {/* Actions */}
@@ -214,6 +426,59 @@ export function NewQuoteClient({ contacts, userNames, prefillContactId, prefillR
           </div>
         </div>
       </form>
+
+      {/* New Contact Modal */}
+      {showNewContact && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Neuen Kontakt erstellen</h2>
+              <button type="button" onClick={() => setShowNewContact(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Firma / Name *</label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Mustermann GmbH"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Telefon</label>
+                <input
+                  type="tel"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Optional"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">E-Mail</label>
+                <input
+                  type="email"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Optional"
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
+              <Button type="button" variant="outline" onClick={() => setShowNewContact(false)}>Abbrechen</Button>
+              <Button type="button" onClick={handleCreateContact} disabled={creatingContact || !newName.trim()}>
+                {creatingContact ? "Erstelle..." : "Kontakt erstellen"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

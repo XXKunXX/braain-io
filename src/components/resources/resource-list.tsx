@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { createResource, updateResource, deleteResource } from "@/actions/resources";
 import type { ResourceFormData } from "@/actions/resources";
+import { MachineTab } from "@/components/machines/machine-tab";
+import type { MachineRow } from "@/actions/machines";
 
 type Resource = {
   id: string;
@@ -40,7 +42,7 @@ const EMPTY_FORM: ResourceFormData = {
   clerkUserId: "",
 };
 
-export function ResourceList({ resources }: { resources: Resource[] }) {
+export function ResourceList({ resources, machines = [] }: { resources: Resource[]; machines?: MachineRow[] }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("FAHRER");
   const [search, setSearch] = useState("");
@@ -62,8 +64,10 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
     for (const r of resources) {
       counts[r.type] = (counts[r.type] ?? 0) + 1;
     }
+    // MASCHINE tab shows Machine model records, not Resource records
+    counts["MASCHINE"] = machines.length;
     return counts;
-  }, [resources]);
+  }, [resources, machines]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
@@ -137,15 +141,17 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
           <h1 className="text-xl font-bold text-gray-900">Ressourcen</h1>
           <p className="text-sm text-gray-400 mt-0.5">{resources.length} Ressourcen</p>
         </div>
-        <Button onClick={openCreate} className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
-          <Plus className="h-4 w-4" />
-          Neue Ressource
-        </Button>
+        {activeTab !== "MASCHINE" && (
+          <Button onClick={openCreate} className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
+            <Plus className="h-4 w-4" />
+            Neue Ressource
+          </Button>
+        )}
       </div>
 
       {/* Type tabs */}
       <div className="flex items-center gap-1">
-        {TYPE_TABS.filter((t) => (tabCounts[t.key] ?? 0) > 0 || t.key === activeTab).map(
+        {TYPE_TABS.filter((t) => (tabCounts[t.key] ?? 0) > 0 || t.key === activeTab || t.key === "MASCHINE").map(
           ({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -166,19 +172,24 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
         )}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-xs">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-        <Input
-          placeholder="Suchen..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 bg-white"
-        />
-      </div>
+      {/* Machine tab — handled by its own component */}
+      {activeTab === "MASCHINE" && <MachineTab machines={machines} />}
 
-      {/* Table */}
-      {filtered.length === 0 ? (
+      {/* Search */}
+      {activeTab !== "MASCHINE" && (
+        <div className="relative max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <Input
+            placeholder="Suchen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-white"
+          />
+        </div>
+      )}
+
+      {/* Table (not shown for MASCHINE tab — handled above) */}
+      {activeTab !== "MASCHINE" && (filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-400">
           <p className="text-sm">Keine Einträge gefunden</p>
         </div>
@@ -238,7 +249,7 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
             </div>
           ))}
         </div>
-      )}
+      ))}
 
       {/* Create / Edit Modal */}
       {showForm && (

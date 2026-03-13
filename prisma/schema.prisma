@@ -136,6 +136,7 @@ model Order {
   quote              Quote?             @relation(fields: [quoteId], references: [id])
   deliveryNotes      DeliveryNote[]
   dispositionEntries DispositionEntry[]
+  machineUsages      MachineUsage[]
 }
 
 enum OrderStatus {
@@ -269,6 +270,71 @@ model ContactNote {
 
   contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
   request   Request? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+}
+
+// ─── Machines (Maschinen) ─────────────────────────────────────────────────────
+
+enum MachineStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum MaintenanceType {
+  INSPECTION
+  REPAIR
+  SERVICE
+}
+
+model Machine {
+  id           String        @id @default(cuid())
+  name         String
+  machineType  String
+  manufacturer String?
+  model        String?
+  year         Int?
+  serialNumber String?
+  licensePlate String?
+  hourlyRate   Decimal?      @db.Decimal(10, 2)
+  status       MachineStatus @default(AVAILABLE)
+  notes        String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  usages       MachineUsage[]
+  maintenances MachineMaintenance[]
+}
+
+model MachineUsage {
+  id         String    @id @default(cuid())
+  machineId  String
+  orderId    String?
+  driverName String?
+  startDate  DateTime
+  endDate    DateTime?
+  hours      Decimal?  @db.Decimal(10, 2)
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  machine    Machine   @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  order      Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+}
+
+model MachineMaintenance {
+  id              String          @id @default(cuid())
+  machineId       String
+  maintenanceType MaintenanceType
+  description     String?
+  date            DateTime
+  cost            Decimal?        @db.Decimal(10, 2)
+  nextServiceDate DateTime?
+  performedBy     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  machine         Machine         @relation(fields: [machineId], references: [id], onDelete: Cascade)
 }
 
 // ─── Counter for sequential numbers ─────────────────────────────────────────
