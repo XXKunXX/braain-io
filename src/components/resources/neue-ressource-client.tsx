@@ -28,6 +28,7 @@ const TYPE_OPTIONS = [
 ];
 
 const IC = "h-10 rounded-lg border-gray-200";
+const SELECT = "w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
 export function NeueRessourceClient({ prefillType, fahrer }: Props) {
   const router = useRouter();
@@ -43,8 +44,12 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
   const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
   const [clerkUserId, setClerkUserId] = useState("");
+  // Fahrzeug-specific
   const [licensePlate, setLicensePlate] = useState("");
   const [driverResourceId, setDriverResourceId] = useState("");
+  const [vehicleManufacturer, setVehicleManufacturer] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleYear, setVehicleYear] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,6 +65,9 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
       clerkUserId: clerkUserId || undefined,
       licensePlate: licensePlate || undefined,
       driverResourceId: driverResourceId || undefined,
+      vehicleManufacturer: vehicleManufacturer || undefined,
+      vehicleModel: vehicleModel || undefined,
+      vehicleYear: vehicleYear ? parseInt(vehicleYear) : undefined,
     });
     setLoading(false);
 
@@ -67,6 +75,8 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
     toast.success("Ressource erstellt");
     router.push("/ressourcen");
   }
+
+  const isFahrzeug = type === "FAHRZEUG";
 
   return (
     <div className="flex flex-col min-h-full">
@@ -88,7 +98,6 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
           <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
             <h2 className="text-base font-semibold text-gray-900">Basisinformationen</h2>
             <div className="border-t border-gray-100 pt-4 space-y-4">
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Name *</Label>
@@ -96,17 +105,13 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className={IC}
-                    placeholder="z.B. Klaus Wagner"
+                    placeholder={isFahrzeug ? "z.B. Sprinter Wien" : "z.B. Klaus Wagner"}
                     required
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Typ</Label>
-                  <select
-                    className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={type}
-                    onChange={(e) => setType(e.target.value as ResourceFormData["type"])}
-                  >
+                  <select className={SELECT} value={type} onChange={(e) => setType(e.target.value as ResourceFormData["type"])}>
                     {TYPE_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
@@ -114,74 +119,101 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">E-Mail</Label>
-                  <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={IC} placeholder="Optional" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Telefon</Label>
-                  <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={IC} placeholder="Optional" />
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Beschreibung</Label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={2}
-                  className="rounded-lg border-gray-200 resize-none"
-                  placeholder="Optional"
-                />
-              </div>
+              {!isFahrzeug && (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">E-Mail</Label>
+                      <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={IC} placeholder="Optional" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Telefon</Label>
+                      <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={IC} placeholder="Optional" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Beschreibung</Label>
+                    <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="rounded-lg border-gray-200 resize-none" placeholder="Optional" />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Typ-spezifische Felder */}
+          {/* Fahrzeug-Felder */}
+          {isFahrzeug && (
+            <>
+              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+                <h2 className="text-base font-semibold text-gray-900">Fahrzeugdaten</h2>
+                <div className="border-t border-gray-100 pt-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kennzeichen</Label>
+                      <Input
+                        value={licensePlate}
+                        onChange={(e) => setLicensePlate(e.target.value.toUpperCase())}
+                        className={IC}
+                        placeholder="W 12345 A"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fahrer</Label>
+                      <select className={SELECT} value={driverResourceId} onChange={(e) => setDriverResourceId(e.target.value)}>
+                        <option value="">— Kein Fahrer —</option>
+                        {fahrer.map((f) => (
+                          <option key={f.id} value={f.id}>{f.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+                <h2 className="text-base font-semibold text-gray-900 text-gray-500">Weitere Angaben</h2>
+                <div className="border-t border-gray-100 pt-4 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Hersteller</Label>
+                      <Input value={vehicleManufacturer} onChange={(e) => setVehicleManufacturer(e.target.value)} className={IC} placeholder="z.B. Mercedes-Benz" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Modell</Label>
+                      <Input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} className={IC} placeholder="z.B. Sprinter 316" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Baujahr</Label>
+                      <Input
+                        type="number"
+                        min="1900"
+                        max="2100"
+                        value={vehicleYear}
+                        onChange={(e) => setVehicleYear(e.target.value)}
+                        className={IC}
+                        placeholder="z.B. 2021"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notizen</Label>
+                      <Input value={description} onChange={(e) => setDescription(e.target.value)} className={IC} placeholder="Optional" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Fahrer: App-Zugang */}
           {type === "FAHRER" && (
             <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
               <h2 className="text-base font-semibold text-gray-900">App-Zugang</h2>
               <div className="border-t border-gray-100 pt-4">
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Clerk-Nutzer verknüpfen</Label>
-                  <Input
-                    value={clerkUserId}
-                    onChange={(e) => setClerkUserId(e.target.value)}
-                    className={IC}
-                    placeholder="Clerk User ID (optional)"
-                  />
+                  <Input value={clerkUserId} onChange={(e) => setClerkUserId(e.target.value)} className={IC} placeholder="Clerk User ID (optional)" />
                   <p className="text-[11px] text-gray-400">Fahrer kann sich damit in der App anmelden und Aufträge sehen.</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {type === "FAHRZEUG" && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-              <h2 className="text-base font-semibold text-gray-900">Fahrzeugdaten</h2>
-              <div className="border-t border-gray-100 pt-4 space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kennzeichen</Label>
-                  <Input
-                    value={licensePlate}
-                    onChange={(e) => setLicensePlate(e.target.value.toUpperCase())}
-                    className={`${IC} uppercase`}
-                    placeholder="z.B. W 12345 A"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fahrer verknüpfen</Label>
-                  <select
-                    className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={driverResourceId}
-                    onChange={(e) => setDriverResourceId(e.target.value)}
-                  >
-                    <option value="">— Kein Fahrer —</option>
-                    {fahrer.map((f) => (
-                      <option key={f.id} value={f.id}>{f.name}</option>
-                    ))}
-                  </select>
                 </div>
               </div>
             </div>
@@ -190,11 +222,7 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
           {/* Actions */}
           <div className="flex justify-end gap-2 pb-6">
             <Button type="button" variant="outline" className="rounded-lg" onClick={() => router.back()}>Abbrechen</Button>
-            <Button
-              type="submit"
-              disabled={loading || !name.trim()}
-              className="rounded-lg bg-blue-600 hover:bg-blue-700"
-            >
+            <Button type="submit" disabled={loading || !name.trim()} className="rounded-lg bg-blue-600 hover:bg-blue-700">
               {loading ? "Erstelle..." : "Ressource erstellen"}
             </Button>
           </div>

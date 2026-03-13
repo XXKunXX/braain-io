@@ -165,9 +165,12 @@ model Resource {
   description  String?
   active           Boolean            @default(true)
   clerkUserId      String?            @unique
-  licensePlate     String?
-  driverResourceId String?
-  createdAt        DateTime           @default(now())
+  licensePlate        String?
+  driverResourceId    String?
+  vehicleManufacturer String?
+  vehicleModel        String?
+  vehicleYear         Int?
+  createdAt           DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
   entries          DispositionEntry[]

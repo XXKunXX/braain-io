@@ -13,6 +13,9 @@ const resourceSchema = z.object({
   clerkUserId: z.string().optional().or(z.literal("")),
   licensePlate: z.string().optional().or(z.literal("")),
   driverResourceId: z.string().optional().or(z.literal("")),
+  vehicleManufacturer: z.string().optional().or(z.literal("")),
+  vehicleModel: z.string().optional().or(z.literal("")),
+  vehicleYear: z.union([z.number().int().min(1900).max(2100), z.literal(""), z.undefined()]).optional(),
 });
 
 export type ResourceFormData = z.infer<typeof resourceSchema>;
@@ -58,6 +61,9 @@ export async function createResource(data: ResourceFormData) {
       clerkUserId: parsed.data.clerkUserId || null,
       licensePlate: parsed.data.licensePlate || null,
       driverResourceId: parsed.data.driverResourceId || null,
+      vehicleManufacturer: parsed.data.vehicleManufacturer || null,
+      vehicleModel: parsed.data.vehicleModel || null,
+      vehicleYear: (parsed.data.vehicleYear && parsed.data.vehicleYear !== "") ? Number(parsed.data.vehicleYear) : null,
     },
   });
 
@@ -81,6 +87,9 @@ export async function updateResource(id: string, data: ResourceFormData) {
       clerkUserId: parsed.data.clerkUserId || null,
       licensePlate: parsed.data.licensePlate || null,
       driverResourceId: parsed.data.driverResourceId || null,
+      vehicleManufacturer: parsed.data.vehicleManufacturer || null,
+      vehicleModel: parsed.data.vehicleModel || null,
+      vehicleYear: (parsed.data.vehicleYear && parsed.data.vehicleYear !== "") ? Number(parsed.data.vehicleYear) : null,
     },
   });
 

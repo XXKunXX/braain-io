@@ -46,6 +46,9 @@ const EMPTY_FORM: ResourceFormData = {
   clerkUserId: "",
   licensePlate: "",
   driverResourceId: "",
+  vehicleManufacturer: "",
+  vehicleModel: "",
+  vehicleYear: "",
 };
 
 export function ResourceList({ resources, machines = [] }: { resources: Resource[]; machines?: MachineRow[] }) {
@@ -97,6 +100,9 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
       clerkUserId: r.clerkUserId ?? "",
       licensePlate: r.licensePlate ?? "",
       driverResourceId: r.driverResourceId ?? "",
+      vehicleManufacturer: (r as any).vehicleManufacturer ?? "",
+      vehicleModel: (r as any).vehicleModel ?? "",
+      vehicleYear: (r as any).vehicleYear ?? "",
     });
     setEditingId(r.id);
     setShowForm(true);
@@ -382,6 +388,20 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                         <option key={r.id} value={r.id}>{r.name}</option>
                       ))}
                     </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Hersteller</label>
+                      <input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="z.B. Mercedes" value={(form as any).vehicleManufacturer ?? ""} onChange={(e) => setForm((d) => ({ ...d, vehicleManufacturer: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Modell</label>
+                      <input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="z.B. Sprinter" value={(form as any).vehicleModel ?? ""} onChange={(e) => setForm((d) => ({ ...d, vehicleModel: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Baujahr</label>
+                      <input type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="2021" value={(form as any).vehicleYear ?? ""} onChange={(e) => setForm((d) => ({ ...d, vehicleYear: e.target.value }))} />
+                    </div>
                   </div>
                 </>
               )}

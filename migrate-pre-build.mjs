@@ -260,6 +260,27 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Resource' AND column_name = 'vehicleManufacturer') THEN
+    ALTER TABLE "Resource" ADD COLUMN "vehicleManufacturer" TEXT;
+    RAISE NOTICE 'Resource.vehicleManufacturer hinzugefügt';
+  ELSE RAISE NOTICE 'Resource.vehicleManufacturer bereits vorhanden'; END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Resource' AND column_name = 'vehicleModel') THEN
+    ALTER TABLE "Resource" ADD COLUMN "vehicleModel" TEXT;
+    RAISE NOTICE 'Resource.vehicleModel hinzugefügt';
+  ELSE RAISE NOTICE 'Resource.vehicleModel bereits vorhanden'; END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Resource' AND column_name = 'vehicleYear') THEN
+    ALTER TABLE "Resource" ADD COLUMN "vehicleYear" INTEGER;
+    RAISE NOTICE 'Resource.vehicleYear hinzugefügt';
+  ELSE RAISE NOTICE 'Resource.vehicleYear bereits vorhanden'; END IF;
+END $$;
+
 SELECT 'Pre-build Migration erfolgreich' AS result;
 `;
 
