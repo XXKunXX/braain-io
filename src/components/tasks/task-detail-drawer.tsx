@@ -8,9 +8,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { updateTaskStatus } from "@/actions/tasks";
 import { toast } from "sonner";
-import type { Task, Contact, Request } from "@prisma/client";
+import type { Task, Contact, Request, DeliveryNote } from "@prisma/client";
 
-type TaskWithRelations = Task & { contact: Contact | null; request: Request | null };
+type TaskWithRelations = Task & { contact: Contact | null; request: Request | null; deliveryNote: DeliveryNote | null };
 
 const priorityLabels: Record<string, string> = {
   LOW: "Niedrig",
@@ -154,8 +154,29 @@ export function TaskDetailDrawer({ task, fallbackRequest, onClose }: TaskDetailD
             </div>
           )}
 
+          {/* Verknüpfter Lieferschein */}
+          {task.deliveryNote && (
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Verknüpfter Lieferschein</p>
+              <a
+                href={`/api/pdf/delivery/${task.deliveryNote.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between bg-green-50 border border-green-100 rounded-xl px-4 py-3 hover:bg-green-100 transition-colors group"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-green-900 truncate">{task.deliveryNote.deliveryNumber}</p>
+                  {task.contact && (
+                    <p className="text-xs text-green-600 mt-0.5">{task.contact.companyName}</p>
+                  )}
+                </div>
+                <ExternalLink className="h-4 w-4 text-green-400 group-hover:text-green-600 flex-shrink-0 ml-3" />
+              </a>
+            </div>
+          )}
+
           {/* Verknüpfte Anfrage */}
-          {(task.request ?? fallbackRequest) && (
+          {!task.deliveryNote && (task.request ?? fallbackRequest) && (
             <div>
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Verknüpfte Anfrage</p>
               <Link

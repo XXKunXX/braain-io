@@ -29,7 +29,7 @@ export async function getTasks(filters?: {
       ...(filters?.assignedTo && filters.assignedTo !== "ALL" ? { assignedTo: filters.assignedTo } : {}),
       ...(filters?.search ? { title: { contains: filters.search, mode: "insensitive" as const } } : {}),
     },
-    include: { contact: true, request: true },
+    include: { contact: true, request: true, deliveryNote: true },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
   });
 }

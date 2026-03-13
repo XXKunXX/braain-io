@@ -203,25 +203,28 @@ model DeliveryNote {
 
   order          Order?   @relation(fields: [orderId], references: [id])
   contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tasks          Task[]
 }
 
 // ─── Tasks (Aufgaben) ────────────────────────────────────────────────────────
 
 model Task {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  contactId   String?
-  requestId   String?
-  assignedTo  String?
-  dueDate     DateTime?
-  priority    TaskPriority @default(NORMAL)
-  status      TaskStatus   @default(OPEN)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  contactId      String?
+  requestId      String?
+  deliveryNoteId String?
+  assignedTo     String?
+  dueDate        DateTime?
+  priority       TaskPriority @default(NORMAL)
+  status         TaskStatus   @default(OPEN)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
-  contact     Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
-  request     Request?     @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  request      Request?      @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  deliveryNote DeliveryNote? @relation(fields: [deliveryNoteId], references: [id], onDelete: SetNull)
 }
 
 enum TaskPriority {

@@ -112,6 +112,7 @@ export async function createSignedDeliveryNote(data: {
         title: `Rechnung erstellen – ${order.title}`,
         description: `Lieferschein ${deliveryNote.deliveryNumber} wurde abgeschlossen. Bitte Rechnung ausstellen.`,
         contactId: order.contactId,
+        deliveryNoteId: deliveryNote.id,
         assignedTo: order.quote?.assignedTo ?? null,
         priority: "HIGH",
         status: "OPEN",
