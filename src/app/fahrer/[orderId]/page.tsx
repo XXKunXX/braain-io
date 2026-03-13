@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Calendar, Navigation } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { getOrderForDriverApp } from "@/actions/driver";
+import { NavButton } from "@/components/fahrer/nav-button";
 
 export default async function FahrerOrderDetailPage({
   params,
@@ -19,8 +20,6 @@ export default async function FahrerOrderDetailPage({
     : [order.contact.address, order.contact.postalCode, order.contact.city]
         .filter(Boolean)
         .join(" ");
-
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 
   const items = order.quote?.items.map((i) => ({
     description: i.description,
@@ -45,7 +44,7 @@ export default async function FahrerOrderDetailPage({
         {items.length > 0 && <MaterialsCard items={items} />}
         {order.notes && <NotesCard notes={order.notes} />}
         <div className="space-y-3 mt-4">
-          <NavButton mapsUrl={mapsUrl} rounded="2xl" />
+          <NavButton address={address} rounded="2xl" />
           <LieferscheinButton orderId={orderId} rounded="2xl" />
         </div>
       </div>
@@ -73,7 +72,7 @@ export default async function FahrerOrderDetailPage({
           <div className="sticky top-[73px] self-start">
             <div className="bg-white rounded-2xl p-5 space-y-3">
               <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Aktionen</p>
-              <NavButton mapsUrl={mapsUrl} rounded="xl" />
+              <NavButton address={address} rounded="xl" />
               <LieferscheinButton orderId={orderId} rounded="xl" />
             </div>
           </div>
@@ -129,19 +128,6 @@ function NotesCard({ notes }: { notes: string }) {
   );
 }
 
-function NavButton({ mapsUrl, rounded }: { mapsUrl: string; rounded: string }) {
-  return (
-    <a
-      href={mapsUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={`flex items-center justify-center gap-2 w-full bg-white border border-gray-200 rounded-${rounded} py-4 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors`}
-    >
-      <Navigation className="h-4 w-4" />
-      Navigation starten
-    </a>
-  );
-}
 
 function LieferscheinButton({ orderId, rounded }: { orderId: string; rounded: string }) {
   return (
