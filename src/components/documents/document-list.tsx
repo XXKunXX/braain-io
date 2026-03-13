@@ -151,9 +151,9 @@ export function DocumentList({ documents, contacts }: DocumentListProps) {
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           {/* Desktop header */}
-          <div className="hidden md:grid grid-cols-[auto_minmax(0,2fr)_1fr_1fr_1fr_auto] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+          <div className="hidden md:grid grid-cols-[28px_minmax(0,2.5fr)_minmax(0,1fr)_minmax(0,1fr)_90px_28px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
             {["", "Dokument", "Kontakt", "Verknüpft mit", "Datum", ""].map((h, i) => (
-              <span key={i} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
             ))}
           </div>
 
@@ -165,86 +165,72 @@ export function DocumentList({ documents, contacts }: DocumentListProps) {
             return (
               <div
                 key={`${doc.type}-${doc.id}`}
-                className={`flex md:grid md:grid-cols-[auto_minmax(0,2fr)_1fr_1fr_1fr_auto] gap-3 md:gap-4 px-4 md:px-5 py-3.5 items-center ${
+                className={`flex md:grid md:grid-cols-[28px_minmax(0,2.5fr)_minmax(0,1fr)_minmax(0,1fr)_90px_28px] gap-3 px-4 py-2 items-center hover:bg-gray-50/60 transition-colors ${
                   i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                 }`}
               >
                 {/* Icon */}
-                <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${cfg.iconBg}`}>
-                  <Icon className={`h-4 w-4 ${cfg.iconColor}`} />
+                <div className={`w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 ${cfg.iconBg}`}>
+                  <Icon className={`h-3.5 w-3.5 ${cfg.iconColor}`} />
                 </div>
 
-                {/* Title */}
-                <div className="min-w-0 flex-1 md:flex-none">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {doc.number && (
-                      <span className="text-xs font-mono font-medium text-gray-500 flex-shrink-0">{doc.number}</span>
-                    )}
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${cfg.badge}`}>
-                      {cfg.label}
+                {/* Title — single line: number · badges · title */}
+                <div className="min-w-0 flex-1 md:flex-none flex items-center gap-1.5 overflow-hidden">
+                  {doc.number && (
+                    <span className="text-xs font-mono text-gray-400 flex-shrink-0">{doc.number}</span>
+                  )}
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${cfg.badge}`}>
+                    {cfg.label}
+                  </span>
+                  {statusInfo && (
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${statusInfo.color}`}>
+                      {statusInfo.label}
                     </span>
-                    {statusInfo && (
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ${statusInfo.color}`}>
-                        {statusInfo.label}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 truncate mt-0.5">{doc.title}</p>
-                  {doc.meta && <p className="text-xs text-gray-400 mt-0.5">{doc.meta}</p>}
+                  )}
+                  <span className="text-sm font-medium text-gray-900 truncate">{doc.title}</span>
+                  {doc.meta && <span className="text-xs text-gray-400 flex-shrink-0 hidden lg:inline">· {doc.meta}</span>}
                 </div>
 
                 {/* Contact */}
-                <div className="hidden md:flex items-center gap-1.5 min-w-0">
-                  {doc.contactName ? (
-                    doc.contactId ? (
-                      <Link
-                        href={`/kontakte/${doc.contactId}`}
-                        className="flex items-center gap-1.5 hover:text-blue-600 transition-colors min-w-0"
-                      >
-                        <Building2 className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
-                        <span className="text-sm text-gray-600 truncate">{doc.contactName}</span>
-                      </Link>
-                    ) : (
-                      <span className="text-sm text-gray-500 truncate">{doc.contactName}</span>
-                    )
+                <div className="hidden md:flex items-center gap-1 min-w-0">
+                  {doc.contactName && doc.contactId ? (
+                    <Link href={`/kontakte/${doc.contactId}`} className="flex items-center gap-1 hover:text-blue-600 transition-colors min-w-0">
+                      <Building2 className="h-3 w-3 text-gray-300 flex-shrink-0" />
+                      <span className="text-xs text-gray-600 truncate">{doc.contactName}</span>
+                    </Link>
+                  ) : doc.contactName ? (
+                    <span className="text-xs text-gray-500 truncate">{doc.contactName}</span>
                   ) : (
-                    <span className="text-sm text-gray-300">—</span>
+                    <span className="text-xs text-gray-300">—</span>
                   )}
                 </div>
 
                 {/* Linked to */}
                 <div className="hidden md:block min-w-0">
                   {doc.linkedTo ? (
-                    <Link
-                      href={doc.linkedTo.href}
-                      className="flex items-center gap-1 text-sm text-blue-600 hover:underline truncate"
-                    >
-                      <span className="truncate">{doc.linkedTo.label}</span>
-                      <ChevronRight className="h-3 w-3 flex-shrink-0" />
+                    <Link href={doc.linkedTo.href} className="text-xs text-blue-600 hover:underline truncate block">
+                      {doc.linkedTo.label}
                     </Link>
                   ) : (
-                    <span className="text-sm text-gray-300">—</span>
+                    <span className="text-xs text-gray-300">—</span>
                   )}
                 </div>
 
-                {/* Date */}
-                <div className="hidden md:block">
-                  <p className="text-sm text-gray-500">{format(new Date(doc.createdAt), "dd.MM.yyyy", { locale: de })}</p>
-                  <p className="text-xs text-gray-300">{format(new Date(doc.createdAt), "HH:mm", { locale: de })}</p>
+                {/* Date — compact single line */}
+                <div className="hidden md:block flex-shrink-0">
+                  <span className="text-xs text-gray-500">{format(new Date(doc.createdAt), "dd.MM.yy", { locale: de })}</span>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <a
-                    href={doc.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={isPdf(doc) ? "PDF öffnen" : "Herunterladen"}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-                  >
-                    {isPdf(doc) ? <ExternalLink className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-                  </a>
-                </div>
+                {/* Action */}
+                <a
+                  href={doc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={isPdf(doc) ? "PDF öffnen" : "Herunterladen"}
+                  className="flex-shrink-0 text-gray-300 hover:text-gray-600 transition-colors"
+                >
+                  {isPdf(doc) ? <ExternalLink className="h-3.5 w-3.5" /> : <Download className="h-3.5 w-3.5" />}
+                </a>
               </div>
             );
           })}
