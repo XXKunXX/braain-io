@@ -288,7 +288,7 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
 
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Owner</Label>
-                <Select value={assignedTo} onValueChange={(v) => setAssignedTo(v === "__none__" ? "" : v)}>
+                <Select value={assignedTo} onValueChange={(v) => setAssignedTo(!v || v === "__none__" ? "" : v)}>
                   <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
                     <SelectValue>{assignedTo || <span className="text-gray-400">Kein Owner</span>}</SelectValue>
                   </SelectTrigger>
