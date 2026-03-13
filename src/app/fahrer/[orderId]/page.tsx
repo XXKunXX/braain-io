@@ -20,7 +20,7 @@ export default async function FahrerOrderDetailPage({
         .filter(Boolean)
         .join(" ");
 
-  const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(address)}`;
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
 
   const items = order.quote?.items.map((i) => ({
     description: i.description,
