@@ -237,6 +237,29 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- ============================================================
+-- 12. licensePlate + driverResourceId zu Resource
+-- ============================================================
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Resource' AND column_name = 'licensePlate') THEN
+    ALTER TABLE "Resource" ADD COLUMN "licensePlate" TEXT;
+    RAISE NOTICE 'Resource.licensePlate hinzugefügt';
+  ELSE
+    RAISE NOTICE 'Resource.licensePlate bereits vorhanden';
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Resource' AND column_name = 'driverResourceId') THEN
+    ALTER TABLE "Resource" ADD COLUMN "driverResourceId" TEXT;
+    ALTER TABLE "Resource" ADD CONSTRAINT "Resource_driverResourceId_fkey"
+      FOREIGN KEY ("driverResourceId") REFERENCES "Resource"("id") ON DELETE SET NULL;
+    RAISE NOTICE 'Resource.driverResourceId hinzugefügt';
+  ELSE
+    RAISE NOTICE 'Resource.driverResourceId bereits vorhanden';
+  END IF;
+END $$;
+
 SELECT 'Pre-build Migration erfolgreich' AS result;
 `;
 

@@ -163,12 +163,16 @@ model Resource {
   email        String?
   phone        String?
   description  String?
-  active       Boolean            @default(true)
-  clerkUserId  String?            @unique
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  active           Boolean            @default(true)
+  clerkUserId      String?            @unique
+  licensePlate     String?
+  driverResourceId String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
-  entries      DispositionEntry[]
+  entries          DispositionEntry[]
+  assignedDriver   Resource?          @relation("FahrzeugFahrer", fields: [driverResourceId], references: [id])
+  drivenVehicles   Resource[]         @relation("FahrzeugFahrer")
 }
 
 model DispositionEntry {

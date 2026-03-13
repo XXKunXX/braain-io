@@ -20,6 +20,9 @@ type Resource = {
   description: string | null;
   active: boolean;
   clerkUserId: string | null;
+  licensePlate: string | null;
+  driverResourceId: string | null;
+  assignedDriver: { id: string; name: string } | null;
   isDeployed: boolean;
 };
 
@@ -40,6 +43,8 @@ const EMPTY_FORM: ResourceFormData = {
   phone: "",
   description: "",
   clerkUserId: "",
+  licensePlate: "",
+  driverResourceId: "",
 };
 
 export function ResourceList({ resources, machines = [] }: { resources: Resource[]; machines?: MachineRow[] }) {
@@ -95,6 +100,8 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
       phone: r.phone ?? "",
       description: r.description ?? "",
       clerkUserId: r.clerkUserId ?? "",
+      licensePlate: r.licensePlate ?? "",
+      driverResourceId: r.driverResourceId ?? "",
     });
     setEditingId(r.id);
     setShowForm(true);
@@ -196,26 +203,47 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
-          <div className={`grid gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80 ${activeTab === "FAHRER" ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]" : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"}`}>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Name</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">E-Mail</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Telefon</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</span>
-            {activeTab === "FAHRER" && <span />}
-            <span />
-          </div>
+          {activeTab === "FAHRZEUG" ? (
+            <div className="grid grid-cols-[2fr_1.5fr_2fr_1fr_64px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              {["Name", "Kennzeichen", "Fahrer", "Status", ""].map(h => (
+                <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+              ))}
+            </div>
+          ) : (
+            <div className={`grid gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80 ${activeTab === "FAHRER" ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]" : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"}`}>
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Name</span>
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">E-Mail</span>
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Telefon</span>
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</span>
+              {activeTab === "FAHRER" && <span />}
+              <span />
+            </div>
+          )}
 
           {/* Rows */}
           {filtered.map((resource, i) => (
             <div
               key={resource.id}
-              className={`grid gap-4 px-5 py-3.5 items-center group hover:bg-gray-50 transition-colors ${activeTab === "FAHRER" ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]" : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"} ${
-                i !== filtered.length - 1 ? "border-b border-gray-100" : ""
-              }`}
+              className={`grid gap-4 px-5 py-3.5 items-center group hover:bg-gray-50 transition-colors ${
+                activeTab === "FAHRZEUG"
+                  ? "grid-cols-[2fr_1.5fr_2fr_1fr_64px]"
+                  : activeTab === "FAHRER"
+                  ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]"
+                  : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"
+              } ${i !== filtered.length - 1 ? "border-b border-gray-100" : ""}`}
             >
               <p className="text-sm font-semibold text-gray-900 truncate">{resource.name}</p>
-              <p className="text-sm text-gray-500 truncate">{resource.email || "–"}</p>
-              <p className="text-sm text-gray-500 truncate">{resource.phone || "–"}</p>
+              {activeTab === "FAHRZEUG" ? (
+                <>
+                  <p className="text-sm text-gray-500 font-mono">{resource.licensePlate || "–"}</p>
+                  <p className="text-sm text-gray-500 truncate">{resource.assignedDriver?.name || "–"}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 truncate">{resource.email || "–"}</p>
+                  <p className="text-sm text-gray-500 truncate">{resource.phone || "–"}</p>
+                </>
+              )}
               <div>
                 {resource.isDeployed ? (
                   <span className="inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full border border-blue-300 text-blue-700 bg-blue-50">
@@ -343,6 +371,33 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                     Fahrer kann sich damit in der App anmelden und seine Aufträge sehen.
                   </p>
                 </div>
+              )}
+              {form.type === "FAHRZEUG" && (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Kennzeichen</label>
+                    <input
+                      type="text"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                      placeholder="z.B. W 12345 A"
+                      value={form.licensePlate ?? ""}
+                      onChange={(e) => setForm((d) => ({ ...d, licensePlate: e.target.value.toUpperCase() }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Fahrer verknüpfen</label>
+                    <select
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={form.driverResourceId ?? ""}
+                      onChange={(e) => setForm((d) => ({ ...d, driverResourceId: e.target.value }))}
+                    >
+                      <option value="">— Kein Fahrer —</option>
+                      {resources.filter(r => r.type === "FAHRER").map((r) => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
               )}
             </div>
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3">

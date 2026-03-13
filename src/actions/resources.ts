@@ -11,6 +11,8 @@ const resourceSchema = z.object({
   phone: z.string().optional(),
   description: z.string().optional(),
   clerkUserId: z.string().optional().or(z.literal("")),
+  licensePlate: z.string().optional().or(z.literal("")),
+  driverResourceId: z.string().optional().or(z.literal("")),
 });
 
 export type ResourceFormData = z.infer<typeof resourceSchema>;
@@ -32,6 +34,7 @@ export async function getResources() {
         },
         select: { id: true },
       },
+      assignedDriver: { select: { id: true, name: true } },
     },
   });
 
@@ -53,6 +56,8 @@ export async function createResource(data: ResourceFormData) {
       phone: parsed.data.phone || null,
       description: parsed.data.description || null,
       clerkUserId: parsed.data.clerkUserId || null,
+      licensePlate: parsed.data.licensePlate || null,
+      driverResourceId: parsed.data.driverResourceId || null,
     },
   });
 
@@ -74,6 +79,8 @@ export async function updateResource(id: string, data: ResourceFormData) {
       phone: parsed.data.phone || null,
       description: parsed.data.description || null,
       clerkUserId: parsed.data.clerkUserId || null,
+      licensePlate: parsed.data.licensePlate || null,
+      driverResourceId: parsed.data.driverResourceId || null,
     },
   });
 
