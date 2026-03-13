@@ -6,7 +6,7 @@ import { Search, Plus, X, User, Truck, Settings2, Package, Pencil, Trash2, Link2
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { createResource, updateResource, deleteResource } from "@/actions/resources";
+import { updateResource, deleteResource } from "@/actions/resources";
 import type { ResourceFormData } from "@/actions/resources";
 import { MachineTab } from "@/components/machines/machine-tab";
 import type { MachineRow } from "@/actions/machines";
@@ -86,12 +86,6 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
     );
   }, [resources, activeTab, search]);
 
-  function openCreate() {
-    setForm({ ...EMPTY_FORM, type: activeTab as ResourceFormData["type"] });
-    setEditingId(null);
-    setShowForm(true);
-  }
-
   function openEdit(r: Resource) {
     setForm({
       name: r.name,
@@ -114,21 +108,12 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
   }
 
   async function handleSubmit() {
-    if (!form.name.trim()) {
-      toast.error("Name ist erforderlich");
-      return;
-    }
+    if (!form.name.trim() || !editingId) return;
     setIsSubmitting(true);
-    const result = editingId
-      ? await updateResource(editingId, form)
-      : await createResource(form);
+    const result = await updateResource(editingId, form);
     setIsSubmitting(false);
-
-    if ("error" in result && result.error) {
-      toast.error("Fehler beim Speichern");
-      return;
-    }
-    toast.success(editingId ? "Ressource aktualisiert" : "Ressource erstellt");
+    if ("error" in result && result.error) { toast.error("Fehler beim Speichern"); return; }
+    toast.success("Ressource aktualisiert");
     closeForm();
     router.refresh();
   }
@@ -149,10 +134,12 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
           <p className="text-sm text-gray-400 mt-0.5">{resources.length} Ressourcen</p>
         </div>
         {activeTab !== "MASCHINE" && (
-          <Button onClick={openCreate} className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
-            <Plus className="h-4 w-4" />
-            Neue Ressource
-          </Button>
+          <Link href={`/ressourcen/neu?type=${activeTab}`}>
+            <Button className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
+              <Plus className="h-4 w-4" />
+              Neue Ressource
+            </Button>
+          </Link>
         )}
       </div>
 
@@ -279,14 +266,12 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
         </div>
       ))}
 
-      {/* Create / Edit Modal */}
+      {/* Edit Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
             <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">
-                {editingId ? "Ressource bearbeiten" : "Neue Ressource"}
-              </h2>
+              <h2 className="font-semibold text-gray-900">Ressource bearbeiten</h2>
               <button onClick={closeForm} className="text-gray-400 hover:text-gray-600">
                 <X className="h-4 w-4" />
               </button>
@@ -403,7 +388,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
               <Button variant="outline" onClick={closeForm}>Abbrechen</Button>
               <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Wird gespeichert..." : editingId ? "Speichern" : "Ressource erstellen"}
+                {isSubmitting ? "Wird gespeichert..." : "Speichern"}
               </Button>
             </div>
           </div>
