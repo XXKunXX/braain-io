@@ -139,22 +139,39 @@ export function BaustellenDetailClient({ baustelle: init, resources, machines, o
 
   // ── Disposition modal ──────────────────────────────────────────────────────
   const [dispoOpen, setDispoOpen] = useState(false);
-  const [df, setDf] = useState({ resourceId: "", startDate: "", endDate: "", notes: "" });
+  const [df, setDf] = useState({ resourceIds: [] as string[], startDate: "", endDate: "", notes: "" });
   const [savingDispo, setSavingDispo] = useState(false);
 
+  function toggleResource(id: string) {
+    setDf(f => ({
+      ...f,
+      resourceIds: f.resourceIds.includes(id)
+        ? f.resourceIds.filter(r => r !== id)
+        : [...f.resourceIds, id],
+    }));
+  }
+
   async function handleCreateDispo() {
-    if (!df.resourceId || !df.startDate || !df.endDate) { toast.error("Ressource und Zeitraum erforderlich"); return; }
+    if (df.resourceIds.length === 0 || !df.startDate || !df.endDate) {
+      toast.error("Mindestens eine Ressource und Zeitraum erforderlich"); return;
+    }
     setSavingDispo(true);
-    const r = await createBaustelleDispositionEntry({
-      baustelleId: b.id, orderId: b.orderId,
-      resourceId: df.resourceId, startDate: df.startDate, endDate: df.endDate, notes: df.notes || undefined,
-    });
+    const results = await Promise.all(
+      df.resourceIds.map(resourceId =>
+        createBaustelleDispositionEntry({
+          baustelleId: b.id, orderId: b.orderId,
+          resourceId, startDate: df.startDate, endDate: df.endDate, notes: df.notes || undefined,
+        })
+      )
+    );
     setSavingDispo(false);
-    if ("error" in r) { toast.error("Fehler"); return; }
-    setB(prev => ({ ...prev, dispositionEntries: [r.entry, ...prev.dispositionEntries] }));
+    const failed = results.filter(r => "error" in r);
+    if (failed.length > 0) { toast.error("Fehler bei einigen Einträgen"); return; }
+    const newEntries = results.map(r => (r as { entry: typeof b.dispositionEntries[0] }).entry);
+    setB(prev => ({ ...prev, dispositionEntries: [...newEntries, ...prev.dispositionEntries] }));
     setDispoOpen(false);
-    setDf({ resourceId: "", startDate: "", endDate: "", notes: "" });
-    toast.success("Einsatz geplant");
+    setDf({ resourceIds: [], startDate: "", endDate: "", notes: "" });
+    toast.success(`${newEntries.length} Einsatz${newEntries.length > 1 ? "einträge" : ""} geplant`);
   }
 
   async function handleDeleteDispo(id: string) {
@@ -501,13 +518,39 @@ export function BaustellenDetailClient({ baustelle: init, resources, machines, o
       {/* ── Modal: Einsatz planen ─────────────────────────────────────────────── */}
       {dispoOpen && (
         <Modal title="Einsatz planen" onClose={() => setDispoOpen(false)}>
-          <div className="space-y-3">
-            <Field label="Ressource *">
-              <select className={IC} value={df.resourceId} onChange={e => setDf(f => ({ ...f, resourceId: e.target.value }))}>
-                <option value="">– Ressource wählen –</option>
-                {resources.map(r => <option key={r.id} value={r.id}>{r.name} ({r.type})</option>)}
-              </select>
-            </Field>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-2">
+                Ressourcen * <span className="text-gray-400 font-normal">({df.resourceIds.length} gewählt)</span>
+              </label>
+              {(() => {
+                const grouped: Record<string, typeof resources> = {};
+                for (const r of resources) {
+                  grouped[r.type] = grouped[r.type] ?? [];
+                  grouped[r.type].push(r);
+                }
+                return (
+                  <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-52 overflow-y-auto">
+                    {Object.entries(grouped).map(([type, items]) => (
+                      <div key={type}>
+                        <p className="px-3 py-1.5 text-[10px] font-semibold tracking-wider text-gray-400 uppercase bg-gray-50">{type}</p>
+                        {items.map(r => (
+                          <label key={r.id} className="flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={df.resourceIds.includes(r.id)}
+                              onChange={() => toggleResource(r.id)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-800">{r.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <Field label="Von *"><input type="date" className={IC} value={df.startDate} onChange={e => setDf(f => ({ ...f, startDate: e.target.value }))} /></Field>
               <Field label="Bis *"><input type="date" className={IC} value={df.endDate} onChange={e => setDf(f => ({ ...f, endDate: e.target.value }))} /></Field>
@@ -516,7 +559,9 @@ export function BaustellenDetailClient({ baustelle: init, resources, machines, o
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
             <Button variant="outline" onClick={() => setDispoOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleCreateDispo} disabled={savingDispo}>{savingDispo ? "Speichert..." : "Einsatz planen"}</Button>
+            <Button onClick={handleCreateDispo} disabled={savingDispo || df.resourceIds.length === 0}>
+              {savingDispo ? "Speichert..." : `Einsatz planen${df.resourceIds.length > 1 ? ` (${df.resourceIds.length})` : ""}`}
+            </Button>
           </div>
         </Modal>
       )}
