@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/select";
 import { updateTaskStatus, deleteTask } from "@/actions/tasks";
 import { toast } from "sonner";
-import type { Task, Contact, Request } from "@prisma/client";
+import type { Task, Contact, Request, DeliveryNote } from "@prisma/client";
 import { TaskDetailDrawer } from "./task-detail-drawer";
 
-type TaskWithContact = Task & { contact: Contact | null; request: Request | null };
+type TaskWithContact = Task & { contact: Contact | null; request: Request | null; deliveryNote: DeliveryNote | null };
 
 const priorityLabels: Record<string, string> = {
   LOW: "Niedrig",
