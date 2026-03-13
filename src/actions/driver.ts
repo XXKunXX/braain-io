@@ -91,7 +91,26 @@ export async function createSignedDeliveryNote(data: {
       signatureUrl: data.signatureUrl || null,
     },
   });
+  // Create a task for the order owner to issue an invoice
+  const order = await prisma.order.findUnique({
+    where: { id: data.orderId },
+    select: { title: true, contactId: true, quote: { select: { assignedTo: true } } },
+  });
+  if (order) {
+    await prisma.task.create({
+      data: {
+        title: `Rechnung erstellen – ${order.title}`,
+        description: `Lieferschein ${deliveryNote.deliveryNumber} wurde abgeschlossen. Bitte Rechnung ausstellen.`,
+        contactId: order.contactId,
+        assignedTo: order.quote?.assignedTo ?? null,
+        priority: "HIGH",
+        status: "OPEN",
+      },
+    });
+  }
+
   revalidatePath("/lieferscheine");
+  revalidatePath("/aufgaben");
   revalidatePath(`/fahrer/${data.orderId}`);
   return { deliveryNote };
 }
