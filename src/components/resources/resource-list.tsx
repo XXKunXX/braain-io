@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Plus, X, User, Truck, Settings2, Package, Pencil, Trash2 } from "lucide-react";
+import { Search, Plus, X, User, Truck, Settings2, Package, Pencil, Trash2, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -17,8 +17,11 @@ type Resource = {
   phone: string | null;
   description: string | null;
   active: boolean;
+  clerkUserId: string | null;
   isDeployed: boolean;
 };
+
+type ClerkUser = { id: string; name: string; email: string | null };
 
 const TYPE_TABS = [
   { key: "FAHRER", label: "Fahrer", icon: User },
@@ -34,6 +37,7 @@ const EMPTY_FORM: ResourceFormData = {
   email: "",
   phone: "",
   description: "",
+  clerkUserId: "",
 };
 
 export function ResourceList({ resources }: { resources: Resource[] }) {
@@ -44,6 +48,14 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ResourceFormData>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clerkUsers, setClerkUsers] = useState<ClerkUser[]>([]);
+
+  useEffect(() => {
+    fetch("/api/clerk-users")
+      .then((r) => r.json())
+      .then((data) => setClerkUsers(data.users ?? []))
+      .catch(() => {});
+  }, []);
 
   const tabCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -78,6 +90,7 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
       email: r.email ?? "",
       phone: r.phone ?? "",
       description: r.description ?? "",
+      clerkUserId: r.clerkUserId ?? "",
     });
     setEditingId(r.id);
     setShowForm(true);
@@ -172,11 +185,12 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[2fr_2fr_1.5fr_1fr_64px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+          <div className={`grid gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80 ${activeTab === "FAHRER" ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]" : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"}`}>
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Name</span>
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">E-Mail</span>
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Telefon</span>
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</span>
+            {activeTab === "FAHRER" && <span />}
             <span />
           </div>
 
@@ -184,7 +198,7 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
           {filtered.map((resource, i) => (
             <div
               key={resource.id}
-              className={`grid grid-cols-[2fr_2fr_1.5fr_1fr_64px] gap-4 px-5 py-3.5 items-center group hover:bg-gray-50 transition-colors ${
+              className={`grid gap-4 px-5 py-3.5 items-center group hover:bg-gray-50 transition-colors ${activeTab === "FAHRER" ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]" : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"} ${
                 i !== filtered.length - 1 ? "border-b border-gray-100" : ""
               }`}
             >
@@ -202,6 +216,11 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
                   </span>
                 )}
               </div>
+              {activeTab === "FAHRER" && (
+                <div title={resource.clerkUserId ? "App-Nutzer verknüpft" : "Kein App-Nutzer"}>
+                  <Link2 className={`h-3.5 w-3.5 ${resource.clerkUserId ? "text-blue-500" : "text-gray-200"}`} />
+                </div>
+              )}
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => openEdit(resource)}
@@ -292,6 +311,28 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
                   onChange={(e) => setForm((d) => ({ ...d, description: e.target.value }))}
                 />
               </div>
+              {form.type === "FAHRER" && (
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">
+                    App-Nutzer verknüpfen
+                  </label>
+                  <select
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={form.clerkUserId ?? ""}
+                    onChange={(e) => setForm((d) => ({ ...d, clerkUserId: e.target.value }))}
+                  >
+                    <option value="">— Kein Nutzer —</option>
+                    {clerkUsers.map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.name}{u.email ? ` (${u.email})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Fahrer kann sich damit in der App anmelden und seine Aufträge sehen.
+                  </p>
+                </div>
+              )}
             </div>
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
               <Button variant="outline" onClick={closeForm}>Abbrechen</Button>

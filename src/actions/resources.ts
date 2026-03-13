@@ -10,6 +10,7 @@ const resourceSchema = z.object({
   email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
   phone: z.string().optional(),
   description: z.string().optional(),
+  clerkUserId: z.string().optional().or(z.literal("")),
 });
 
 export type ResourceFormData = z.infer<typeof resourceSchema>;
@@ -51,6 +52,7 @@ export async function createResource(data: ResourceFormData) {
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
       description: parsed.data.description || null,
+      clerkUserId: parsed.data.clerkUserId || null,
     },
   });
 
@@ -71,6 +73,7 @@ export async function updateResource(id: string, data: ResourceFormData) {
       email: parsed.data.email || null,
       phone: parsed.data.phone || null,
       description: parsed.data.description || null,
+      clerkUserId: parsed.data.clerkUserId || null,
     },
   });
 
