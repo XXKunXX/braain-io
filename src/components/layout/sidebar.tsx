@@ -8,7 +8,6 @@ import {
   MessageSquare,
   FileText,
   ClipboardList,
-  Truck,
   CalendarDays,
   LayoutDashboard,
   CheckSquare,
@@ -35,7 +34,6 @@ const navSections = [
       { href: "/anfragen", label: "Anfragen", icon: MessageSquare, badgeKey: "" },
       { href: "/angebote", label: "Angebote", icon: FileText, badgeKey: "" },
       { href: "/auftraege", label: "Aufträge", icon: ClipboardList, badgeKey: "" },
-      { href: "/lieferscheine", label: "Lieferscheine", icon: Truck, badgeKey: "" },
     ],
   },
   {
