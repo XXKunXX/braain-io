@@ -12,6 +12,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "braain.io",
   description: "Dispositions- und Verwaltungssoftware für Erdbau",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "braain.io",
+  },
 };
 
 export default function RootLayout({
