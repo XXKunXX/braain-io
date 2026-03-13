@@ -38,7 +38,7 @@ function nextKey() { return `line-${++_keyCounter}`; }
 export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, items }: Props) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [drawing, setDrawing] = useState(false);
+  const isDrawing = useRef(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [signerName, setSignerName] = useState("");
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -91,7 +91,7 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
 
   function startDraw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
     e.preventDefault();
-    setDrawing(true);
+    isDrawing.current = true;
     const pos = getPos(e);
     lastPos.current = pos;
     const ctx = canvasRef.current?.getContext("2d");
@@ -100,7 +100,7 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
 
   function draw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
     e.preventDefault();
-    if (!drawing) return;
+    if (!isDrawing.current) return;
     const pos = getPos(e);
     const ctx = canvasRef.current?.getContext("2d");
     if (ctx && lastPos.current) {
@@ -113,7 +113,7 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
 
   function endDraw(e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) {
     e.preventDefault();
-    setDrawing(false);
+    isDrawing.current = false;
     lastPos.current = null;
   }
 
