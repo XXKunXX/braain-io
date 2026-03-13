@@ -18,23 +18,23 @@ export async function GET(req: NextRequest) {
       select: { id: true, companyName: true, contactPerson: true, type: true },
     }),
     prisma.request.findMany({
-      where: { OR: [{ title: { contains: q, mode } }, { description: { contains: q, mode } }] },
-      take: 5,
+      where: { OR: [{ title: { contains: q, mode } }, { description: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }] } }] },
+      take: 8,
       select: { id: true, title: true, status: true, contact: { select: { companyName: true } } },
     }),
     prisma.quote.findMany({
-      where: { OR: [{ title: { contains: q, mode } }, { quoteNumber: { contains: q, mode } }] },
-      take: 5,
+      where: { OR: [{ title: { contains: q, mode } }, { quoteNumber: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }] } }] },
+      take: 8,
       select: { id: true, title: true, quoteNumber: true, status: true, contact: { select: { companyName: true } } },
     }),
     prisma.order.findMany({
-      where: { OR: [{ title: { contains: q, mode } }, { orderNumber: { contains: q, mode } }] },
-      take: 5,
+      where: { OR: [{ title: { contains: q, mode } }, { orderNumber: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }] } }] },
+      take: 8,
       select: { id: true, title: true, orderNumber: true, status: true, contact: { select: { companyName: true } } },
     }),
     prisma.deliveryNote.findMany({
-      where: { OR: [{ deliveryNumber: { contains: q, mode } }, { material: { contains: q, mode } }] },
-      take: 5,
+      where: { OR: [{ deliveryNumber: { contains: q, mode } }, { material: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }] } }] },
+      take: 8,
       select: { id: true, deliveryNumber: true, material: true, contact: { select: { companyName: true } } },
     }),
     prisma.task.findMany({
