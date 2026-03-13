@@ -12,7 +12,7 @@ import type { ResourceFormData } from "@/actions/resources";
 type Resource = {
   id: string;
   name: string;
-  type: "FAHRER" | "MASCHINE" | "FAHRZEUG" | "OTHER";
+  type: "FAHRER" | "MASCHINE" | "FAHRZEUG" | "PRODUKT" | "OTHER";
   email: string | null;
   phone: string | null;
   description: string | null;
@@ -24,6 +24,7 @@ const TYPE_TABS = [
   { key: "FAHRER", label: "Fahrer", icon: User },
   { key: "FAHRZEUG", label: "Fahrzeuge", icon: Truck },
   { key: "MASCHINE", label: "Maschinen", icon: Settings2 },
+  { key: "PRODUKT", label: "Produkte", icon: Package },
   { key: "OTHER", label: "Sonstiges", icon: Package },
 ] as const;
 
@@ -256,6 +257,7 @@ export function ResourceList({ resources }: { resources: Resource[] }) {
                     <option value="FAHRER">Fahrer</option>
                     <option value="MASCHINE">Maschine</option>
                     <option value="FAHRZEUG">Fahrzeug</option>
+                    <option value="PRODUKT">Produkt</option>
                     <option value="OTHER">Sonstiges</option>
                   </select>
                 </div>

@@ -6,7 +6,7 @@ import { z } from "zod";
 
 const resourceSchema = z.object({
   name: z.string().min(1, "Name erforderlich"),
-  type: z.enum(["FAHRER", "MASCHINE", "FAHRZEUG", "OTHER"]),
+  type: z.enum(["FAHRER", "MASCHINE", "FAHRZEUG", "PRODUKT", "OTHER"]),
   email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
   phone: z.string().optional(),
   description: z.string().optional(),
