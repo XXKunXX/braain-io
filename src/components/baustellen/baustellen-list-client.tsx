@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Plus, Eye, Pencil, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { createBaustelle, updateBaustelle, deleteBaustelle } from "@/actions/baustellen";
+import { updateBaustelle, deleteBaustelle } from "@/actions/baustellen";
 import type { BaustelleRow, BaustelleStatusType } from "@/actions/baustellen";
 
 const STATUS_LABEL: Record<BaustelleStatusType, string> = {
@@ -63,12 +63,6 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
   const [form, setForm] = useState<FormData>(EMPTY);
   const [saving, setSaving] = useState(false);
 
-  function openCreate() {
-    setForm(EMPTY);
-    setEditingId(null);
-    setShowForm(true);
-  }
-
   function openEdit(b: BaustelleRow) {
     setForm({
       orderId: b.orderId,
@@ -116,12 +110,11 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
       description: form.description || undefined,
       notes: form.notes || undefined,
     };
-    const result = editingId
-      ? await updateBaustelle(editingId, payload)
-      : await createBaustelle(payload);
+    if (!editingId) return;
+    const result = await updateBaustelle(editingId, payload);
     setSaving(false);
     if ("error" in result && result.error) { toast.error("Fehler beim Speichern"); return; }
-    toast.success(editingId ? "Baustelle aktualisiert" : "Baustelle erstellt");
+    toast.success("Baustelle aktualisiert");
     closeForm();
     router.refresh();
   }
@@ -141,10 +134,12 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
           <h1 className="text-xl font-bold text-gray-900">Baustellen</h1>
           <p className="text-sm text-gray-400 mt-0.5">{baustellen.length} Baustellen</p>
         </div>
-        <Button onClick={openCreate} className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
-          <Plus className="h-4 w-4" />
-          Neue Baustelle
-        </Button>
+        <Link href="/baustellen/neu">
+          <Button className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
+            <Plus className="h-4 w-4" />
+            Neue Baustelle
+          </Button>
+        </Link>
       </div>
 
       {/* Table */}
@@ -193,7 +188,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white">
-              <h2 className="font-semibold text-gray-900">{editingId ? "Baustelle bearbeiten" : "Neue Baustelle"}</h2>
+              <h2 className="font-semibold text-gray-900">Baustelle bearbeiten</h2>
               <button onClick={closeForm} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
             </div>
             <div className="px-6 py-4 space-y-3">
@@ -260,7 +255,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
             <div className="px-6 py-4 border-t flex justify-end gap-3">
               <Button variant="outline" onClick={closeForm}>Abbrechen</Button>
               <Button onClick={handleSubmit} disabled={saving}>
-                {saving ? "Speichert..." : editingId ? "Speichern" : "Baustelle erstellen"}
+                {saving ? "Speichert..." : "Speichern"}
               </Button>
             </div>
           </div>
