@@ -67,7 +67,7 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
       driverResourceId: driverResourceId || undefined,
       vehicleManufacturer: vehicleManufacturer || undefined,
       vehicleModel: vehicleModel || undefined,
-      vehicleYear: vehicleYear ? parseInt(vehicleYear) : undefined,
+      vehicleYear: vehicleYear || undefined,
     });
     setLoading(false);
 
