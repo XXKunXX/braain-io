@@ -211,8 +211,8 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
               <h2 className="text-base font-semibold text-gray-900">App-Zugang</h2>
               <div className="border-t border-gray-100 pt-4">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Clerk-Nutzer verknüpfen</Label>
-                  <Input value={clerkUserId} onChange={(e) => setClerkUserId(e.target.value)} className={IC} placeholder="Clerk User ID (optional)" />
+                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">User verknüpfen</Label>
+                  <Input value={clerkUserId} onChange={(e) => setClerkUserId(e.target.value)} className={IC} placeholder="User ID (optional)" />
                   <p className="text-[11px] text-gray-400">Fahrer kann sich damit in der App anmelden und Aufträge sehen.</p>
                 </div>
               </div>
