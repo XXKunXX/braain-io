@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const mode = "insensitive" as const;
 
-  const [contacts, requests, quotes, orders, deliveryNotes, tasks, resources] = await Promise.all([
+  const [contacts, requests, quotes, orders, deliveryNotes, tasks, resources, attachments] = await Promise.all([
     prisma.contact.findMany({
       where: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }, { email: { contains: q, mode } }] },
       take: 5,
@@ -47,7 +47,12 @@ export async function GET(req: NextRequest) {
       take: 5,
       select: { id: true, name: true, type: true },
     }),
+    prisma.attachment.findMany({
+      where: { fileName: { contains: q, mode } },
+      take: 5,
+      select: { id: true, fileName: true, contact: { select: { companyName: true } } },
+    }),
   ]);
 
-  return NextResponse.json({ results: { contacts, requests, quotes, orders, deliveryNotes, tasks, resources } });
+  return NextResponse.json({ results: { contacts, requests, quotes, orders, deliveryNotes, tasks, resources, attachments } });
 }

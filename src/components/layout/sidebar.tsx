@@ -8,6 +8,7 @@ import {
   MessageSquare,
   FileText,
   ClipboardList,
+  FolderOpen,
   CalendarDays,
   LayoutDashboard,
   CheckSquare,
@@ -34,6 +35,7 @@ const navSections = [
       { href: "/anfragen", label: "Anfragen", icon: MessageSquare, badgeKey: "" },
       { href: "/angebote", label: "Angebote", icon: FileText, badgeKey: "" },
       { href: "/auftraege", label: "Aufträge", icon: ClipboardList, badgeKey: "" },
+      { href: "/dokumente", label: "Dokumente", icon: FolderOpen, badgeKey: "" },
     ],
   },
   {
