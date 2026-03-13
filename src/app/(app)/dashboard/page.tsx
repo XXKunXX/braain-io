@@ -33,7 +33,7 @@ async function getDashboardData() {
     // Offene Angebote
     prisma.quote.count({ where: { status: { in: ["DRAFT", "SENT"] } } }),
     // Aktive Aufträge
-    prisma.order.count({ where: { status: { in: ["ACTIVE", "ASSIGNED"] } } }),
+    prisma.order.count({ where: { status: { in: ["ACTIVE", "PLANNED"] } } }),
     // Heutige Aufträge aus Disposition
     prisma.order.findMany({
       where: {
@@ -65,14 +65,12 @@ async function getDashboardData() {
 
 const STATUS_LABEL: Record<string, string> = {
   PLANNED: "Geplant",
-  ASSIGNED: "Zugeteilt",
   ACTIVE: "Aktiv",
   COMPLETED: "Abgeschlossen",
 };
 
 const STATUS_COLOR: Record<string, string> = {
   PLANNED: "bg-gray-100 text-gray-600",
-  ASSIGNED: "bg-blue-50 text-blue-700",
   ACTIVE: "bg-green-50 text-green-700",
   COMPLETED: "bg-gray-50 text-gray-400",
 };

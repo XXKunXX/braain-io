@@ -140,7 +140,6 @@ model Order {
 
 enum OrderStatus {
   PLANNED
-  ASSIGNED
   ACTIVE
   COMPLETED
 }

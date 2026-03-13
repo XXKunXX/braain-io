@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, MapPin, Calendar, ClipboardList } from "luci
 type OrderItem = {
   id: string;
   title: string;
-  status: "PLANNED" | "ASSIGNED" | "ACTIVE" | "COMPLETED";
+  status: "PLANNED" | "ACTIVE" | "COMPLETED";
   startDate: string;
   endDate: string;
   contact: {
@@ -24,14 +24,12 @@ type OrderItem = {
 
 const STATUS_LABEL: Record<string, string> = {
   PLANNED: "Geplant",
-  ASSIGNED: "Zugeteilt",
   ACTIVE: "Aktiv",
   COMPLETED: "Abgeschlossen",
 };
 
 const STATUS_STYLE: Record<string, string> = {
   PLANNED: "border border-amber-300 text-amber-600 bg-amber-50",
-  ASSIGNED: "border border-purple-300 text-purple-600 bg-purple-50",
   ACTIVE: "border border-blue-300 text-blue-600 bg-blue-50",
   COMPLETED: "border border-green-300 text-green-600 bg-green-50",
 };
@@ -58,7 +56,7 @@ export function DriverAppShell({
   }
 
   const filtered = orders.filter((o) => {
-    if (tab === "active") return o.status === "PLANNED" || o.status === "ASSIGNED" || o.status === "ACTIVE";
+    if (tab === "active") return o.status === "PLANNED" || o.status === "ACTIVE";
     if (tab === "completed") return o.status === "COMPLETED";
     return true;
   });

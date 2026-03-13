@@ -13,7 +13,7 @@ export async function getResources() {
 
 export async function getOrdersForDisposition() {
   return prisma.order.findMany({
-    where: { status: { in: ["ACTIVE", "PLANNED", "ASSIGNED"] } },
+    where: { status: { in: ["ACTIVE", "PLANNED"] } },
     include: { contact: true },
     orderBy: { startDate: "asc" },
   });
@@ -57,7 +57,7 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
     }),
     prisma.order.updateMany({
       where: { id: parsed.data.orderId, status: "PLANNED" },
-      data: { status: "ASSIGNED" },
+      data: { status: "ACTIVE" },
     }),
   ]);
 

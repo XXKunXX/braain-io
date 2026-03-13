@@ -54,7 +54,6 @@ const TYPE_LABELS: Record<string, string> = {
 const ORDER_STATUS_DOT: Record<string, string> = {
   ACTIVE: "bg-green-500",
   PLANNED: "bg-blue-400",
-  ASSIGNED: "bg-purple-500",
   COMPLETED: "bg-gray-400",
 };
 const ENTRY_PALETTE = [
@@ -117,7 +116,6 @@ export function DispositionCalendar({
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Collapsed sections
-  const [assignedCollapsed, setAssignedCollapsed] = useState(true);
 
   const [entryForm, setEntryForm] = useState({
     resourceId: "",
@@ -196,7 +194,6 @@ export function DispositionCalendar({
   }, [orders, search]);
   const activeOrders = filteredOrders.filter((o) => o.status === "ACTIVE");
   const plannedOrders = filteredOrders.filter((o) => o.status === "PLANNED");
-  const assignedOrders = filteredOrders.filter((o) => o.status === "ASSIGNED");
 
   const orderColorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -421,34 +418,6 @@ export function DispositionCalendar({
                   Aktiv ({activeOrders.length})
                 </div>
                 {activeOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, order.id)}
-                    onClick={() => setSelectedOrderId(selectedOrderId === order.id ? null : order.id)}
-                    className={`w-full text-left px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedOrderId === order.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
-                    }`}
-                  >
-                    <div className={`mt-1.5 h-2 w-2 rounded-full flex-shrink-0 ${ORDER_STATUS_DOT[order.status]}`} />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-900 truncate">{order.title}</p>
-                      <p className="text-[11px] text-gray-400 truncate">{order.contact.companyName}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {assignedOrders.length > 0 && (
-              <div>
-                <button
-                  className="w-full px-4 py-1.5 text-[10px] font-bold tracking-widest text-purple-500 uppercase bg-purple-50/60 border-b border-gray-100 flex items-center justify-between"
-                  onClick={() => setAssignedCollapsed((v) => !v)}
-                >
-                  <span>Zugeteilt ({assignedOrders.length})</span>
-                  <span>{assignedCollapsed ? "▶" : "▼"}</span>
-                </button>
-                {!assignedCollapsed && assignedOrders.map((order) => (
                   <div
                     key={order.id}
                     draggable

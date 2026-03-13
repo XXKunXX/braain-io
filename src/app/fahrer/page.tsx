@@ -16,7 +16,7 @@ export default async function FahrerPage({
   const serialized = orders.map((o) => ({
     id: o.id,
     title: o.title,
-    status: o.status as "PLANNED" | "ASSIGNED" | "ACTIVE" | "COMPLETED",
+    status: o.status as "PLANNED" | "ACTIVE" | "COMPLETED",
     startDate: o.startDate.toISOString(),
     endDate: o.endDate.toISOString(),
     contact: {
