@@ -15,7 +15,7 @@ const resourceSchema = z.object({
   driverResourceId: z.string().optional().or(z.literal("")),
   vehicleManufacturer: z.string().optional().or(z.literal("")),
   vehicleModel: z.string().optional().or(z.literal("")),
-  vehicleYear: z.union([z.number().int().min(1900).max(2100), z.literal(""), z.undefined()]).optional(),
+  vehicleYear: z.string().optional().or(z.literal("")),
 });
 
 export type ResourceFormData = z.infer<typeof resourceSchema>;
@@ -63,7 +63,7 @@ export async function createResource(data: ResourceFormData) {
       driverResourceId: parsed.data.driverResourceId || null,
       vehicleManufacturer: parsed.data.vehicleManufacturer || null,
       vehicleModel: parsed.data.vehicleModel || null,
-      vehicleYear: (parsed.data.vehicleYear && parsed.data.vehicleYear !== "") ? Number(parsed.data.vehicleYear) : null,
+      vehicleYear: parsed.data.vehicleYear ? parseInt(parsed.data.vehicleYear as string) || null : null,
     },
   });
 
@@ -89,7 +89,7 @@ export async function updateResource(id: string, data: ResourceFormData) {
       driverResourceId: parsed.data.driverResourceId || null,
       vehicleManufacturer: parsed.data.vehicleManufacturer || null,
       vehicleModel: parsed.data.vehicleModel || null,
-      vehicleYear: (parsed.data.vehicleYear && parsed.data.vehicleYear !== "") ? Number(parsed.data.vehicleYear) : null,
+      vehicleYear: parsed.data.vehicleYear ? parseInt(parsed.data.vehicleYear as string) || null : null,
     },
   });
 
