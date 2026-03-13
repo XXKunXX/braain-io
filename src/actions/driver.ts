@@ -91,6 +91,12 @@ export async function createSignedDeliveryNote(data: {
       signatureUrl: data.signatureUrl || null,
     },
   });
+  // Mark order as completed
+  await prisma.order.update({
+    where: { id: data.orderId },
+    data: { status: "COMPLETED" },
+  });
+
   // Create a task for the order owner to issue an invoice
   const order = await prisma.order.findUnique({
     where: { id: data.orderId },
