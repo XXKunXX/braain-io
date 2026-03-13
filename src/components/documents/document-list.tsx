@@ -174,18 +174,10 @@ export function DocumentList({ documents, contacts }: DocumentListProps) {
                   <Icon className={`h-3.5 w-3.5 ${cfg.iconColor}`} />
                 </div>
 
-                {/* Title — single line: number · badges · title */}
-                <div className="min-w-0 flex-1 md:flex-none flex items-center gap-1.5 overflow-hidden">
+                {/* Title — single line: number · title · meta */}
+                <div className="min-w-0 flex-1 md:flex-none flex items-center gap-2 overflow-hidden">
                   {doc.number && (
                     <span className="text-xs font-mono text-gray-400 flex-shrink-0">{doc.number}</span>
-                  )}
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${cfg.badge}`}>
-                    {cfg.label}
-                  </span>
-                  {statusInfo && (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${statusInfo.color}`}>
-                      {statusInfo.label}
-                    </span>
                   )}
                   <span className="text-sm font-medium text-gray-900 truncate">{doc.title}</span>
                   {doc.meta && <span className="text-xs text-gray-400 flex-shrink-0 hidden lg:inline">· {doc.meta}</span>}
