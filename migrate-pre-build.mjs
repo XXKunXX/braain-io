@@ -145,6 +145,98 @@ DO $$ BEGIN
 EXCEPTION WHEN others THEN NULL;
 END $$;
 
+-- ============================================================
+-- 7. BaustelleStatus Enum
+-- ============================================================
+DO $$ BEGIN
+  CREATE TYPE "BaustelleStatus" AS ENUM ('PLANNED', 'ACTIVE', 'COMPLETED');
+  RAISE NOTICE 'BaustelleStatus erstellt';
+EXCEPTION WHEN duplicate_object THEN
+  RAISE NOTICE 'BaustelleStatus bereits vorhanden';
+END $$;
+
+-- ============================================================
+-- 8. Baustelle Tabelle
+-- ============================================================
+CREATE TABLE IF NOT EXISTS "Baustelle" (
+  "id"            TEXT NOT NULL PRIMARY KEY,
+  "orderId"       TEXT NOT NULL,
+  "name"          TEXT NOT NULL,
+  "description"   TEXT,
+  "address"       TEXT,
+  "postalCode"    TEXT,
+  "city"          TEXT,
+  "country"       TEXT NOT NULL DEFAULT 'Österreich',
+  "startDate"     TIMESTAMP(3) NOT NULL,
+  "endDate"       TIMESTAMP(3),
+  "status"        "BaustelleStatus" NOT NULL DEFAULT 'PLANNED',
+  "bauleiter"     TEXT,
+  "contactPerson" TEXT,
+  "phone"         TEXT,
+  "notes"         TEXT,
+  "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'Baustelle_orderId_fkey') THEN
+    ALTER TABLE "Baustelle" ADD CONSTRAINT "Baustelle_orderId_fkey"
+      FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE;
+  END IF;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- ============================================================
+-- 9. Tagesrapport Tabelle
+-- ============================================================
+CREATE TABLE IF NOT EXISTS "Tagesrapport" (
+  "id"          TEXT NOT NULL PRIMARY KEY,
+  "baustelleId" TEXT NOT NULL,
+  "date"        TIMESTAMP(3) NOT NULL,
+  "driverName"  TEXT,
+  "machineName" TEXT,
+  "hours"       DECIMAL(10,2),
+  "description" TEXT,
+  "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'Tagesrapport_baustelleId_fkey') THEN
+    ALTER TABLE "Tagesrapport" ADD CONSTRAINT "Tagesrapport_baustelleId_fkey"
+      FOREIGN KEY ("baustelleId") REFERENCES "Baustelle"("id") ON DELETE CASCADE;
+  END IF;
+EXCEPTION WHEN others THEN NULL;
+END $$;
+
+-- ============================================================
+-- 10. baustelleId zu DispositionEntry
+-- ============================================================
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'DispositionEntry' AND column_name = 'baustelleId') THEN
+    ALTER TABLE "DispositionEntry" ADD COLUMN "baustelleId" TEXT;
+    ALTER TABLE "DispositionEntry" ADD CONSTRAINT "DispositionEntry_baustelleId_fkey"
+      FOREIGN KEY ("baustelleId") REFERENCES "Baustelle"("id") ON DELETE SET NULL;
+    RAISE NOTICE 'baustelleId zu DispositionEntry hinzugefügt';
+  ELSE
+    RAISE NOTICE 'DispositionEntry.baustelleId bereits vorhanden';
+  END IF;
+END $$;
+
+-- ============================================================
+-- 11. baustelleId zu MachineUsage
+-- ============================================================
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'MachineUsage' AND column_name = 'baustelleId') THEN
+    ALTER TABLE "MachineUsage" ADD COLUMN "baustelleId" TEXT;
+    ALTER TABLE "MachineUsage" ADD CONSTRAINT "MachineUsage_baustelleId_fkey"
+      FOREIGN KEY ("baustelleId") REFERENCES "Baustelle"("id") ON DELETE SET NULL;
+    RAISE NOTICE 'baustelleId zu MachineUsage hinzugefügt';
+  ELSE
+    RAISE NOTICE 'MachineUsage.baustelleId bereits vorhanden';
+  END IF;
+END $$;
+
 SELECT 'Pre-build Migration erfolgreich' AS result;
 `;
 

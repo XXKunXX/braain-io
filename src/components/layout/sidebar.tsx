@@ -18,6 +18,7 @@ import {
   Brain,
   Search,
   X,
+  MapPin,
 } from "lucide-react";
 
 const navSections = [
@@ -41,6 +42,7 @@ const navSections = [
   {
     label: "Planung",
     items: [
+      { href: "/baustellen", label: "Baustellen", icon: MapPin, badgeKey: "" },
       { href: "/disposition", label: "Disposition", icon: CalendarDays, badgeKey: "" },
       { href: "/fahrer", label: "Fahrer App", icon: Smartphone, badgeKey: "" },
     ],

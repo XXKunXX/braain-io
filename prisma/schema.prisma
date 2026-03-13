@@ -137,6 +137,7 @@ model Order {
   deliveryNotes      DeliveryNote[]
   dispositionEntries DispositionEntry[]
   machineUsages      MachineUsage[]
+  baustellen         Baustelle[]
 }
 
 enum OrderStatus {
@@ -171,17 +172,19 @@ model Resource {
 }
 
 model DispositionEntry {
-  id         String   @id @default(cuid())
-  resourceId String
-  orderId    String
-  startDate  DateTime
-  endDate    DateTime
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String     @id @default(cuid())
+  resourceId  String
+  orderId     String
+  baustelleId String?
+  startDate   DateTime
+  endDate     DateTime
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  resource   Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  resource   Resource   @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  baustelle  Baustelle? @relation(fields: [baustelleId], references: [id], onDelete: SetNull)
 }
 
 // ─── Delivery Notes (Lieferscheine) ─────────────────────────────────────────
@@ -307,19 +310,21 @@ model Machine {
 }
 
 model MachineUsage {
-  id         String    @id @default(cuid())
-  machineId  String
-  orderId    String?
-  driverName String?
-  startDate  DateTime
-  endDate    DateTime?
-  hours      Decimal?  @db.Decimal(10, 2)
-  notes      String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id          String     @id @default(cuid())
+  machineId   String
+  orderId     String?
+  baustelleId String?
+  driverName  String?
+  startDate   DateTime
+  endDate     DateTime?
+  hours       Decimal?   @db.Decimal(10, 2)
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  machine    Machine   @relation(fields: [machineId], references: [id], onDelete: Cascade)
-  order      Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  machine    Machine    @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  order      Order?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  baustelle  Baustelle? @relation(fields: [baustelleId], references: [id], onDelete: SetNull)
 }
 
 model MachineMaintenance {
@@ -343,4 +348,51 @@ model Counter {
   id    String @id @default(cuid())
   key   String @unique  // "quote", "order", "delivery"
   value Int    @default(0)
+}
+
+// ─── Baustellen (Construction Sites) ─────────────────────────────────────────
+
+enum BaustelleStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+
+model Baustelle {
+  id            String          @id @default(cuid())
+  orderId       String
+  name          String
+  description   String?
+  address       String?
+  postalCode    String?
+  city          String?
+  country       String          @default("Österreich")
+  startDate     DateTime
+  endDate       DateTime?
+  status        BaustelleStatus @default(PLANNED)
+  bauleiter     String?
+  contactPerson String?
+  phone         String?
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  order              Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dispositionEntries DispositionEntry[]
+  machineUsages      MachineUsage[]
+  rapporte           Tagesrapport[]
+}
+
+model Tagesrapport {
+  id          String    @id @default(cuid())
+  baustelleId String
+  date        DateTime
+  driverName  String?
+  machineName String?
+  hours       Decimal?  @db.Decimal(10, 2)
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  baustelle   Baustelle @relation(fields: [baustelleId], references: [id], onDelete: Cascade)
 }
