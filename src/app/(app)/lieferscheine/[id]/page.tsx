@@ -20,7 +20,7 @@ export default async function LieferscheinDetailPage({
   return (
     <>
       <Header title={`Lieferschein ${deliveryNote.deliveryNumber}`} />
-      <div className="p-6">
+      <div className="p-4 md:p-6">
         <DeliveryDetail deliveryNote={deliveryNote} />
       </div>
     </>

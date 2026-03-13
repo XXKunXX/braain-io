@@ -261,7 +261,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles }: Props
     : "Lieferschein erstellen";
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-4 md:p-6 max-w-2xl">
       {/* Back */}
       <Link
         href={order ? `/auftraege/${order.id}` : "/lieferscheine"}

@@ -16,6 +16,8 @@ import {
   HardHat,
   Smartphone,
   Brain,
+  Search,
+  X,
 } from "lucide-react";
 
 const navSections = [
@@ -54,27 +56,63 @@ const navSections = [
 
 interface SidebarProps {
   openTaskCount?: number;
+  onClose?: () => void;
+  onSearchOpen?: () => void;
 }
 
-export function Sidebar({ openTaskCount = 0 }: SidebarProps) {
+export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen }: SidebarProps) {
   const pathname = usePathname();
 
+  function handleNavClick() {
+    onClose?.();
+  }
+
   return (
-    <aside className="w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen sticky top-0">
+    <aside className="w-64 md:w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen">
+      {/* Logo */}
       <div className="px-4 py-4 border-b border-gray-100">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)" }}>
-            <Brain className="h-4 w-4 text-white" strokeWidth={1.75} />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%)" }}
+            >
+              <Brain className="h-4 w-4 text-white" strokeWidth={1.75} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 leading-tight tracking-tight">braain.io</p>
+              <p className="text-[11px] text-gray-400">Erdbau</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-gray-900 leading-tight tracking-tight">braain.io</p>
-            <p className="text-[11px] text-gray-400">Erdbau</p>
-          </div>
+          {/* Mobile close button */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="md:hidden p-1.5 rounded-md text-gray-400 hover:bg-gray-100"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 
-      <nav className="flex-1 px-2.5 py-4 overflow-y-auto space-y-4">
+      {/* Search button */}
+      {onSearchOpen && (
+        <div className="px-2.5 pt-3 pb-1">
+          <button
+            onClick={onSearchOpen}
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-gray-400 hover:bg-gray-100 transition-colors"
+          >
+            <Search className="h-4 w-4 flex-shrink-0" />
+            <span className="flex-1 text-left">Suche…</span>
+            <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-400 border border-gray-200">
+              ⌘K
+            </kbd>
+          </button>
+        </div>
+      )}
+
+      <nav className="flex-1 px-2.5 py-3 overflow-y-auto space-y-4">
         {navSections.map(({ label, items }) => (
           <div key={label}>
             <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase px-2 mb-1">
@@ -88,8 +126,9 @@ export function Sidebar({ openTaskCount = 0 }: SidebarProps) {
                   <Link
                     key={href}
                     href={href}
+                    onClick={handleNavClick}
                     className={cn(
-                      "flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm transition-colors",
+                      "flex items-center gap-2.5 px-2.5 py-2 md:py-1.5 rounded-md text-sm transition-colors",
                       active
                         ? "bg-blue-50 text-blue-700 font-medium"
                         : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"

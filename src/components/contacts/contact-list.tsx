@@ -60,8 +60,8 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
   return (
     <div className="space-y-4">
       {/* Filter row */}
-      <div className="flex items-center gap-3">
-        <div className="relative max-w-xs w-full">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <Input
             placeholder="Name, Firma oder Ort suchen..."
@@ -98,7 +98,7 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
         )}
       </div>
 
-      {/* Table */}
+      {/* List */}
       {filtered.length === 0 ? (
         <div className="text-center py-20 text-gray-400">
           <Building2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
@@ -106,90 +106,52 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          {/* Header row */}
-          <div className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr_20px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-              Kontakt
-            </span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-              Kategorie
-            </span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-              Typ
-            </span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-              Owner
-            </span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
-              Ort
-            </span>
+          {/* Desktop header row — hidden on mobile */}
+          <div className="hidden md:grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr_20px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+            {["Kontakt", "Kategorie", "Typ", "Owner", "Ort"].map((h) => (
+              <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+            ))}
             <span />
           </div>
 
-          {/* Data rows */}
           {filtered.map((contact, i) => {
             const isCompany = contact.type !== "PRIVATE";
             return (
               <Link
                 key={contact.id}
                 href={`/kontakte/${contact.id}`}
-                className={`grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr_20px] gap-4 px-5 py-3 items-center hover:bg-gray-50 transition-colors ${
+                className={`flex md:grid md:grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_1fr_20px] gap-4 px-4 md:px-5 py-3 items-center hover:bg-gray-50 transition-colors ${
                   i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                 }`}
               >
                 {/* Name + person */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      isCompany ? "bg-blue-50" : "bg-purple-50"
-                    }`}
-                  >
-                    {isCompany ? (
-                      <Building2 className="h-4 w-4 text-blue-500" />
-                    ) : (
-                      <User className="h-4 w-4 text-purple-500" />
-                    )}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${isCompany ? "bg-blue-50" : "bg-purple-50"}`}>
+                    {isCompany ? <Building2 className="h-4 w-4 text-blue-500" /> : <User className="h-4 w-4 text-purple-500" />}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {contact.companyName}
-                    </p>
-                    {contact.contactPerson && (
-                      <p className="text-xs text-gray-400 truncate">
-                        {contact.contactPerson}
-                      </p>
-                    )}
+                    <p className="text-sm font-medium text-gray-900 truncate">{contact.companyName}</p>
+                    {contact.contactPerson && <p className="text-xs text-gray-400 truncate">{contact.contactPerson}</p>}
+                    {/* Mobile: show type badge inline */}
+                    <span className={`md:hidden inline-flex text-xs font-medium px-2 py-0.5 rounded-full mt-0.5 ${typeBadgeColors[contact.type]}`}>
+                      {typeLabels[contact.type]}
+                    </span>
                   </div>
                 </div>
 
-                {/* Kategorie */}
-                <span className="text-sm text-gray-500">
-                  {isCompany ? "Firma" : "Person"}
-                </span>
-
-                {/* Typ badge */}
-                <div>
-                  <span
-                    className={`inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full ${typeBadgeColors[contact.type]}`}
-                  >
+                {/* Desktop-only columns */}
+                <span className="hidden md:block text-sm text-gray-500">{isCompany ? "Firma" : "Person"}</span>
+                <div className="hidden md:block">
+                  <span className={`inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full ${typeBadgeColors[contact.type]}`}>
                     {typeLabels[contact.type]}
                   </span>
                 </div>
-
-                {/* Owner */}
-                <span className="text-sm text-gray-500 truncate">
-                  {(contact as Contact & { owner?: string }).owner ?? "—"}
+                <span className="hidden md:block text-sm text-gray-500 truncate">{(contact as Contact & { owner?: string }).owner ?? "—"}</span>
+                <span className="hidden md:block text-sm text-gray-500 truncate">
+                  {contact.postalCode && contact.city ? `${contact.postalCode} ${contact.city}` : contact.city ?? "—"}
                 </span>
 
-                {/* Ort */}
-                <span className="text-sm text-gray-500 truncate">
-                  {contact.postalCode && contact.city
-                    ? `${contact.postalCode} ${contact.city}`
-                    : contact.city ?? "—"}
-                </span>
-
-                {/* Arrow */}
-                <ChevronRight className="h-4 w-4 text-gray-300" />
+                <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
               </Link>
             );
           })}

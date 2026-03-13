@@ -26,7 +26,7 @@ export function NewContactClient({ userNames, returnTo }: { userNames: string[];
   }
 
   return (
-    <div className="p-6 max-w-2xl">
+    <div className="p-4 md:p-6 max-w-2xl">
       <Link href="/kontakte" className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors mb-6">
         <ChevronLeft className="h-4 w-4" />
         Alle Kontakte
