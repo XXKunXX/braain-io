@@ -182,6 +182,7 @@ export function RequestDetail({
   }
 
   async function uploadFiles(files: FileList | File[]) {
+    console.log("[upload] uploadFiles called", files.length, "files");
     const fileArray = Array.from(files);
     setUploading(true);
     let successCount = 0;
