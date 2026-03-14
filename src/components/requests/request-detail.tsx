@@ -489,7 +489,7 @@ export function RequestDetail({
                       )}
                       {(inspectionJustSaved || request.inspectionDate) && (
                         <a
-                          href={`/api/ical/inspection/${request.id}`}
+                          href={`webcal://${typeof window !== "undefined" ? window.location.host : ""}/api/ical/inspection/${request.id}`}
                           className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 bg-blue-50 hover:bg-blue-100 rounded-lg px-3 h-9 transition-colors"
                         >
                           <span>📅</span> Zum Kalender hinzufügen
