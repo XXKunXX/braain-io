@@ -51,10 +51,10 @@ const statusBadgeColors: Record<string, string> = {
   NEU: "border border-blue-300 text-blue-700 bg-blue-50",
   OPEN: "border border-blue-300 text-blue-700 bg-blue-50",
   BESICHTIGUNG_GEPLANT: "border border-amber-400 text-amber-700 bg-amber-50",
-  BESICHTIGUNG_DURCHGEFUEHRT: "border border-green-300 text-green-700 bg-green-50",
+  BESICHTIGUNG_DURCHGEFUEHRT: "border border-teal-400 text-teal-700 bg-teal-50",
   ANGEBOT_ERSTELLT: "border border-amber-400 text-amber-700 bg-amber-50",
   IN_PROGRESS: "border border-purple-300 text-purple-700 bg-purple-50",
-  DONE: "border border-green-300 text-green-700 bg-green-50",
+  DONE: "border border-green-500 text-green-800 bg-green-100",
 };
 
 const priorityColors: Record<string, string> = {
