@@ -32,6 +32,7 @@ model Contact {
   tasks         Task[]
   contactNotes  ContactNote[]
   attachments   Attachment[]
+  baustellen    Baustelle[]
 }
 
 enum ContactType {
@@ -368,6 +369,7 @@ enum BaustelleStatus {
 model Baustelle {
   id            String          @id @default(cuid())
   orderId       String
+  contactId     String?
   name          String
   description   String?
   address       String?
@@ -385,6 +387,7 @@ model Baustelle {
   updatedAt     DateTime        @updatedAt
 
   order              Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  contact            Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
   dispositionEntries DispositionEntry[]
   machineUsages      MachineUsage[]
   rapporte           Tagesrapport[]

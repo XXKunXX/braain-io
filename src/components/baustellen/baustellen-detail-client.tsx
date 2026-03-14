@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, Settings2, FileText, FolderOpen,
+  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, Settings2, FileText, FolderOpen, User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -63,6 +63,7 @@ type OrderOption = { id: string; orderNumber: string; title: string };
 type Baustelle = {
   id: string;
   orderId: string;
+  contactId: string | null;
   name: string;
   description: string | null;
   address: string | null;
@@ -77,6 +78,7 @@ type Baustelle = {
   phone: string | null;
   notes: string | null;
   order: OrderOption;
+  contact: { id: string; companyName: string; contactPerson: string | null } | null;
   dispositionEntries: Array<{
     id: string; startDate: Date; endDate: Date; notes: string | null;
     resource: { id: string; name: string; type: string };
@@ -330,6 +332,20 @@ export function BaustellenDetailClient({ baustelle: init, resources, machines, o
                       <dd className="text-sm text-gray-900 mt-0.5">{v ?? "–"}</dd>
                     </div>
                   ))}
+                  <div className="col-span-2">
+                    <dt className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt</dt>
+                    <dd className="text-sm mt-0.5">
+                      {b.contact ? (
+                        <Link href={`/kontakte/${b.contact.id}`} className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
+                          <User className="h-3.5 w-3.5" />
+                          {b.contact.companyName}
+                          {b.contact.contactPerson && <span className="text-gray-400">· {b.contact.contactPerson}</span>}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-400">–</span>
+                      )}
+                    </dd>
+                  </div>
                   {b.description && (
                     <div className="col-span-2">
                       <dt className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Beschreibung</dt>

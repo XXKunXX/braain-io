@@ -14,6 +14,7 @@ export type BaustelleStatusType = "PLANNED" | "ACTIVE" | "COMPLETED";
 export type BaustelleRow = {
   id: string;
   orderId: string;
+  contactId: string | null;
   name: string;
   description: string | null;
   address: string | null;
@@ -30,6 +31,7 @@ export type BaustelleRow = {
   createdAt: Date;
   updatedAt: Date;
   order: { id: string; orderNumber: string; title: string };
+  contact: { id: string; companyName: string; contactPerson: string | null } | null;
 };
 
 export type DispositionEntryRow = {
@@ -120,6 +122,7 @@ export async function getBaustellen(): Promise<BaustelleRow[]> {
     orderBy: { startDate: "desc" },
     include: {
       order: { select: { id: true, orderNumber: true, title: true } },
+      contact: { select: { id: true, companyName: true, contactPerson: true } },
     },
   });
 }
@@ -129,6 +132,7 @@ export async function getBaustelle(id: string) {
     where: { id },
     include: {
       order: { select: { id: true, orderNumber: true, title: true } },
+      contact: { select: { id: true, companyName: true, contactPerson: true } },
       dispositionEntries: {
         orderBy: { startDate: "desc" },
         include: { resource: { select: { id: true, name: true, type: true } } },
@@ -161,9 +165,13 @@ export async function createBaustelle(data: z.infer<typeof baustelleSchema>) {
   const parsed = baustelleSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
+  // Auto-derive contactId from the linked order
+  const order = await db.order.findUnique({ where: { id: parsed.data.orderId }, select: { contactId: true } });
+
   const baustelle = await db.baustelle.create({
     data: {
       orderId: parsed.data.orderId,
+      contactId: order?.contactId ?? null,
       name: parsed.data.name,
       description: parsed.data.description || null,
       address: parsed.data.address || null,
@@ -178,7 +186,10 @@ export async function createBaustelle(data: z.infer<typeof baustelleSchema>) {
       phone: parsed.data.phone || null,
       notes: parsed.data.notes || null,
     },
-    include: { order: { select: { id: true, orderNumber: true, title: true } } },
+    include: {
+      order: { select: { id: true, orderNumber: true, title: true } },
+      contact: { select: { id: true, companyName: true, contactPerson: true } },
+    },
   });
   revalidatePath("/baustellen");
   return { baustelle };
@@ -188,10 +199,14 @@ export async function updateBaustelle(id: string, data: z.infer<typeof baustelle
   const parsed = baustelleSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
+  // Re-derive contactId if orderId changed
+  const order = await db.order.findUnique({ where: { id: parsed.data.orderId }, select: { contactId: true } });
+
   const baustelle = await db.baustelle.update({
     where: { id },
     data: {
       orderId: parsed.data.orderId,
+      contactId: order?.contactId ?? null,
       name: parsed.data.name,
       description: parsed.data.description || null,
       address: parsed.data.address || null,
@@ -206,7 +221,10 @@ export async function updateBaustelle(id: string, data: z.infer<typeof baustelle
       phone: parsed.data.phone || null,
       notes: parsed.data.notes || null,
     },
-    include: { order: { select: { id: true, orderNumber: true, title: true } } },
+    include: {
+      order: { select: { id: true, orderNumber: true, title: true } },
+      contact: { select: { id: true, companyName: true, contactPerson: true } },
+    },
   });
   revalidatePath("/baustellen");
   revalidatePath(`/baustellen/${id}`);
