@@ -182,25 +182,55 @@ export function RequestDetail({
   }
 
   async function uploadFiles(files: FileList | File[]) {
-    console.log("[upload] uploadFiles called", files.length, "files");
     const fileArray = Array.from(files);
     setUploading(true);
     let successCount = 0;
     try {
       for (const file of fileArray) {
-        const fd = new FormData();
-        fd.append("file", file);
-        fd.append("requestId", request.id);
-        fd.append("contactId", request.contact.id);
         try {
-          const res = await fetch("/api/upload", { method: "POST", body: fd });
-          if (res.ok) {
-            const { attachment } = await res.json();
+          // 1. Get signed upload URL from server
+          const signedRes = await fetch("/api/upload/signed-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileName: file.name, contentType: file.type }),
+          });
+          if (!signedRes.ok) {
+            const data = await signedRes.json().catch(() => ({}));
+            toast.error(data.error ?? "Upload fehlgeschlagen");
+            continue;
+          }
+          const { signedUrl, publicUrl } = await signedRes.json();
+
+          // 2. Upload directly to Supabase (bypasses Vercel body size limit)
+          const uploadRes = await fetch(signedUrl, {
+            method: "PUT",
+            headers: { "Content-Type": file.type },
+            body: file,
+          });
+          if (!uploadRes.ok) {
+            toast.error(`Upload fehlgeschlagen: ${file.name}`);
+            continue;
+          }
+
+          // 3. Save attachment record in DB
+          const confirmRes = await fetch("/api/upload/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type,
+              url: publicUrl,
+              requestId: request.id,
+              contactId: request.contact.id,
+            }),
+          });
+          if (confirmRes.ok) {
+            const { attachment } = await confirmRes.json();
             setAttachments((prev) => [attachment, ...prev]);
             successCount++;
           } else {
-            const data = await res.json().catch(() => ({}));
-            toast.error(data.error ?? "Upload fehlgeschlagen");
+            toast.error("Datei hochgeladen, aber Speichern fehlgeschlagen");
           }
         } catch {
           toast.error(`Upload fehlgeschlagen: ${file.name}`);
