@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@clerk/nextjs/server";
 
 function formatICalDate(date: Date): string {
   return date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
@@ -11,9 +10,6 @@ function escapeICalText(text: string): string {
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
   const { id } = await params;
   const request = await prisma.request.findUnique({
     where: { id },
