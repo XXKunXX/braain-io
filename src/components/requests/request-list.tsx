@@ -108,7 +108,7 @@ export function RequestList({ requests }: RequestListProps) {
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[minmax(0,2.5fr)_1fr_1fr_1fr_1fr_32px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Titel / Beschreibung</span>
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt</span>
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</span>
@@ -122,7 +122,7 @@ export function RequestList({ requests }: RequestListProps) {
             <Link
               key={req.id}
               href={`/anfragen/${req.id}`}
-              className={`grid grid-cols-[minmax(0,2.5fr)_1fr_1fr_1fr_1fr_32px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors group ${
+              className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 items-center hover:bg-gray-50/60 transition-colors group ${
                 i !== filtered.length - 1 ? "border-b border-gray-100" : ""
               }`}
             >
