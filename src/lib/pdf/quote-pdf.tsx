@@ -326,7 +326,10 @@ export function QuotePDF({ quote, logoPath }: { quote: QuoteWithRelations; logoP
             {items.map((item, idx) => (
               <View key={item.id} style={[s.tableRow, idx % 2 === 1 ? s.tableRowAlt : {}]}>
                 <Text style={s.colPos}>{item.position}</Text>
-                <Text style={s.colDesc}>{item.description}</Text>
+                <View style={s.colDesc}>
+                  <Text>{item.description}</Text>
+                  {item.note ? <Text style={{ fontSize: 8, color: "#6b7280", marginTop: 2 }}>{item.note}</Text> : null}
+                </View>
                 <Text style={s.colQty}>{fmt(item.quantity, 3).replace(/\.?0+$/, "")}</Text>
                 <Text style={s.colUnit}>{item.unit}</Text>
                 <Text style={s.colEP}>{fmt(item.unitPrice)}</Text>

@@ -110,6 +110,7 @@ model QuoteItem {
   quoteId     String
   position    Int     @default(1)
   description String
+  note        String?
   quantity    Decimal @db.Decimal(10, 3)
   unit        String  @default("t")
   unitPrice   Decimal @db.Decimal(10, 2)

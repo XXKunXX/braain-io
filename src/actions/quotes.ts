@@ -7,6 +7,7 @@ import { z } from "zod";
 
 const quoteItemSchema = z.object({
   description: z.string().min(1, "Beschreibung erforderlich"),
+  note: z.string().optional(),
   quantity: z.coerce.number().positive("Menge muss positiv sein"),
   unit: z.string().min(1),
   unitPrice: z.coerce.number().min(0),

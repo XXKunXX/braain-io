@@ -24,6 +24,7 @@ const UNITS = ["t", "m³", "m²", "m", "Stk", "Std", "Psch"];
 
 interface EditItem {
   description: string;
+  note: string;
   quantity: number;
   unit: string;
   unitPrice: number;
@@ -120,13 +121,13 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
   const [validUntil, setValidUntil] = useState("");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<EditItem[]>([
-    { description: "", quantity: 1, unit: "t", unitPrice: 0 },
+    { description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 },
   ]);
 
   const total = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 
   function addItem() {
-    setItems([...items, { description: "", quantity: 1, unit: "t", unitPrice: 0 }]);
+    setItems([...items, { description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 }]);
   }
   function removeItem(idx: number) {
     setItems(items.filter((_, i) => i !== idx));
@@ -331,7 +332,8 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
                 const fp = getFilteredProducts(item.description);
                 const showProductDrop = openProductIdx === idx && fp.length > 0;
                 return (
-                  <div key={idx} className="grid grid-cols-[1fr_80px_90px_90px_80px_28px] gap-2 items-start">
+                  <div key={idx} className="space-y-1.5">
+                  <div className="grid grid-cols-[1fr_80px_90px_90px_80px_28px] gap-2 items-start">
                     {/* Description with product combobox */}
                     <div
                       className="relative"
@@ -415,6 +417,14 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
+                  </div>
+                  <textarea
+                    rows={2}
+                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder="Positionsbeschreibung (optional)..."
+                    value={item.note}
+                    onChange={(e) => updateItem(idx, "note", e.target.value)}
+                  />
                   </div>
                 );
               })}
