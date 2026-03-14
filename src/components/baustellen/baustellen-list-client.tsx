@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Eye, Pencil, Trash2, X } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ChevronRight, HardHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { updateBaustelle, deleteBaustelle } from "@/actions/baustellen";
@@ -15,9 +15,9 @@ const STATUS_LABEL: Record<BaustelleStatusType, string> = {
   COMPLETED: "Abgeschlossen",
 };
 const STATUS_COLOR: Record<BaustelleStatusType, string> = {
-  PLANNED: "border-gray-300 text-gray-600 bg-gray-50",
-  ACTIVE: "border-blue-300 text-blue-700 bg-blue-50",
-  COMPLETED: "border-green-300 text-green-700 bg-green-50",
+  PLANNED: "bg-blue-50 text-blue-700",
+  ACTIVE: "bg-green-100 text-green-800",
+  COMPLETED: "bg-gray-100 text-gray-500",
 };
 
 function fmt(d: Date | string | null | undefined) {
@@ -131,7 +131,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Baustellen</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Baustellen</h1>
           <p className="text-sm text-gray-400 mt-0.5">{baustellen.length} Baustellen</p>
         </div>
         <Link href="/baustellen/neu">
@@ -142,43 +142,78 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
         </Link>
       </div>
 
-      {/* Table */}
+      {/* List */}
       {baustellen.length === 0 ? (
         <div className="text-center py-20 text-gray-400 text-sm">Noch keine Baustellen erfasst</div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[2fr_2fr_2fr_1fr_1fr_1.2fr_80px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-            {["Baustelle", "Auftrag", "Adresse", "Start", "Ende", "Status", ""].map((h) => (
-              <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+          {/* Header */}
+          <div className="hidden md:grid grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
+            {["", "Baustelle", "Auftrag", "Adresse", "Zeitraum", "Status", ""].map((h, i) => (
+              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
             ))}
           </div>
+
+          {/* Rows */}
           {baustellen.map((b, i) => (
-            <div
+            <Link
               key={b.id}
-              className={`grid grid-cols-[2fr_2fr_2fr_1fr_1fr_1.2fr_80px] gap-3 px-5 py-3.5 items-center group hover:bg-gray-50 transition-colors ${i !== baustellen.length - 1 ? "border-b border-gray-100" : ""}`}
+              href={`/baustellen/${b.id}`}
+              className={`flex md:grid md:grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 items-center hover:bg-gray-50/60 transition-colors group ${
+                i !== baustellen.length - 1 ? "border-b border-gray-100" : ""
+              }`}
             >
-              <p className="text-sm font-semibold text-gray-900 truncate">{b.name}</p>
-              <p className="text-sm text-gray-500 truncate">{b.order.orderNumber} {b.order.title}</p>
-              <p className="text-sm text-gray-500 truncate">
-                {[b.address, [b.postalCode, b.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "–"}
-              </p>
-              <p className="text-sm text-gray-500">{fmt(b.startDate)}</p>
-              <p className="text-sm text-gray-500">{b.endDate ? fmt(b.endDate) : "–"}</p>
-              <span className={`inline-flex text-xs font-medium px-2 py-0.5 rounded-full border w-fit ${STATUS_COLOR[b.status]}`}>
-                {STATUS_LABEL[b.status]}
-              </span>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Link href={`/baustellen/${b.id}`} className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors" title="Details">
-                  <Eye className="h-3.5 w-3.5" />
-                </Link>
-                <button onClick={() => openEdit(b)} className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors">
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => handleDelete(b.id, b.name)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+              {/* Icon */}
+              <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 bg-green-50">
+                <HardHat className="h-3.5 w-3.5 text-green-600" />
               </div>
-            </div>
+
+              {/* Name */}
+              <div className="min-w-0 flex-1 md:flex-none flex items-center gap-2 overflow-hidden">
+                <span className="text-sm font-medium text-gray-900 truncate">{b.name}</span>
+              </div>
+
+              {/* Auftrag */}
+              <span className="hidden md:block text-xs text-gray-500 truncate">
+                {b.order.orderNumber} {b.order.title}
+              </span>
+
+              {/* Adresse */}
+              <span className="hidden md:block text-xs text-gray-500 truncate">
+                {[b.address, [b.postalCode, b.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "–"}
+              </span>
+
+              {/* Zeitraum */}
+              <span className="hidden md:block text-xs text-gray-500 whitespace-nowrap">
+                {fmt(b.startDate)}{b.endDate ? ` – ${fmt(b.endDate)}` : ""}
+              </span>
+
+              {/* Status badge */}
+              <div className="hidden md:block">
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${STATUS_COLOR[b.status]}`}>
+                  {STATUS_LABEL[b.status]}
+                </span>
+              </div>
+
+              {/* Right: edit/delete on hover + chevron */}
+              <div className="flex items-center justify-end relative">
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 absolute right-4">
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); openEdit(b); }}
+                    className="text-gray-300 hover:text-gray-600 transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDelete(b.id, b.name); }}
+                    className="text-gray-300 hover:text-red-500 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:opacity-0 transition-opacity" />
+              </div>
+            </Link>
           ))}
         </div>
       )}
