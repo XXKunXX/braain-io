@@ -59,6 +59,53 @@ export async function updateDeliveryNote(id: string, data: DeliveryNoteFormData)
   return { deliveryNote };
 }
 
+export interface MaterialRow {
+  material: string;
+  m3: string;
+  to: string;
+}
+
+export async function fillDeliveryNote(id: string, data: {
+  driver?: string;
+  vehicle?: string;
+  licensePlate?: string;
+  siteAddress?: string;
+  vehicleType?: string;
+  isMaut?: boolean;
+  mautKm?: number;
+  regieStart1?: string;
+  regieEnd1?: string;
+  regieStart2?: string;
+  regieEnd2?: string;
+  deliveredItems?: MaterialRow[];
+  receivedItems?: MaterialRow[];
+  notes?: string;
+  signatureUrl?: string;
+}) {
+  await prisma.deliveryNote.update({
+    where: { id },
+    data: {
+      driver: data.driver || undefined,
+      vehicle: data.vehicle || undefined,
+      licensePlate: data.licensePlate || undefined,
+      siteAddress: data.siteAddress || undefined,
+      vehicleType: data.vehicleType || undefined,
+      isMaut: data.isMaut ?? false,
+      mautKm: data.mautKm || undefined,
+      regieStart1: data.regieStart1 || undefined,
+      regieEnd1: data.regieEnd1 || undefined,
+      regieStart2: data.regieStart2 || undefined,
+      regieEnd2: data.regieEnd2 || undefined,
+      deliveredItems: data.deliveredItems as object[] ?? undefined,
+      receivedItems: data.receivedItems as object[] ?? undefined,
+      notes: data.notes || undefined,
+      signatureUrl: data.signatureUrl || undefined,
+    },
+  });
+  revalidatePath(`/lieferscheine/${id}`);
+  return { success: true };
+}
+
 export async function updateDeliveryNotePdfUrl(id: string, pdfUrl: string) {
   await prisma.deliveryNote.update({ where: { id }, data: { pdfUrl } });
   revalidatePath(`/lieferscheine/${id}`);

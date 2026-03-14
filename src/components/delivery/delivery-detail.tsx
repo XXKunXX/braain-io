@@ -4,7 +4,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { FileText } from "lucide-react";
+import { FileText, PenLine } from "lucide-react";
 import type { Contact, DeliveryNote, Order } from "@prisma/client";
 
 type DeliveryWithRelations = DeliveryNote & {
@@ -33,14 +33,22 @@ export function DeliveryDetail({
               {dn.contact.companyName}
             </Link>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => window.open(`/api/pdf/delivery/${dn.id}`, "_blank")}
-          >
-            <FileText className="h-4 w-4 mr-1" />
-            PDF
-          </Button>
+          <div className="flex gap-2">
+            <Link href={`/lieferscheine/${dn.id}/ausfuellen`}>
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+                <PenLine className="h-4 w-4 mr-1" />
+                Ausfüllen
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.open(`/api/pdf/delivery/${dn.id}`, "_blank")}
+            >
+              <FileText className="h-4 w-4 mr-1" />
+              PDF
+            </Button>
+          </div>
         </div>
 
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 mt-5 pt-5 border-t text-sm">
@@ -82,20 +90,43 @@ export function DeliveryDetail({
         )}
       </div>
 
-      {/* Signature placeholder */}
+      {/* Extra fields */}
+      {((dn as DeliveryNote & { vehicleType?: string; licensePlate?: string; regieStart1?: string; regieEnd1?: string }).vehicleType ||
+        (dn as DeliveryNote & { licensePlate?: string }).licensePlate ||
+        (dn as DeliveryNote & { regieStart1?: string }).regieStart1) && (
+        <div className="bg-white border rounded-lg p-5">
+          <p className="text-xs text-zinc-500 mb-3 font-semibold uppercase tracking-wider">Details</p>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+            {(dn as DeliveryNote & { vehicleType?: string }).vehicleType && (
+              <div><dt className="text-xs text-zinc-500">Fahrzeugtyp</dt><dd className="font-medium">{(dn as DeliveryNote & { vehicleType?: string }).vehicleType}</dd></div>
+            )}
+            {(dn as DeliveryNote & { licensePlate?: string }).licensePlate && (
+              <div><dt className="text-xs text-zinc-500">Kennzeichen</dt><dd className="font-medium">{(dn as DeliveryNote & { licensePlate?: string }).licensePlate}</dd></div>
+            )}
+            {(dn as DeliveryNote & { regieStart1?: string; regieEnd1?: string }).regieStart1 && (
+              <div><dt className="text-xs text-zinc-500">Regiezeit</dt><dd className="font-medium">{(dn as DeliveryNote & { regieStart1?: string }).regieStart1} – {(dn as DeliveryNote & { regieEnd1?: string }).regieEnd1}</dd></div>
+            )}
+          </dl>
+        </div>
+      )}
+
+      {/* Signature */}
       {dn.signatureUrl ? (
         <div className="bg-white border rounded-lg p-5">
-          <p className="text-xs text-zinc-500 mb-2">Unterschrift</p>
+          <p className="text-xs text-zinc-500 mb-2 font-semibold uppercase tracking-wider">Unterschrift des Kunden</p>
           <img
             src={dn.signatureUrl}
             alt="Unterschrift"
-            className="max-h-24 border rounded"
+            className="w-full max-h-36 object-contain border rounded-lg bg-gray-50"
           />
         </div>
       ) : (
-        <div className="bg-zinc-50 border border-dashed rounded-lg p-6 text-center">
-          <p className="text-sm text-zinc-400">Noch nicht unterschrieben</p>
-        </div>
+        <Link href={`/lieferscheine/${dn.id}/ausfuellen`} className="block">
+          <div className="bg-zinc-50 border border-dashed rounded-lg p-6 text-center hover:bg-blue-50 hover:border-blue-200 transition-colors">
+            <PenLine className="h-6 w-6 mx-auto mb-2 text-zinc-300" />
+            <p className="text-sm text-zinc-400">Noch nicht ausgefüllt — Jetzt ausfüllen</p>
+          </div>
+        </Link>
       )}
     </div>
   );

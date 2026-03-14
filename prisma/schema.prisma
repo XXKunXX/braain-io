@@ -209,6 +209,17 @@ model DeliveryNote {
   unit           String   @default("t")
   driver         String?
   vehicle        String?
+  licensePlate   String?
+  siteAddress    String?
+  vehicleType    String?
+  isMaut         Boolean  @default(false)
+  mautKm         Int?
+  regieStart1    String?
+  regieEnd1      String?
+  regieStart2    String?
+  regieEnd2      String?
+  deliveredItems Json?
+  receivedItems  Json?
   notes          String?
   pdfUrl         String?
   signatureUrl   String?
