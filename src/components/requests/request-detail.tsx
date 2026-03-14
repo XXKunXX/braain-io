@@ -104,6 +104,7 @@ export function RequestDetail({
     request.inspectionDate ? format(new Date(request.inspectionDate), "yyyy-MM-dd'T'HH:mm") : ""
   );
   const [inspectionSaving, setInspectionSaving] = useState(false);
+  const [inspectionJustSaved, setInspectionJustSaved] = useState(false);
 
   const [notes, setNotes] = useState<ContactNote[]>(request.contactNotes);
   const [noteAdding, setNoteAdding] = useState(false);
@@ -126,6 +127,7 @@ export function RequestDetail({
     setInspectionStatus("PLANNED");
     setInspectionEditing(false);
     setInspectionSaving(false);
+    setInspectionJustSaved(true);
     toast.success("Besichtigungstermin gespeichert");
     router.refresh();
   }
@@ -478,11 +480,21 @@ export function RequestDetail({
                     )}
                   </div>
                   <InfoRow label="Zugewiesen an">{request.assignedTo ?? "–"}</InfoRow>
-                  {request.inspectionDate && request.inspectionStatus !== "DONE" && (
-                    <div className="flex items-center gap-2 pt-1">
-                      <Button className="rounded-lg bg-green-600 hover:bg-green-700 gap-1.5" onClick={handleInspectionDone}>
-                        <CheckCircle2 className="h-3.5 w-3.5" />Besichtigung abschließen
-                      </Button>
+                  {request.inspectionDate && (
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      {request.inspectionStatus !== "DONE" && (
+                        <Button className="rounded-lg bg-green-600 hover:bg-green-700 gap-1.5" onClick={handleInspectionDone}>
+                          <CheckCircle2 className="h-3.5 w-3.5" />Besichtigung abschließen
+                        </Button>
+                      )}
+                      {(inspectionJustSaved || request.inspectionDate) && (
+                        <a
+                          href={`/api/ical/inspection/${request.id}`}
+                          className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 bg-blue-50 hover:bg-blue-100 rounded-lg px-3 h-9 transition-colors"
+                        >
+                          <span>📅</span> Zum Kalender hinzufügen
+                        </a>
+                      )}
                     </div>
                   )}
                 </>
