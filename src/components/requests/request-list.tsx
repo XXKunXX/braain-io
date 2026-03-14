@@ -126,12 +126,9 @@ export function RequestList({ requests }: RequestListProps) {
                 i !== filtered.length - 1 ? "border-b border-gray-100" : ""
               }`}
             >
-              {/* Titel + Beschreibung */}
+              {/* Titel */}
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">{req.title}</p>
-                {req.description && (
-                  <p className="text-xs text-gray-400 truncate mt-0.5">{req.description}</p>
-                )}
               </div>
 
               {/* Kontakt */}
