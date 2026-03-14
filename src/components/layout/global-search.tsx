@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, Users, MessageSquare, FileText, ClipboardList, Truck, CheckSquare, HardHat, FolderOpen, X } from "lucide-react";
+import { Search, Users, MessageSquare, FileText, ClipboardList, Truck, CheckSquare, HardHat, FolderOpen, X, Construction } from "lucide-react";
 
 interface SearchResults {
   contacts?: { id: string; companyName: string; contactPerson?: string | null; type: string }[];
@@ -13,6 +13,7 @@ interface SearchResults {
   tasks?: { id: string; title: string; status: string; priority: string }[];
   resources?: { id: string; name: string; type: string }[];
   attachments?: { id: string; fileName: string; contact?: { companyName: string } | null }[];
+  baustellen?: { id: string; name: string; status: string; city?: string | null; order: { orderNumber: string } }[];
 }
 
 interface GlobalSearchProps {
@@ -29,6 +30,7 @@ const SECTIONS = [
   { key: "tasks", label: "Aufgaben", icon: CheckSquare, href: () => `/aufgaben`, display: (r: { title: string }) => ({ title: r.title }) },
   { key: "resources", label: "Ressourcen", icon: HardHat, href: () => `/ressourcen`, display: (r: { name: string; type: string }) => ({ title: r.name, sub: r.type }) },
   { key: "attachments", label: "Anhänge", icon: FolderOpen, href: () => `/dokumente`, display: (r: { fileName: string; contact?: { companyName: string } | null }) => ({ title: r.fileName, sub: r.contact?.companyName }) },
+  { key: "baustellen", label: "Baustellen", icon: Construction, href: (id: string) => `/baustellen/${id}`, display: (r: { name: string; city?: string | null; order: { orderNumber: string } }) => ({ title: r.name, sub: [r.order.orderNumber, r.city].filter(Boolean).join(" · ") }) },
 ] as const;
 
 export function GlobalSearch({ open, onClose }: GlobalSearchProps) {
