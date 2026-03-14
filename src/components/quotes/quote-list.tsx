@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
+import { Trash2, Search, ChevronRight, FileText } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -38,10 +39,12 @@ const statusLabels: Record<string, string> = {
 
 const statusColors: Record<string, string> = {
   DRAFT: "bg-gray-100 text-gray-600",
-  SENT: "bg-blue-100 text-blue-700",
-  ACCEPTED: "bg-green-100 text-green-700",
-  REJECTED: "bg-red-100 text-red-700",
+  SENT: "bg-blue-50 text-blue-700",
+  ACCEPTED: "bg-green-100 text-green-800",
+  REJECTED: "bg-red-50 text-red-700",
 };
+
+const allStatuses = Object.entries(statusLabels);
 
 export function QuoteList({
   quotes: initialQuotes,
@@ -55,15 +58,17 @@ export function QuoteList({
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState(currentStatus ?? "ALL");
 
-  const filtered = quotes.filter((q) => {
-    const matchesSearch =
-      !search ||
-      q.title.toLowerCase().includes(search.toLowerCase()) ||
-      q.contact.companyName.toLowerCase().includes(search.toLowerCase()) ||
-      q.quoteNumber.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === "ALL" || q.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filtered = useMemo(() => {
+    return quotes.filter((q) => {
+      const matchesSearch =
+        !search ||
+        q.title.toLowerCase().includes(search.toLowerCase()) ||
+        q.contact.companyName.toLowerCase().includes(search.toLowerCase()) ||
+        q.quoteNumber.toLowerCase().includes(search.toLowerCase());
+      const matchesStatus = statusFilter === "ALL" || q.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [quotes, search, statusFilter]);
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.preventDefault();
@@ -75,98 +80,99 @@ export function QuoteList({
   }
 
   return (
-    <div className="flex flex-col min-h-full">
-      {/* Page header */}
-      <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 bg-white">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">Angebote</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{quotes.length} Angebote</p>
-        </div>
-        <Button
-          size="sm"
-          className="bg-amber-500 hover:bg-amber-600 text-white rounded-lg"
-          onClick={() => router.push("/angebote/neu")}
-        >
-          <Plus className="h-4 w-4 mr-1" />
-          Neues Angebot
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <div className="px-6 py-3 border-b border-gray-100 bg-white flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+    <div className="space-y-4">
+      {/* Filter row */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <Input
-            className="pl-9 h-9 rounded-lg border-gray-200 text-sm"
-            placeholder="Suchen..."
+            placeholder="Titel, Kontakt, Nummer..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-white"
           />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => v != null && setStatusFilter(v)}>
-          <SelectTrigger className="h-9 w-44 rounded-lg border-gray-200 text-sm">
-            <SelectValue />
+        <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
+          <SelectTrigger className="w-44 bg-white">
+            <SelectValue>{statusFilter === "ALL" ? "Alle Status" : statusLabels[statusFilter]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">Alle Status</SelectItem>
-            <SelectItem value="DRAFT">Entwurf</SelectItem>
-            <SelectItem value="SENT">Gesendet</SelectItem>
-            <SelectItem value="ACCEPTED">Angenommen</SelectItem>
-            <SelectItem value="REJECTED">Abgelehnt</SelectItem>
+            {allStatuses.map(([value, label]) => (
+              <SelectItem key={value} value={value}>{label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 px-6 py-4">
-        {filtered.length === 0 ? (
-          <p className="text-sm text-gray-400 py-12 text-center">Keine Angebote</p>
-        ) : (
-          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-5 py-3">Angebotsnr.</th>
-                  <th className="text-left text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-5 py-3">Kontakt</th>
-                  <th className="text-left text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-5 py-3">Betrag</th>
-                  <th className="text-left text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-5 py-3">Status</th>
-                  <th className="text-right text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-5 py-3">Aktionen</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map((quote) => (
-                  <tr
-                    key={quote.id}
-                    className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/angebote/${quote.id}`)}
-                  >
-                    <td className="px-5 py-3.5 text-sm font-mono text-gray-700">{quote.quoteNumber}</td>
-                    <td className="px-5 py-3.5 text-sm text-gray-700">
-                      {quote.contact?.companyName ?? <span className="text-gray-400">–</span>}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm font-semibold text-gray-900">
-                      {Number(quote.totalPrice).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
-                    </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${statusColors[quote.status]}`}>
-                        {statusLabels[quote.status]}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button
-                        onClick={(e) => handleDelete(e, quote.id)}
-                        className="text-gray-300 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* List */}
+      {filtered.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">
+          <p className="text-sm">Keine Angebote gefunden</p>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          {/* Header */}
+          <div className="hidden md:grid grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
+            {["", "Titel", "Kontakt", "Betrag", "Status", "Erstellt am", ""].map((h, i) => (
+              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+            ))}
           </div>
-        )}
-      </div>
+
+          {/* Rows */}
+          {filtered.map((quote, i) => (
+            <Link
+              key={quote.id}
+              href={`/angebote/${quote.id}`}
+              className={`flex md:grid md:grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 items-center hover:bg-gray-50/60 transition-colors group ${
+                i !== filtered.length - 1 ? "border-b border-gray-100" : ""
+              }`}
+            >
+              {/* Icon */}
+              <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 bg-amber-50">
+                <FileText className="h-3.5 w-3.5 text-amber-500" />
+              </div>
+
+              {/* Titel + Nummer */}
+              <div className="min-w-0 flex-1 md:flex-none flex items-center gap-2 overflow-hidden">
+                <span className="text-sm font-medium text-gray-900 truncate">{quote.title}</span>
+                <span className="text-xs text-gray-400 flex-shrink-0 hidden lg:inline">{quote.quoteNumber}</span>
+              </div>
+
+              {/* Kontakt */}
+              <span className="hidden md:block text-xs text-gray-500 truncate">{quote.contact.companyName}</span>
+
+              {/* Betrag */}
+              <span className="hidden md:block text-xs text-gray-500 font-mono">
+                {Number(quote.totalPrice).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+              </span>
+
+              {/* Status badge */}
+              <div className="hidden md:block">
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusColors[quote.status]}`}>
+                  {statusLabels[quote.status]}
+                </span>
+              </div>
+
+              {/* Erstellt am */}
+              <span className="hidden md:block text-xs text-gray-500">
+                {format(new Date(quote.createdAt), "dd.MM.yyyy", { locale: de })}
+              </span>
+
+              {/* Right: chevron + delete on hover */}
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={(e) => handleDelete(e, quote.id)}
+                  className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 absolute"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+                <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:opacity-0 transition-opacity" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

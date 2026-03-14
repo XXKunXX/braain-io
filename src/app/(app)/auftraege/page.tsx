@@ -16,17 +16,15 @@ export default async function AuftraegePage({
   })) as unknown as typeof rawOrders;
 
   return (
-    <div className="flex flex-col min-h-full">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-4 md:py-5 border-b border-gray-200 bg-white">
+    <div className="p-4 md:p-6 space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Aufträge</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{orders.length} Aufträge</p>
+          <p className="text-sm text-gray-400 mt-0.5">{orders.length} Aufträge</p>
         </div>
         <CreateOrderButton />
       </div>
-      <div className="flex-1 p-4 md:p-6">
-        <OrderList orders={orders} />
-      </div>
+      <OrderList orders={orders} />
     </div>
   );
 }
