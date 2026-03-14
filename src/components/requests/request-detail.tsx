@@ -453,7 +453,7 @@ export function RequestDetail({
                       <div className="flex items-center gap-3">
                         <span
                           className="text-sm text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
-                          onClick={() => setInspectionEditing(true)}
+                          onClick={() => { if (!inspectionDateEdit) { const d = new Date(); d.setHours(7, 0, 0, 0); setInspectionDateEdit(format(d, "yyyy-MM-dd'T'HH:mm")); } setInspectionEditing(true); }}
                         >
                           {request.inspectionDate
                             ? `${format(new Date(request.inspectionDate), "dd.MM.yyyy HH:mm", { locale: de })} Uhr`
