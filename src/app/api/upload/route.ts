@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { createClient } from "@supabase/supabase-js";
 import { prisma } from "@/lib/prisma";
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -16,14 +21,25 @@ export async function POST(req: NextRequest) {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const uniqueName = `${Date.now()}_${safeName}`;
 
-  const blob = await put(uniqueName, file, { access: "public" });
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const { error } = await supabase.storage
+    .from("attachments")
+    .upload(uniqueName, buffer, { contentType: file.type, upsert: false });
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { data: { publicUrl } } = supabase.storage
+    .from("attachments")
+    .getPublicUrl(uniqueName);
 
   const attachment = await prisma.attachment.create({
     data: {
       fileName: file.name,
       fileSize: file.size,
       mimeType: file.type,
-      url: blob.url,
+      url: publicUrl,
       requestId: requestId ?? null,
       contactId: contactId ?? null,
     },
