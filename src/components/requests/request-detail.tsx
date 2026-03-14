@@ -105,6 +105,9 @@ export function RequestDetail({
   );
   const [inspectionSaving, setInspectionSaving] = useState(false);
   const [inspectionJustSaved, setInspectionJustSaved] = useState(false);
+  const [inspectionDoneModalOpen, setInspectionDoneModalOpen] = useState(false);
+  const [inspectionDoneNote, setInspectionDoneNote] = useState("");
+  const [inspectionDoneSaving, setInspectionDoneSaving] = useState(false);
 
   const [notes, setNotes] = useState<ContactNote[]>(request.contactNotes);
   const [noteAdding, setNoteAdding] = useState(false);
@@ -151,9 +154,25 @@ export function RequestDetail({
     router.refresh();
   }
 
-  async function handleInspectionDone() {
+  async function handleInspectionDoneConfirm() {
+    setInspectionDoneSaving(true);
+    // Save note if provided
+    if (inspectionDoneNote.trim()) {
+      const result = await createContactNote({
+        content: inspectionDoneNote.trim(),
+        contactId: request.contact.id,
+        requestId: request.id,
+        createdBy: currentUserName,
+      });
+      if (result.note) {
+        setNotes((prev) => [result.note!, ...prev]);
+      }
+    }
     await updateRequest(request.id, { inspectionStatus: "DONE", status: "BESICHTIGUNG_DURCHGEFUEHRT" as "NEU" });
-    toast.success("Besichtigung durchgeführt");
+    setInspectionDoneSaving(false);
+    setInspectionDoneModalOpen(false);
+    setInspectionDoneNote("");
+    toast.success("Besichtigung abgeschlossen");
     router.refresh();
   }
 
@@ -514,7 +533,7 @@ export function RequestDetail({
                   {request.inspectionDate && (
                     <div className="flex items-center gap-2 pt-1 flex-wrap">
                       {request.inspectionStatus !== "DONE" && (
-                        <Button className="rounded-lg bg-green-600 hover:bg-green-700 gap-1.5" onClick={handleInspectionDone}>
+                        <Button className="rounded-lg bg-green-600 hover:bg-green-700 gap-1.5" onClick={() => setInspectionDoneModalOpen(true)}>
                           <CheckCircle2 className="h-3.5 w-3.5" />Besichtigung abschließen
                         </Button>
                       )}
@@ -741,6 +760,61 @@ export function RequestDetail({
         </div>
       </div>
     </div>
+
+    {/* ── Modal: Besichtigung abschließen ───────────────────────────────────── */}
+    {inspectionDoneModalOpen && (
+      <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <h2 className="font-semibold text-gray-900">Besichtigung abschließen</h2>
+            </div>
+            <button
+              onClick={() => { setInspectionDoneModalOpen(false); setInspectionDoneNote(""); }}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="px-6 py-5 space-y-4">
+            <p className="text-sm text-gray-500">
+              Füge eine Notiz zur Besichtigung hinzu. Sie wird automatisch mit dem Kontakt und dieser Anfrage verknüpft.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold tracking-wider text-gray-400 uppercase">
+                Notiz zur Besichtigung
+              </label>
+              <Textarea
+                autoFocus
+                rows={5}
+                placeholder="z.B. Zufahrt über Rückseite, Grundstück 800m², Baumbestand muss beachtet werden..."
+                value={inspectionDoneNote}
+                onChange={(e) => setInspectionDoneNote(e.target.value)}
+                className="rounded-lg border-gray-200 resize-none text-sm"
+              />
+            </div>
+          </div>
+          <div className="px-6 py-4 border-t border-gray-100 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => { setInspectionDoneModalOpen(false); setInspectionDoneNote(""); }}
+              disabled={inspectionDoneSaving}
+            >
+              Abbrechen
+            </Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700 gap-1.5"
+              onClick={handleInspectionDoneConfirm}
+              disabled={inspectionDoneSaving}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {inspectionDoneSaving ? "Speichert..." : "Abschließen"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
   );
 }
 
