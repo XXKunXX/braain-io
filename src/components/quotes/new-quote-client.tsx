@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, ChevronDown, X } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ChevronDown, X, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -129,7 +129,7 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
     setItems([...items, { description: "", quantity: 1, unit: "t", unitPrice: 0 }]);
   }
   function removeItem(idx: number) {
-    if (items.length > 1) setItems(items.filter((_, i) => i !== idx));
+    setItems(items.filter((_, i) => i !== idx));
   }
   function updateItem(idx: number, field: keyof EditItem, value: string | number) {
     setItems(items.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
@@ -314,52 +314,73 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
               </button>
             </div>
             <div className="p-4 space-y-2">
-              <div className="grid grid-cols-12 gap-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-1">
-                <div className="col-span-4">Beschreibung</div>
-                <div className="col-span-2">Menge</div>
-                <div className="col-span-2">Einheit</div>
-                <div className="col-span-2">EP (€)</div>
-                <div className="col-span-1 text-right">GP (€)</div>
-                <div className="col-span-1" />
+              <div className="grid grid-cols-[1fr_80px_90px_90px_80px_28px] gap-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-1">
+                <div>Beschreibung</div>
+                <div>Menge</div>
+                <div>Einheit</div>
+                <div>EP (€)</div>
+                <div className="text-right">GP (€)</div>
+                <div />
               </div>
+              {items.length === 0 && (
+                <div className="text-center py-6 text-sm text-gray-400">
+                  Keine Positionen — klicke auf &quot;+ Position&quot;
+                </div>
+              )}
               {items.map((item, idx) => {
                 const fp = getFilteredProducts(item.description);
                 const showProductDrop = openProductIdx === idx && fp.length > 0;
                 return (
-                  <div key={idx} className="grid grid-cols-12 gap-2">
+                  <div key={idx} className="grid grid-cols-[1fr_80px_90px_90px_80px_28px] gap-2 items-start">
                     {/* Description with product combobox */}
                     <div
-                      className="col-span-4 relative"
+                      className="relative"
                       ref={(el) => { productRefs.current[idx] = el; }}
                     >
-                      <input
-                        type="text"
-                        className="w-full h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Sand, Kies, Transport..."
-                        value={item.description}
-                        required
-                        onChange={(e) => {
-                          updateItem(idx, "description", e.target.value);
-                          setOpenProductIdx(idx);
-                        }}
-                        onFocus={() => {
-                          if (products.length > 0) setOpenProductIdx(idx);
-                        }}
-                      />
-                      {showProductDrop && (
-                        <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      <div className="flex gap-1">
+                        <input
+                          type="text"
+                          className="flex-1 h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
+                          placeholder="Freitext oder Produkt wählen..."
+                          value={item.description}
+                          required
+                          onChange={(e) => {
+                            updateItem(idx, "description", e.target.value);
+                            setOpenProductIdx(idx);
+                          }}
+                          onFocus={() => {
+                            if (products.length > 0) setOpenProductIdx(idx);
+                          }}
+                        />
+                        {products.length > 0 && (
+                          <button
+                            type="button"
+                            title="Produkt aus Ressourcen wählen"
+                            className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-md border border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                            onClick={() => setOpenProductIdx(openProductIdx === idx ? null : idx)}
+                          >
+                            <Package className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      {(showProductDrop || (openProductIdx === idx && products.length > 0 && !item.description)) && (
+                        <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                          {fp.length === 0 && (
+                            <div className="px-3 py-2 text-sm text-gray-400">Kein Produkt gefunden</div>
+                          )}
                           {fp.map((p) => (
                             <button
                               key={p.id}
                               type="button"
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
                               onMouseDown={() => {
                                 updateItem(idx, "description", p.name);
                                 setOpenProductIdx(null);
                               }}
                             >
+                              <Package className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
                               <span className="font-medium text-gray-900">{p.name}</span>
-                              {p.description && <span className="text-xs text-gray-400">{p.description}</span>}
+                              {p.description && <span className="text-xs text-gray-400 truncate">· {p.description}</span>}
                             </button>
                           ))}
                         </div>
@@ -367,7 +388,7 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
                     </div>
 
                     <Input
-                      className="col-span-2 text-sm h-9"
+                      className="text-sm h-9"
                       type="number"
                       min="0"
                       step="0.001"
@@ -375,26 +396,24 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
                       onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))}
                     />
                     <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
-                      <SelectTrigger className="col-span-2 text-sm h-9"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="text-sm h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
                     </Select>
                     <Input
-                      className="col-span-2 text-sm h-9"
+                      className="text-sm h-9"
                       type="number"
                       min="0"
                       step="0.01"
                       value={item.unitPrice}
                       onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
                     />
-                    <div className="col-span-1 flex items-center justify-end text-sm font-mono text-gray-600">
+                    <div className="h-9 flex items-center justify-end text-sm font-mono text-gray-600">
                       {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
-                    <div className="col-span-1 flex items-center justify-end">
-                      {items.length > 1 && (
-                        <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
+                    <div className="h-9 flex items-center justify-center">
+                      <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 transition-colors">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 );
