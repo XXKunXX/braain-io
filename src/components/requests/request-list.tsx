@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { Trash2, Search, SlidersHorizontal } from "lucide-react";
+import { Trash2, Search, ChevronRight, ClipboardList } from "lucide-react";
 import type { Contact, Request } from "@prisma/client";
 import { Input } from "@/components/ui/input";
 import {
@@ -31,13 +31,13 @@ const statusLabels: Record<string, string> = {
 };
 
 const statusColors: Record<string, string> = {
-  OPEN: "border border-blue-300 text-blue-700 bg-blue-50",
-  NEU: "border border-blue-300 text-blue-700 bg-blue-50",
-  BESICHTIGUNG_GEPLANT: "border border-amber-400 text-amber-700 bg-amber-50",
-  BESICHTIGUNG_DURCHGEFUEHRT: "border border-teal-400 text-teal-700 bg-teal-50",
-  ANGEBOT_ERSTELLT: "border border-amber-400 text-amber-700 bg-amber-50",
-  IN_PROGRESS: "border border-purple-300 text-purple-700 bg-purple-50",
-  DONE: "border border-green-500 text-green-800 bg-green-100",
+  OPEN: "bg-blue-50 text-blue-700",
+  NEU: "bg-blue-50 text-blue-700",
+  BESICHTIGUNG_GEPLANT: "bg-amber-50 text-amber-700",
+  BESICHTIGUNG_DURCHGEFUEHRT: "bg-teal-50 text-teal-700",
+  ANGEBOT_ERSTELLT: "bg-amber-50 text-amber-700",
+  IN_PROGRESS: "bg-purple-50 text-purple-700",
+  DONE: "bg-green-100 text-green-800",
 };
 
 const allStatuses = Object.entries(statusLabels);
@@ -76,8 +76,8 @@ export function RequestList({ requests }: RequestListProps) {
   return (
     <div className="space-y-4">
       {/* Filter row */}
-      <div className="flex items-center gap-3">
-        <div className="relative max-w-xs w-full">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <Input
             placeholder="Titel, Kontakt, Beschreibung..."
@@ -87,8 +87,7 @@ export function RequestList({ requests }: RequestListProps) {
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-          <SelectTrigger className="w-48 bg-white gap-2">
-            <SlidersHorizontal className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+          <SelectTrigger className="w-44 bg-white">
             <SelectValue>{statusFilter === "ALL" ? "Alle Status" : statusLabels[statusFilter]}</SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -108,13 +107,10 @@ export function RequestList({ requests }: RequestListProps) {
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
-          <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Titel / Beschreibung</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Owner</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Erstellt am</span>
-            <span />
+          <div className="hidden md:grid grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
+            {["", "Titel", "Kontakt", "Status", "Owner", "Erstellt am", ""].map((h, i) => (
+              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+            ))}
           </div>
 
           {/* Rows */}
@@ -122,42 +118,50 @@ export function RequestList({ requests }: RequestListProps) {
             <Link
               key={req.id}
               href={`/anfragen/${req.id}`}
-              className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 items-center hover:bg-gray-50/60 transition-colors group ${
+              className={`flex md:grid md:grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 items-center hover:bg-gray-50/60 transition-colors group ${
                 i !== filtered.length - 1 ? "border-b border-gray-100" : ""
               }`}
             >
+              {/* Icon */}
+              <div className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0 bg-orange-50">
+                <ClipboardList className="h-3.5 w-3.5 text-orange-500" />
+              </div>
+
               {/* Titel */}
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{req.title}</p>
+              <div className="min-w-0 flex-1 md:flex-none flex items-center gap-2 overflow-hidden">
+                <span className="text-sm font-medium text-gray-900 truncate">{req.title}</span>
               </div>
 
               {/* Kontakt */}
-              <span className="text-sm text-gray-600 truncate">{req.contact.companyName}</span>
+              <span className="hidden md:block text-xs text-gray-500 truncate">{req.contact.companyName}</span>
 
               {/* Status badge */}
-              <div>
-                <span className={`inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColors[req.status]}`}>
+              <div className="hidden md:block">
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${statusColors[req.status]}`}>
                   {statusLabels[req.status] ?? req.status}
                 </span>
               </div>
 
               {/* Owner */}
-              <span className="text-sm text-gray-600 truncate">
+              <span className="hidden md:block text-xs text-gray-500 truncate">
                 {req.assignedTo ?? "–"}
               </span>
 
               {/* Erstellt am */}
-              <span className="text-sm text-gray-500">
+              <span className="hidden md:block text-xs text-gray-500">
                 {format(new Date(req.createdAt), "dd.MM.yyyy", { locale: de })}
               </span>
 
-              {/* Delete */}
-              <button
-                onClick={(e) => handleDelete(e, req.id)}
-                className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {/* Right: chevron + delete on hover */}
+              <div className="flex items-center justify-end">
+                <button
+                  onClick={(e) => handleDelete(e, req.id)}
+                  className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 absolute"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+                <ChevronRight className="h-3.5 w-3.5 text-gray-300 group-hover:opacity-0 transition-opacity" />
+              </div>
             </Link>
           ))}
         </div>
