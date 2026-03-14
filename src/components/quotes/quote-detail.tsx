@@ -372,7 +372,8 @@ export function QuoteDetail({
               {editing ? (
                 <div className="p-4 space-y-2">
                   <div className="grid grid-cols-12 gap-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-1">
-                    <div className="col-span-4">Beschreibung</div>
+                    <div className="col-span-1">#</div>
+                    <div className="col-span-3">Beschreibung</div>
                     <div className="col-span-2">Menge</div>
                     <div className="col-span-2">Einheit</div>
                     <div className="col-span-2">EP (€)</div>
@@ -382,7 +383,8 @@ export function QuoteDetail({
                   {items.map((item, idx) => (
                     <div key={idx} className="space-y-1.5">
                       <div className="grid grid-cols-12 gap-2">
-                        <Input className="col-span-4 text-sm h-9" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beschreibung" />
+                        <div className="col-span-1 flex items-center text-xs font-mono text-gray-400 h-9">{idx + 1}.</div>
+                        <Input className="col-span-3 text-sm h-9" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beschreibung" />
                         <Input className="col-span-2 text-sm h-9" type="number" min="0" step="0.001" value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
                         <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
                           <SelectTrigger className="col-span-2 text-sm h-9"><SelectValue /></SelectTrigger>
@@ -400,17 +402,30 @@ export function QuoteDetail({
                           )}
                         </div>
                       </div>
-                      <textarea
-                        rows={2}
-                        className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                        placeholder="Positionsbeschreibung (optional)..."
-                        value={item.note}
-                        onChange={(e) => updateItem(idx, "note", e.target.value)}
-                      />
+                      <div className="pl-8">
+                        <textarea
+                          rows={2}
+                          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="Positionsbeschreibung (optional)..."
+                          value={item.note}
+                          onChange={(e) => updateItem(idx, "note", e.target.value)}
+                        />
+                      </div>
                     </div>
                   ))}
-                  <div className="flex justify-end pt-2 border-t border-gray-100 text-sm font-semibold text-gray-900">
-                    Gesamt: {editTotal.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                  <div className="flex flex-col items-end gap-1 pt-2 border-t border-gray-100">
+                    <div className="flex items-center gap-8 text-sm text-gray-500">
+                      <span>Netto</span>
+                      <span className="font-mono w-28 text-right">{editTotal.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                    </div>
+                    <div className="flex items-center gap-8 text-sm text-gray-500">
+                      <span>+ 20 % MwSt.</span>
+                      <span className="font-mono w-28 text-right">{(editTotal * 0.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                    </div>
+                    <div className="flex items-center gap-8 text-sm font-semibold text-gray-900 border-t border-gray-200 pt-1 mt-0.5">
+                      <span>Gesamt (brutto)</span>
+                      <span className="font-mono w-28 text-right">{(editTotal * 1.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -441,11 +456,25 @@ export function QuoteDetail({
                     ))}
                   </tbody>
                   <tfoot>
+                    <tr className="border-t border-gray-100">
+                      <td colSpan={4} />
+                      <td className="px-5 py-2 text-right text-xs text-gray-400">Netto</td>
+                      <td className="px-5 py-2 text-right font-mono text-gray-700">
+                        {Number(quote.totalPrice).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={4} />
+                      <td className="px-5 py-2 text-right text-xs text-gray-400">+ 20 % MwSt.</td>
+                      <td className="px-5 py-2 text-right font-mono text-gray-700">
+                        {(Number(quote.totalPrice) * 0.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                      </td>
+                    </tr>
                     <tr className="border-t border-gray-200 bg-gray-50">
                       <td colSpan={4} />
-                      <td className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Gesamt (netto)</td>
+                      <td className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Gesamt (brutto)</td>
                       <td className="px-5 py-3 text-right font-mono font-bold text-gray-900">
-                        {Number(quote.totalPrice).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                        {(Number(quote.totalPrice) * 1.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
                       </td>
                     </tr>
                   </tfoot>

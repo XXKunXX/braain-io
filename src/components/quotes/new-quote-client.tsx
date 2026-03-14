@@ -315,7 +315,8 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
               </button>
             </div>
             <div className="p-4 space-y-2">
-              <div className="grid grid-cols-[1fr_80px_90px_90px_80px_28px] gap-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-1">
+              <div className="grid grid-cols-[24px_1fr_80px_90px_90px_80px_28px] gap-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-1">
+                <div>#</div>
                 <div>Beschreibung</div>
                 <div>Menge</div>
                 <div>Einheit</div>
@@ -333,7 +334,9 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
                 const showProductDrop = openProductIdx === idx && fp.length > 0;
                 return (
                   <div key={idx} className="space-y-1.5">
-                  <div className="grid grid-cols-[1fr_80px_90px_90px_80px_28px] gap-2 items-start">
+                  <div className="grid grid-cols-[24px_1fr_80px_90px_90px_80px_28px] gap-2 items-start">
+                    {/* Position number */}
+                    <div className="h-9 flex items-center text-xs font-mono text-gray-400">{idx + 1}.</div>
                     {/* Description with product combobox */}
                     <div
                       className="relative"
@@ -418,18 +421,31 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
                       </button>
                     </div>
                   </div>
-                  <textarea
-                    rows={2}
-                    className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    placeholder="Positionsbeschreibung (optional)..."
-                    value={item.note}
-                    onChange={(e) => updateItem(idx, "note", e.target.value)}
-                  />
+                  <div className="pl-8">
+                    <textarea
+                      rows={2}
+                      className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                      placeholder="Positionsbeschreibung (optional)..."
+                      value={item.note}
+                      onChange={(e) => updateItem(idx, "note", e.target.value)}
+                    />
+                  </div>
                   </div>
                 );
               })}
-              <div className="flex justify-end pt-2 border-t border-gray-100 text-sm font-semibold text-gray-900">
-                Gesamt: {total.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+              <div className="flex flex-col items-end gap-1 pt-2 border-t border-gray-100">
+                <div className="flex items-center gap-8 text-sm text-gray-500">
+                  <span>Netto</span>
+                  <span className="font-mono w-28 text-right">{total.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                </div>
+                <div className="flex items-center gap-8 text-sm text-gray-500">
+                  <span>+ 20 % MwSt.</span>
+                  <span className="font-mono w-28 text-right">{(total * 0.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                </div>
+                <div className="flex items-center gap-8 text-sm font-semibold text-gray-900 border-t border-gray-200 pt-1 mt-0.5">
+                  <span>Gesamt (brutto)</span>
+                  <span className="font-mono w-28 text-right">{(total * 1.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                </div>
               </div>
             </div>
           </div>
