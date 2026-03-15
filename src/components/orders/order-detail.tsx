@@ -146,7 +146,7 @@ export function OrderDetail({
                 <FileUp className="h-3.5 w-3.5" />Dokument
               </Button>
             )}
-            <Button className="rounded-lg gap-1.5 bg-amber-500 hover:bg-amber-600">
+            <Button className="rounded-lg gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
               <Receipt className="h-3.5 w-3.5" />Rechnung erstellen
             </Button>
             <CreateDeliveryButton
