@@ -85,7 +85,9 @@ export function CreateOrderForm({ contacts }: { contacts: Contact[] }) {
               <Label className="text-xs font-medium text-gray-700">Kontakt *</Label>
               <Select value={contactId} onValueChange={(v) => v && setContactId(v)}>
                 <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Kontakt wählen..." />
+                  <SelectValue>
+                    {contactId ? contacts.find(c => c.id === contactId)?.companyName : <span className="text-gray-400">Kontakt wählen...</span>}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {contacts.map((c) => (
