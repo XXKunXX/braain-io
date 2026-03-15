@@ -135,7 +135,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
           <p className="text-sm text-gray-400 mt-0.5">{baustellen.length} Baustellen</p>
         </div>
         <Link href="/baustellen/neu">
-          <Button className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
+          <Button className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
             <Plus className="h-4 w-4" />
             Neue Baustelle
           </Button>

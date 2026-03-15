@@ -5,10 +5,27 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 export async function getResources() {
-  return prisma.resource.findMany({
+  return (prisma as any).resource.findMany({
     where: { active: true },
     orderBy: [{ type: "asc" }, { name: "asc" }],
-  });
+    include: {
+      assignedDriver: { select: { id: true, name: true } },
+    },
+  }) as Promise<Array<{
+    id: string;
+    name: string;
+    type: string;
+    email: string | null;
+    phone: string | null;
+    description: string | null;
+    active: boolean;
+    clerkUserId: string | null;
+    licensePlate: string | null;
+    driverResourceId: string | null;
+    assignedDriver: { id: string; name: string } | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }>>;
 }
 
 export async function getOrdersForDisposition() {

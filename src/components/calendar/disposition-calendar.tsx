@@ -17,7 +17,7 @@ import {
   parseISO,
 } from "date-fns";
 import { de } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, Trash2, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Plus, Trash2, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -27,11 +27,18 @@ import {
   deleteDispositionEntry,
   createResource,
 } from "@/actions/disposition";
-import type { Resource, Order, Contact, DispositionEntry } from "@prisma/client";
+import type { Order, Contact, DispositionEntry, Resource as PrismaResource } from "@prisma/client";
 
+type ResourceItem = {
+  id: string;
+  name: string;
+  type: string;
+  licensePlate?: string | null;
+  assignedDriver?: { id: string; name: string } | null;
+};
 type OrderWithContact = Order & { contact: Contact };
 type EntryWithRelations = DispositionEntry & {
-  resource: Resource;
+  resource: PrismaResource;
   order: OrderWithContact;
 };
 type ViewType = "tag" | "woche" | "monat" | "timeline";
@@ -76,7 +83,7 @@ const CELL_WIDTH: Record<ViewType, number | undefined> = {
 };
 
 interface Props {
-  resources: Resource[];
+  resources: ResourceItem[];
   orders: OrderWithContact[];
   entries: EntryWithRelations[];
   rangeStartISO: string;
@@ -116,6 +123,8 @@ export function DispositionCalendar({
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Collapsed sections
+  const [activeCollapsed, setActiveCollapsed] = useState(true);
+  const [plannedCollapsed, setPlannedCollapsed] = useState(false);
 
   const [entryForm, setEntryForm] = useState({
     resourceId: "",
@@ -414,10 +423,14 @@ export function DispositionCalendar({
             )}
             {activeOrders.length > 0 && (
               <div>
-                <div className="px-4 py-1.5 text-[10px] font-bold tracking-widest text-gray-400 uppercase bg-gray-50/80 border-b border-gray-100">
-                  Aktiv ({activeOrders.length})
-                </div>
-                {activeOrders.map((order) => (
+                <button
+                  onClick={() => setActiveCollapsed((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-1.5 bg-gray-50/80 border-b border-gray-100 hover:bg-gray-100/60 transition-colors"
+                >
+                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Aktiv ({activeOrders.length})</span>
+                  {activeCollapsed ? <ChevronRightIcon className="h-3 w-3 text-gray-300" /> : <ChevronDown className="h-3 w-3 text-gray-300" />}
+                </button>
+                {!activeCollapsed && activeOrders.map((order) => (
                   <div
                     key={order.id}
                     draggable
@@ -438,10 +451,14 @@ export function DispositionCalendar({
             )}
             {plannedOrders.length > 0 && (
               <div>
-                <div className="px-4 py-1.5 text-[10px] font-bold tracking-widest text-gray-400 uppercase bg-gray-50/80 border-b border-gray-100">
-                  Geplant ({plannedOrders.length})
-                </div>
-                {plannedOrders.map((order) => (
+                <button
+                  onClick={() => setPlannedCollapsed((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-1.5 bg-gray-50/80 border-b border-gray-100 hover:bg-gray-100/60 transition-colors"
+                >
+                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Geplant ({plannedOrders.length})</span>
+                  {plannedCollapsed ? <ChevronRightIcon className="h-3 w-3 text-gray-300" /> : <ChevronDown className="h-3 w-3 text-gray-300" />}
+                </button>
+                {!plannedCollapsed && plannedOrders.map((order) => (
                   <div
                     key={order.id}
                     draggable
@@ -517,9 +534,17 @@ export function DispositionCalendar({
                   <div key={resource.id} className="flex border-b border-gray-100 hover:bg-gray-50/40 transition-colors" style={{ minHeight: 60 }}>
                     <div className="w-48 flex-shrink-0 px-4 py-3 border-r border-gray-200 bg-white">
                       <p className="text-xs font-semibold text-gray-900 truncate">{resource.name}</p>
-                      <span className={`inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded mt-1 ${TYPE_COLORS[resource.type]}`}>
-                        {TYPE_LABELS[resource.type]}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className={`inline-flex text-[10px] font-medium px-1.5 py-0.5 rounded ${TYPE_COLORS[resource.type]}`}>
+                          {TYPE_LABELS[resource.type]}
+                        </span>
+                        {resource.licensePlate && (
+                          <span className="text-[10px] text-gray-400 font-mono">{resource.licensePlate}</span>
+                        )}
+                        {resource.assignedDriver && (
+                          <span className="text-[10px] text-gray-400 truncate">{resource.assignedDriver.name}</span>
+                        )}
+                      </div>
                     </div>
                     {/* Gantt area */}
                     <div
