@@ -103,6 +103,9 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
       vehicleManufacturer: (r as any).vehicleManufacturer ?? "",
       vehicleModel: (r as any).vehicleModel ?? "",
       vehicleYear: (r as any).vehicleYear ?? "",
+      unit: (r as any).unit ?? "",
+      price: (r as any).price ? String((r as any).price) : "",
+      quoteDescription: (r as any).quoteDescription ?? "",
     });
     setEditingId(r.id);
     setShowForm(true);
@@ -328,36 +331,48 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                   </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">E-Mail</label>
-                <input
-                  type="email"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Optional"
-                  value={form.email ?? ""}
-                  onChange={(e) => setForm((d) => ({ ...d, email: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Telefon</label>
-                <input
-                  type="tel"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Optional"
-                  value={form.phone ?? ""}
-                  onChange={(e) => setForm((d) => ({ ...d, phone: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Beschreibung</label>
-                <input
-                  type="text"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Optional"
-                  value={form.description ?? ""}
-                  onChange={(e) => setForm((d) => ({ ...d, description: e.target.value }))}
-                />
-              </div>
+              {form.type === "PRODUKT" ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Einheit</label>
+                      <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={(form as any).unit ?? ""} onChange={(e) => setForm((d) => ({ ...d, unit: e.target.value }))}>
+                        <option value="">– Einheit wählen –</option>
+                        <option value="t">t (Tonnen)</option>
+                        <option value="m³">m³ (Kubikmeter)</option>
+                        <option value="m²">m² (Quadratmeter)</option>
+                        <option value="m">m (Meter)</option>
+                        <option value="Stk">Stk (Stück)</option>
+                        <option value="Std">Std (Stunden)</option>
+                        <option value="Pauschale">Pauschale</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Preis (€)</label>
+                      <input type="number" min="0" step="0.01" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0.00" value={(form as any).price ?? ""} onChange={(e) => setForm((d) => ({ ...d, price: e.target.value }))} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Artikelbeschreibung für Angebot</label>
+                    <textarea rows={3} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" placeholder="Beschreibungstext..." value={(form as any).quoteDescription ?? ""} onChange={(e) => setForm((d) => ({ ...d, quoteDescription: e.target.value }))} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">E-Mail</label>
+                    <input type="email" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Optional" value={form.email ?? ""} onChange={(e) => setForm((d) => ({ ...d, email: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Telefon</label>
+                    <input type="tel" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Optional" value={form.phone ?? ""} onChange={(e) => setForm((d) => ({ ...d, phone: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Beschreibung</label>
+                    <input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Optional" value={form.description ?? ""} onChange={(e) => setForm((d) => ({ ...d, description: e.target.value }))} />
+                  </div>
+                </>
+              )}
               {form.type === "FAHRER" && (
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
