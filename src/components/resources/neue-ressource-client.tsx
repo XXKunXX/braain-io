@@ -50,6 +50,10 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
   const [vehicleManufacturer, setVehicleManufacturer] = useState("");
   const [vehicleModel, setVehicleModel] = useState("");
   const [vehicleYear, setVehicleYear] = useState("");
+  // Produkt-specific
+  const [unit, setUnit] = useState("");
+  const [price, setPrice] = useState("");
+  const [quoteDescription, setQuoteDescription] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,6 +72,9 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
       vehicleManufacturer: vehicleManufacturer || undefined,
       vehicleModel: vehicleModel || undefined,
       vehicleYear: vehicleYear || undefined,
+      unit: unit || undefined,
+      price: price || undefined,
+      quoteDescription: quoteDescription || undefined,
     });
     setLoading(false);
 
@@ -77,6 +84,7 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
   }
 
   const isFahrzeug = type === "FAHRZEUG";
+  const isProdukt = type === "PRODUKT";
 
   return (
     <div className="flex flex-col min-h-full">
@@ -119,7 +127,7 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
                 </div>
               </div>
 
-              {!isFahrzeug && (
+              {!isFahrzeug && !isProdukt && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -139,6 +147,52 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
               )}
             </div>
           </div>
+
+          {/* Produkt-Felder */}
+          {isProdukt && (
+            <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+              <h2 className="text-base font-semibold text-gray-900">Produktdetails</h2>
+              <div className="border-t border-gray-100 pt-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Einheit *</Label>
+                    <select className={SELECT} value={unit} onChange={(e) => setUnit(e.target.value)}>
+                      <option value="">– Einheit wählen –</option>
+                      <option value="t">t (Tonnen)</option>
+                      <option value="m³">m³ (Kubikmeter)</option>
+                      <option value="m²">m² (Quadratmeter)</option>
+                      <option value="m">m (Meter)</option>
+                      <option value="Stk">Stk (Stück)</option>
+                      <option value="Std">Std (Stunden)</option>
+                      <option value="Pauschale">Pauschale</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Preis (€)</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      className={IC}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Artikelbeschreibung für Angebot</Label>
+                  <Textarea
+                    value={quoteDescription}
+                    onChange={(e) => setQuoteDescription(e.target.value)}
+                    rows={3}
+                    className="rounded-lg border-gray-200 resize-none"
+                    placeholder="Beschreibungstext wie er im Angebot erscheinen soll..."
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Fahrzeug-Felder */}
           {isFahrzeug && (

@@ -16,6 +16,9 @@ const resourceSchema = z.object({
   vehicleManufacturer: z.string().optional().or(z.literal("")),
   vehicleModel: z.string().optional().or(z.literal("")),
   vehicleYear: z.string().optional().or(z.literal("")),
+  unit: z.string().optional().or(z.literal("")),
+  price: z.string().optional().or(z.literal("")),
+  quoteDescription: z.string().optional().or(z.literal("")),
 });
 
 export type ResourceFormData = z.infer<typeof resourceSchema>;
@@ -64,6 +67,9 @@ export async function createResource(data: ResourceFormData) {
       vehicleManufacturer: parsed.data.vehicleManufacturer || null,
       vehicleModel: parsed.data.vehicleModel || null,
       vehicleYear: parsed.data.vehicleYear ? parseInt(parsed.data.vehicleYear as string) || null : null,
+      unit: parsed.data.unit || null,
+      price: parsed.data.price ? parsed.data.price : null,
+      quoteDescription: parsed.data.quoteDescription || null,
     },
   });
 
@@ -90,6 +96,9 @@ export async function updateResource(id: string, data: ResourceFormData) {
       vehicleManufacturer: parsed.data.vehicleManufacturer || null,
       vehicleModel: parsed.data.vehicleModel || null,
       vehicleYear: parsed.data.vehicleYear ? parseInt(parsed.data.vehicleYear as string) || null : null,
+      unit: parsed.data.unit || null,
+      price: parsed.data.price ? parsed.data.price : null,
+      quoteDescription: parsed.data.quoteDescription || null,
     },
   });
 

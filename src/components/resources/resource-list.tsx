@@ -152,7 +152,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
 
       {/* Type tabs */}
       <div className="flex items-center gap-1">
-        {TYPE_TABS.filter((t) => (tabCounts[t.key] ?? 0) > 0 || t.key === activeTab || t.key === "MASCHINE").map(
+        {TYPE_TABS.filter((t) => (tabCounts[t.key] ?? 0) > 0 || t.key === activeTab || t.key === "MASCHINE" || t.key === "FAHRZEUG").map(
           ({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -203,6 +203,12 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                 <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
               ))}
             </div>
+          ) : activeTab === "PRODUKT" ? (
+            <div className="grid grid-cols-[2fr_1fr_1fr_2fr_64px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              {["Name", "Einheit", "Preis", "Artikelbeschreibung", ""].map(h => (
+                <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+              ))}
+            </div>
           ) : (
             <div className={`grid gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80 ${activeTab === "FAHRER" ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]" : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"}`}>
               <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Name</span>
@@ -223,6 +229,8 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                   ? "grid-cols-[2fr_1.5fr_2fr_1fr_64px]"
                   : activeTab === "FAHRER"
                   ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]"
+                  : activeTab === "PRODUKT"
+                  ? "grid-cols-[2fr_1fr_1fr_2fr_64px]"
                   : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"
               } ${i !== filtered.length - 1 ? "border-b border-gray-100" : ""}`}
             >
@@ -232,23 +240,31 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                   <p className="text-sm text-gray-500 font-mono">{resource.licensePlate || "–"}</p>
                   <p className="text-sm text-gray-500 truncate">{resource.assignedDriver?.name || "–"}</p>
                 </>
+              ) : activeTab === "PRODUKT" ? (
+                <>
+                  <p className="text-sm text-gray-500">{(resource as any).unit || "–"}</p>
+                  <p className="text-sm text-gray-500">{(resource as any).price ? `€ ${Number((resource as any).price).toFixed(2)}` : "–"}</p>
+                  <p className="text-sm text-gray-500 truncate">{(resource as any).quoteDescription || "–"}</p>
+                </>
               ) : (
                 <>
                   <p className="text-sm text-gray-500 truncate">{resource.email || "–"}</p>
                   <p className="text-sm text-gray-500 truncate">{resource.phone || "–"}</p>
                 </>
               )}
-              <div>
-                {resource.isDeployed ? (
-                  <span className="inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full border border-blue-300 text-blue-700 bg-blue-50">
-                    Im Einsatz
-                  </span>
-                ) : (
-                  <span className="inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full border border-green-300 text-green-700 bg-green-50">
-                    Verfügbar
-                  </span>
-                )}
-              </div>
+              {activeTab !== "PRODUKT" && (
+                <div>
+                  {resource.isDeployed ? (
+                    <span className="inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full border border-blue-300 text-blue-700 bg-blue-50">
+                      Im Einsatz
+                    </span>
+                  ) : (
+                    <span className="inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full border border-green-300 text-green-700 bg-green-50">
+                      Verfügbar
+                    </span>
+                  )}
+                </div>
+              )}
               {activeTab === "FAHRER" && (
                 <div title={resource.clerkUserId ? "App-Nutzer verknüpft" : "Kein App-Nutzer"}>
                   <Link2 className={`h-3.5 w-3.5 ${resource.clerkUserId ? "text-blue-500" : "text-gray-200"}`} />

@@ -172,6 +172,9 @@ model Resource {
   vehicleManufacturer String?
   vehicleModel        String?
   vehicleYear         Int?
+  unit                String?
+  price               Decimal?           @db.Decimal(10, 2)
+  quoteDescription    String?
   createdAt           DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
