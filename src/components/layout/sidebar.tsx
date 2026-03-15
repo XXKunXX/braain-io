@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useUser, useClerk } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -19,6 +20,7 @@ import {
   Search,
   X,
   MapPin,
+  LogOut,
 } from "lucide-react";
 
 const navSections = [
@@ -64,6 +66,8 @@ interface SidebarProps {
 
 export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen }: SidebarProps) {
   const pathname = usePathname();
+  const { user } = useUser();
+  const { signOut } = useClerk();
 
   function handleNavClick() {
     onClose?.();
@@ -150,6 +154,30 @@ export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen }: SidebarPro
           </div>
         ))}
       </nav>
+
+      {/* User section */}
+      <div className="px-2.5 py-3 border-t border-gray-100">
+        <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-gray-50 group">
+          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 text-xs font-semibold text-blue-700">
+            {user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? "?"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-gray-900 truncate">
+              {user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.emailAddresses?.[0]?.emailAddress ?? ""}
+            </p>
+            <p className="text-[10px] text-gray-400 truncate">
+              {user?.emailAddresses?.[0]?.emailAddress ?? ""}
+            </p>
+          </div>
+          <button
+            onClick={() => signOut({ redirectUrl: "/sign-in" })}
+            className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-red-500 p-1 rounded"
+            title="Abmelden"
+          >
+            <LogOut className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }
