@@ -44,22 +44,22 @@ export function InviteUserDialog() {
     e.preventDefault();
     if (!email || !firstName || !lastName) return;
     setLoading(true);
-    try {
-      await inviteUser({ email, firstName, lastName, role });
-      toast.success(`Einladung an ${email} gesendet`);
-      setOpen(false);
-      resetForm();
-      router.refresh();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("already")) {
+    const result = await inviteUser({ email, firstName, lastName, role });
+    setLoading(false);
+
+    if ("error" in result && result.error) {
+      if (result.error.toLowerCase().includes("already")) {
         toast.error("Diese E-Mail ist bereits registriert oder eingeladen.");
       } else {
-        toast.error(`Fehler: ${msg || "Unbekannter Fehler"}`);
+        toast.error(`Fehler: ${result.error}`);
       }
-    } finally {
-      setLoading(false);
+      return;
     }
+
+    toast.success(`Einladung an ${email} gesendet`);
+    setOpen(false);
+    resetForm();
+    router.refresh();
   }
 
   return (
