@@ -27,7 +27,7 @@ export function CreateDeliveryButton({ defaultOrderId }: CreateDeliveryButtonPro
     <Button
       size="sm"
       onClick={handleClick}
-      className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white"
+      className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
     >
       <Plus className="h-4 w-4" />
       Neuer Lieferschein
