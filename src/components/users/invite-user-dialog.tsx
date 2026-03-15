@@ -50,8 +50,13 @@ export function InviteUserDialog() {
       setOpen(false);
       resetForm();
       router.refresh();
-    } catch {
-      toast.error("Fehler beim Einladen — E-Mail bereits registriert?");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("already")) {
+        toast.error("Diese E-Mail ist bereits registriert oder eingeladen.");
+      } else {
+        toast.error(`Fehler: ${msg || "Unbekannter Fehler"}`);
+      }
     } finally {
       setLoading(false);
     }

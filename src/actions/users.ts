@@ -43,9 +43,18 @@ export async function deleteUser(userId: string) {
 
 export async function inviteUser(data: { email: string; firstName: string; lastName: string; role: string }) {
   const client = await clerkClient();
+
+  // Determine correct app URL: prefer explicit env var, fallback to Vercel URL
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL && !process.env.NEXT_PUBLIC_APP_URL.includes("localhost")
+      ? process.env.NEXT_PUBLIC_APP_URL
+      : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
   await client.invitations.createInvitation({
     emailAddress: data.email,
-    redirectUrl: `${process.env.NEXT_PUBLIC_APP_URL}/sign-up`,
+    redirectUrl: `${appUrl}/sign-up`,
     publicMetadata: { role: data.role, firstName: data.firstName, lastName: data.lastName },
   });
   revalidatePath("/benutzer");
