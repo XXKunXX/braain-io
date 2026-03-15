@@ -44,14 +44,29 @@ export async function deleteUser(userId: string) {
 export async function inviteUser(data: { email: string; firstName: string; lastName: string; role: string }) {
   try {
     const client = await clerkClient();
-    await client.invitations.createInvitation({
-      emailAddress: data.email,
-      publicMetadata: { role: data.role, firstName: data.firstName, lastName: data.lastName },
+
+    // Create user directly instead of invitation (works without email config)
+    const user = await client.users.createUser({
+      emailAddress: [data.email],
+      firstName: data.firstName,
+      lastName: data.lastName,
+      skipPasswordRequirement: true,
+      publicMetadata: { role: data.role },
     });
+
+    // Set a random temp password so user can log in via "Forgot Password"
+    await client.users.updateUser(user.id, {
+      password: Math.random().toString(36).slice(-12) + "A1!",
+    });
+
     revalidatePath("/benutzer");
     return { success: true };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
+  } catch (err: unknown) {
+    // Extract Clerk error details
+    const clerkErr = err as { errors?: { message: string; longMessage?: string }[] };
+    const msg = clerkErr?.errors?.[0]?.longMessage
+      ?? clerkErr?.errors?.[0]?.message
+      ?? (err instanceof Error ? err.message : String(err));
     return { error: msg };
   }
 }
