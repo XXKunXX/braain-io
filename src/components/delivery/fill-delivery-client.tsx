@@ -63,7 +63,7 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
 
   useEffect(() => { setupCanvas(); }, []);
 
-  function getPos(e: MouseEvent | Touch): { x: number; y: number } {
+  function getPos(e: { clientX: number; clientY: number }): { x: number; y: number } {
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
