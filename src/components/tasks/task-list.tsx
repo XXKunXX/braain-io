@@ -50,13 +50,14 @@ interface TaskListProps {
 
 export function TaskList({ tasks, requests = [] }: TaskListProps) {
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("OPEN_AND_IN_PROGRESS");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [selectedTask, setSelectedTask] = useState<TaskWithContact | null>(null);
   const [, startTransition] = useTransition();
 
   const filtered = tasks.filter((t) => {
-    if (statusFilter !== "ALL" && t.status !== statusFilter) return false;
+    if (statusFilter === "OPEN_AND_IN_PROGRESS" && t.status === "DONE") return false;
+    if (statusFilter !== "ALL" && statusFilter !== "OPEN_AND_IN_PROGRESS" && t.status !== statusFilter) return false;
     if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
     if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
@@ -130,12 +131,15 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-          <SelectTrigger className="w-40 bg-white">
-            <SelectValue>{statusFilter === "ALL" ? "Alle Status" : statusLabels[statusFilter]}</SelectValue>
+          <SelectTrigger className="w-44 bg-white">
+            <SelectValue>
+              {statusFilter === "OPEN_AND_IN_PROGRESS" ? "Offen" : statusFilter === "ALL" ? "Alle Status" : statusLabels[statusFilter]}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="OPEN_AND_IN_PROGRESS">Offen</SelectItem>
             <SelectItem value="ALL">Alle Status</SelectItem>
-            <SelectItem value="OPEN">Offen</SelectItem>
+            <SelectItem value="OPEN">Nur Offen</SelectItem>
             <SelectItem value="IN_PROGRESS">In Bearbeitung</SelectItem>
             <SelectItem value="DONE">Erledigt</SelectItem>
           </SelectContent>
