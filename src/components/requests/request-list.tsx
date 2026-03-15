@@ -44,12 +44,13 @@ const allStatuses = Object.entries(statusLabels);
 
 interface RequestListProps {
   requests: RequestWithContact[];
+  initialStatus?: string;
 }
 
-export function RequestList({ requests }: RequestListProps) {
+export function RequestList({ requests, initialStatus }: RequestListProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState(initialStatus ?? "ALL");
 
   const filtered = useMemo(() => {
     return requests.filter((r) => {

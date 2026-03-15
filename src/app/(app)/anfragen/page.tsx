@@ -2,8 +2,9 @@ import { getRequests } from "@/actions/requests";
 import { RequestList } from "@/components/requests/request-list";
 import { CreateRequestButton } from "@/components/requests/create-request-button";
 
-export default async function AnfragenPage() {
-  const requests = await getRequests();
+export default async function AnfragenPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  const [requests, params] = await Promise.all([getRequests(), searchParams]);
+  const initialStatus = params.status ?? "ALL";
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -14,7 +15,7 @@ export default async function AnfragenPage() {
         </div>
         <CreateRequestButton />
       </div>
-      <RequestList requests={requests} />
+      <RequestList requests={requests} initialStatus={initialStatus} />
     </div>
   );
 }

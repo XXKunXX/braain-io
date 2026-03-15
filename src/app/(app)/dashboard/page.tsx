@@ -28,8 +28,8 @@ async function getDashboardData() {
   ] = await Promise.all([
     // Offene Aufgaben (OPEN + IN_PROGRESS)
     prisma.task.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
-    // Neue Anfragen heute
-    prisma.request.count({ where: { createdAt: { gte: todayStart, lte: todayEnd } } }),
+    // Neue Anfragen (Status NEU)
+    prisma.request.count({ where: { status: "NEU" } }),
     // Offene Angebote
     prisma.quote.count({ where: { status: { in: ["DRAFT", "SENT"] } } }),
     // Aktive Aufträge
@@ -93,7 +93,7 @@ export default async function DashboardPage() {
     {
       label: "Neue Anfragen",
       value: data.newRequestsToday,
-      href: "/anfragen",
+      href: "/anfragen?status=NEU",
       numColor: "text-blue-600",
       iconBg: "bg-blue-100",
       icon: <MessageSquare className="h-5 w-5 text-blue-500" />,
