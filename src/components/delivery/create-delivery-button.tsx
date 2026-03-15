@@ -24,13 +24,12 @@ export function CreateDeliveryButton({ defaultOrderId }: CreateDeliveryButtonPro
   }
 
   return (
-    <Button
-      size="sm"
+    <button
       onClick={handleClick}
-      className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
     >
       <Plus className="h-4 w-4" />
       Neuer Lieferschein
-    </Button>
+    </button>
   );
 }

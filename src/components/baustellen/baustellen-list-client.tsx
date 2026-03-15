@@ -134,11 +134,12 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
           <h1 className="text-xl font-semibold text-gray-900">Baustellen</h1>
           <p className="text-sm text-gray-400 mt-0.5">{baustellen.length} Baustellen</p>
         </div>
-        <Link href="/baustellen/neu">
-          <Button className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
-            <Plus className="h-4 w-4" />
-            Neue Baustelle
-          </Button>
+        <Link
+          href="/baustellen/neu"
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+        >
+          <Plus className="h-4 w-4" />
+          Neue Baustelle
         </Link>
       </div>
 

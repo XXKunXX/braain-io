@@ -1,15 +1,14 @@
-"use client";
-
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 export function CreateOrderButton({ contacts: _ }: { contacts?: unknown[] }) {
-  const router = useRouter();
   return (
-    <Button size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => router.push("/auftraege/neu")}>
+    <Link
+      href="/auftraege/neu"
+      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+    >
       <Plus className="h-4 w-4" />
       Neuer Auftrag
-    </Button>
+    </Link>
   );
 }
