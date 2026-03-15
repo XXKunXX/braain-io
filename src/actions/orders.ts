@@ -104,6 +104,18 @@ export async function getOrder(id: string) {
       contact: true,
       quote: { include: { items: true } },
       deliveryNotes: { orderBy: { date: "desc" } },
+      baustellen: {
+        orderBy: { startDate: "asc" },
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          startDate: true,
+          endDate: true,
+          address: true,
+          city: true,
+        },
+      },
     },
   });
 }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList } from "lucide-react";
+import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,10 +21,21 @@ import { updateOrderStatus, updateOrder } from "@/actions/orders";
 import { CreateDeliveryButton } from "@/components/delivery/create-delivery-button";
 import type { Contact, DeliveryNote, Order, Quote, QuoteItem } from "@prisma/client";
 
+type BaustelleSummary = {
+  id: string;
+  name: string;
+  status: string;
+  startDate: Date;
+  endDate: Date | null;
+  address: string | null;
+  city: string | null;
+};
+
 type OrderWithRelations = Order & {
   contact: Contact;
   quote: (Quote & { items: QuoteItem[] }) | null;
   deliveryNotes: DeliveryNote[];
+  baustellen: BaustelleSummary[];
 };
 
 const statusLabels: Record<string, string> = {
@@ -39,7 +50,7 @@ const statusColors: Record<string, string> = {
   COMPLETED: "border border-gray-200 text-gray-500 bg-gray-50",
 };
 
-const tabs = ["Details", "Leistungen", "Lieferscheine", "Aktivität"] as const;
+const tabs = ["Details", "Baustellen", "Leistungen", "Lieferscheine", "Aktivität"] as const;
 type Tab = typeof tabs[number];
 
 function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
@@ -349,6 +360,64 @@ export function OrderDetail({
                     <Link href={`/lieferscheine/${dn.id}`} className="text-xs text-blue-600 hover:underline text-right">Öffnen</Link>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "Baustellen" && (
+          <div className="max-w-4xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-semibold text-gray-900">
+                Baustellen ({order.baustellen.length})
+              </h3>
+              <Link
+                href={`/baustellen/neu?orderId=${order.id}`}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+              >
+                <Plus className="h-4 w-4" />
+                Neue Baustelle
+              </Link>
+            </div>
+            {order.baustellen.length === 0 ? (
+              <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+                <HardHat className="h-10 w-10 mx-auto mb-3 text-gray-200" />
+                <p className="text-sm font-medium text-gray-500">Noch keine Baustellen</p>
+                <p className="text-xs text-gray-400 mt-1">Erstelle die erste Baustelle für diesen Auftrag.</p>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_80px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                  {["Baustellenname", "Status", "Start", "Ende", ""].map((h) => (
+                    <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+                  ))}
+                </div>
+                {order.baustellen.map((b, i) => {
+                  const statusColors: Record<string, string> = {
+                    PLANNED: "bg-gray-100 text-gray-600",
+                    ACTIVE: "bg-blue-50 text-blue-700",
+                    COMPLETED: "bg-green-50 text-green-700",
+                  };
+                  const statusLabelsB: Record<string, string> = {
+                    PLANNED: "Geplant", ACTIVE: "Aktiv", COMPLETED: "Abgeschlossen",
+                  };
+                  return (
+                    <div key={b.id} className={`grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_80px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${i !== order.baustellen.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{b.name}</p>
+                        {(b.address || b.city) && (
+                          <p className="text-xs text-gray-400 truncate">{[b.address, b.city].filter(Boolean).join(", ")}</p>
+                        )}
+                      </div>
+                      <span className={`inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColors[b.status]}`}>
+                        {statusLabelsB[b.status]}
+                      </span>
+                      <span className="text-sm text-gray-500">{format(new Date(b.startDate), "dd.MM.yyyy", { locale: de })}</span>
+                      <span className="text-sm text-gray-500">{b.endDate ? format(new Date(b.endDate), "dd.MM.yyyy", { locale: de }) : "–"}</span>
+                      <Link href={`/baustellen/${b.id}`} className="text-xs text-blue-600 hover:underline text-right">Öffnen</Link>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

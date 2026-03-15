@@ -205,6 +205,7 @@ model DeliveryNote {
   id             String   @id @default(cuid())
   deliveryNumber String   @unique
   orderId        String?
+  baustelleId    String?
   contactId      String
   date           DateTime @default(now())
   material       String
@@ -229,8 +230,9 @@ model DeliveryNote {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  order          Order?   @relation(fields: [orderId], references: [id])
-  contact        Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  order          Order?     @relation(fields: [orderId], references: [id])
+  contact        Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  baustelle      Baustelle? @relation(fields: [baustelleId], references: [id], onDelete: SetNull)
   tasks          Task[]
 }
 
@@ -406,6 +408,7 @@ model Baustelle {
   dispositionEntries DispositionEntry[]
   machineUsages      MachineUsage[]
   rapporte           Tagesrapport[]
+  deliveryNotes      DeliveryNote[]
 }
 
 model Tagesrapport {
@@ -415,9 +418,11 @@ model Tagesrapport {
   driverName  String?
   machineName String?
   hours       Decimal?  @db.Decimal(10, 2)
+  employees   Int?
   description String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   baustelle   Baustelle @relation(fields: [baustelleId], references: [id], onDelete: Cascade)
 }
+

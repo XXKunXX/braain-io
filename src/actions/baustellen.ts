@@ -64,6 +64,7 @@ export type TagesrapportRow = {
   driverName: string | null;
   machineName: string | null;
   hours: number | null;
+  employees: number | null;
   description: string | null;
 };
 
@@ -112,6 +113,7 @@ const rapportSchema = z.object({
   driverName: z.string().optional(),
   machineName: z.string().optional(),
   hours: z.number().optional().nullable(),
+  employees: z.number().optional().nullable(),
   description: z.string().optional(),
 });
 
@@ -142,6 +144,7 @@ export async function getBaustelle(id: string) {
         include: { machine: { select: { id: true, name: true, machineType: true } } },
       },
       rapporte: { orderBy: { date: "desc" } },
+      deliveryNotes: { orderBy: { date: "desc" } },
     },
   });
   if (!b) return null;
@@ -155,6 +158,10 @@ export async function getBaustelle(id: string) {
     rapporte: b.rapporte.map((r: any) => ({
       ...r,
       hours: r.hours != null ? Number(r.hours) : null,
+    })),
+    deliveryNotes: b.deliveryNotes.map((dn: any) => ({
+      ...dn,
+      quantity: dn.quantity != null ? Number(dn.quantity) : null,
     })),
   };
 }
@@ -314,6 +321,7 @@ export async function createTagesrapport(data: z.infer<typeof rapportSchema>) {
       driverName: parsed.data.driverName || null,
       machineName: parsed.data.machineName || null,
       hours: parsed.data.hours ?? null,
+      employees: parsed.data.employees ?? null,
       description: parsed.data.description || null,
     },
   });

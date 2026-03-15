@@ -63,6 +63,20 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
   const [form, setForm] = useState<FormData>(EMPTY);
   const [saving, setSaving] = useState(false);
 
+  // Filters
+  const [filterOrder, setFilterOrder] = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterFrom, setFilterFrom] = useState("");
+  const [filterTo, setFilterTo] = useState("");
+
+  const filtered = baustellen.filter((b) => {
+    if (filterOrder !== "ALL" && b.orderId !== filterOrder) return false;
+    if (filterStatus !== "ALL" && b.status !== filterStatus) return false;
+    if (filterFrom && new Date(b.startDate) < new Date(filterFrom)) return false;
+    if (filterTo && b.endDate && new Date(b.endDate) > new Date(filterTo)) return false;
+    return true;
+  });
+
   function openEdit(b: BaustelleRow) {
     setForm({
       orderId: b.orderId,
@@ -132,7 +146,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Baustellen</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{baustellen.length} Baustellen</p>
+          <p className="text-sm text-gray-400 mt-0.5">{baustellen.length} Baustellen gesamt</p>
         </div>
         <Link
           href="/baustellen/neu"
@@ -143,9 +157,59 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
         </Link>
       </div>
 
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={filterOrder}
+          onChange={e => setFilterOrder(e.target.value)}
+          className="h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="ALL">Alle Aufträge</option>
+          {orders.map(o => (
+            <option key={o.id} value={o.id}>{o.orderNumber} – {o.title}</option>
+          ))}
+        </select>
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className="h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="ALL">Alle Status</option>
+          <option value="PLANNED">Geplant</option>
+          <option value="ACTIVE">Aktiv</option>
+          <option value="COMPLETED">Abgeschlossen</option>
+        </select>
+        <div className="flex items-center gap-1">
+          <input
+            type="date"
+            value={filterFrom}
+            onChange={e => setFilterFrom(e.target.value)}
+            className="h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Von"
+          />
+          <span className="text-gray-400 text-xs">–</span>
+          <input
+            type="date"
+            value={filterTo}
+            onChange={e => setFilterTo(e.target.value)}
+            className="h-9 rounded-lg border border-gray-200 px-3 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Bis"
+          />
+        </div>
+        {(filterOrder !== "ALL" || filterStatus !== "ALL" || filterFrom || filterTo) && (
+          <button
+            onClick={() => { setFilterOrder("ALL"); setFilterStatus("ALL"); setFilterFrom(""); setFilterTo(""); }}
+            className="h-9 px-3 rounded-lg border border-gray-200 text-sm text-gray-400 hover:text-gray-700 bg-white flex items-center gap-1"
+          >
+            <X className="h-3.5 w-3.5" />Filter zurücksetzen
+          </button>
+        )}
+        <span className="text-sm text-gray-400 ml-auto">{filtered.length} Baustellen</span>
+      </div>
+
       {/* List */}
-      {baustellen.length === 0 ? (
-        <div className="text-center py-20 text-gray-400 text-sm">Noch keine Baustellen erfasst</div>
+      {filtered.length === 0 ? (
+        <div className="text-center py-20 text-gray-400 text-sm">Keine Baustellen gefunden</div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
@@ -156,12 +220,12 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
           </div>
 
           {/* Rows */}
-          {baustellen.map((b, i) => (
+          {filtered.map((b, i) => (
             <Link
               key={b.id}
               href={`/baustellen/${b.id}`}
               className={`flex md:grid md:grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 items-center hover:bg-gray-50/60 transition-colors group ${
-                i !== baustellen.length - 1 ? "border-b border-gray-100" : ""
+                i !== filtered.length - 1 ? "border-b border-gray-100" : ""
               }`}
             >
               {/* Icon */}

@@ -28,6 +28,7 @@ export default async function AuftragDetailPage({
       ...dn,
       quantity: dn.quantity.toNumber(),
     })),
+    baustellen: order.baustellen,
   } as unknown as typeof order;
 
   return <OrderDetail order={serializedOrder} contacts={contacts} />;
