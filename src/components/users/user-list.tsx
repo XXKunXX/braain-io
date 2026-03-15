@@ -196,9 +196,13 @@ export function UserList({ users }: { users: User[] }) {
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold ${avatarColor}`}>
-                    {initials}
-                  </div>
+                  {user.imageUrl ? (
+                    <img src={user.imageUrl} alt={initials} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                  ) : (
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-semibold ${avatarColor}`}>
+                      {initials}
+                    </div>
+                  )}
                   <span className="text-sm font-medium text-gray-900 truncate">
                     {user.firstName} {user.lastName}
                   </span>
