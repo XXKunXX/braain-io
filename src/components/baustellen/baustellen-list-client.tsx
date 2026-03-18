@@ -240,7 +240,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
 
               {/* Kunde */}
               <span className="hidden md:block text-xs text-gray-500 truncate">
-                {b.contact?.companyName ?? "–"}
+                {(b.contact ?? b.order.contact)?.companyName ?? "–"}
               </span>
 
               {/* Adresse */}

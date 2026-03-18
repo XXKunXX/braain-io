@@ -284,15 +284,18 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                   <div className="col-span-2">
                     <dt className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt</dt>
                     <dd className="text-sm mt-0.5">
-                      {b.contact ? (
-                        <Link href={`/kontakte/${b.contact.id}`} className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
-                          <User className="h-3.5 w-3.5" />
-                          {b.contact.companyName}
-                          {b.contact.contactPerson && <span className="text-gray-400">· {b.contact.contactPerson}</span>}
-                        </Link>
-                      ) : (
-                        <span className="text-gray-400">–</span>
-                      )}
+                      {(() => {
+                        const c = b.contact ?? (b.order as any)?.contact ?? null;
+                        return c ? (
+                          <Link href={`/kontakte/${c.id}`} className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
+                            <User className="h-3.5 w-3.5" />
+                            {c.companyName}
+                            {c.contactPerson && <span className="text-gray-400">· {c.contactPerson}</span>}
+                          </Link>
+                        ) : (
+                          <span className="text-gray-400">–</span>
+                        );
+                      })()}
                     </dd>
                   </div>
                   {b.description && (

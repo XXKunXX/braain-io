@@ -30,7 +30,7 @@ export type BaustelleRow = {
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
-  order: { id: string; orderNumber: string; title: string };
+  order: { id: string; orderNumber: string; title: string; contact: { id: string; companyName: string; contactPerson: string | null } | null };
   contact: { id: string; companyName: string; contactPerson: string | null } | null;
 };
 
@@ -123,7 +123,7 @@ export async function getBaustellen(): Promise<BaustelleRow[]> {
   return db.baustelle.findMany({
     orderBy: { startDate: "desc" },
     include: {
-      order: { select: { id: true, orderNumber: true, title: true } },
+      order: { select: { id: true, orderNumber: true, title: true, contact: { select: { id: true, companyName: true, contactPerson: true } } } },
       contact: { select: { id: true, companyName: true, contactPerson: true } },
     },
   });
@@ -133,7 +133,7 @@ export async function getBaustelle(id: string) {
   const b = await db.baustelle.findUnique({
     where: { id },
     include: {
-      order: { select: { id: true, orderNumber: true, title: true } },
+      order: { select: { id: true, orderNumber: true, title: true, contact: { select: { id: true, companyName: true, contactPerson: true } } } },
       contact: { select: { id: true, companyName: true, contactPerson: true } },
       dispositionEntries: {
         orderBy: { startDate: "desc" },
