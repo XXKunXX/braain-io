@@ -72,6 +72,7 @@ export type TagesrapportRow = {
 
 const baustelleSchema = z.object({
   orderId: z.string().optional().nullable(),
+  contactId: z.string().optional().nullable(),
   name: z.string().min(1, "Name erforderlich"),
   description: z.string().optional(),
   address: z.string().optional(),
@@ -172,15 +173,16 @@ export async function createBaustelle(data: z.infer<typeof baustelleSchema>) {
   const parsed = baustelleSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  // Auto-derive contactId from the linked order (if any)
+  // contactId: use explicit value, then fall back to the linked order's contact
   const order = parsed.data.orderId
     ? await db.order.findUnique({ where: { id: parsed.data.orderId }, select: { contactId: true } })
     : null;
+  const resolvedContactId = parsed.data.contactId || order?.contactId || null;
 
   const baustelle = await db.baustelle.create({
     data: {
       orderId: parsed.data.orderId || null,
-      contactId: order?.contactId ?? null,
+      contactId: resolvedContactId,
       name: parsed.data.name,
       description: parsed.data.description || null,
       address: parsed.data.address || null,

@@ -3,13 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ChevronDown, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { createBaustelle } from "@/actions/baustellen";
+import { createContact } from "@/actions/contacts";
 import type { BaustelleStatusType } from "@/actions/baustellen";
 
 type OrderOption = {
@@ -27,9 +28,18 @@ type OrderOption = {
   };
 };
 
+type ContactOption = {
+  id: string;
+  companyName: string;
+  contactPerson: string | null;
+  phone: string | null;
+  city: string | null;
+};
+
 interface Props {
   orders: OrderOption[];
   userNames: string[];
+  contacts: ContactOption[];
   prefillOrder: OrderOption | null;
 }
 
@@ -38,11 +48,77 @@ function toDateInput(d: Date | null | undefined) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) {
+const INP = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+
+export function NeueBaustelleClient({ orders, userNames, contacts: initialContacts, prefillOrder }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // ── Order combobox ──────────────────────────────────────────────────────────
+  // ── Contact combobox ─────────────────────────────────────────────────────────
+  const [contacts, setContacts] = useState<ContactOption[]>(initialContacts);
+  const [contactId, setContactId] = useState("");
+  const [contactSearch, setContactSearch] = useState("");
+  const [contactOpen, setContactOpen] = useState(false);
+  const contactRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onMouseDown(e: MouseEvent) {
+      if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
+        setContactOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onMouseDown);
+    return () => document.removeEventListener("mousedown", onMouseDown);
+  }, []);
+
+  const filteredContacts = contacts.filter(
+    (c) =>
+      c.companyName.toLowerCase().includes(contactSearch.toLowerCase()) ||
+      (c.contactPerson ?? "").toLowerCase().includes(contactSearch.toLowerCase()) ||
+      (c.city ?? "").toLowerCase().includes(contactSearch.toLowerCase())
+  );
+
+  function selectContact(c: ContactOption) {
+    setContactId(c.id);
+    setContactSearch(c.companyName);
+    setContactOpen(false);
+    if (c.contactPerson) setContactPerson(c.contactPerson);
+    if (c.phone) setPhone(c.phone);
+  }
+
+  // ── Quick-create contact modal ────────────────────────────────────────────────
+  const [showNewContact, setShowNewContact] = useState(false);
+  const [newContactForm, setNewContactForm] = useState({
+    companyName: "", contactPerson: "", phone: "", city: "",
+  });
+  const [newContactLoading, setNewContactLoading] = useState(false);
+
+  async function handleCreateContact() {
+    if (!newContactForm.companyName.trim()) { toast.error("Firmenname ist erforderlich"); return; }
+    setNewContactLoading(true);
+    const result = await createContact({
+      companyName: newContactForm.companyName.trim(),
+      type: "COMPANY",
+      phone: newContactForm.phone || undefined,
+      city: newContactForm.city || undefined,
+    });
+    setNewContactLoading(false);
+    if ("error" in result && result.error) { toast.error("Fehler beim Erstellen"); return; }
+    const c = result.contact!;
+    const newOpt: ContactOption = {
+      id: c.id, companyName: c.companyName,
+      contactPerson: newContactForm.contactPerson || null,
+      phone: c.phone ?? null, city: c.city ?? null,
+    };
+    setContacts(prev => [...prev, newOpt].sort((a, b) => a.companyName.localeCompare(b.companyName)));
+    selectContact(newOpt);
+    if (newContactForm.contactPerson) setContactPerson(newContactForm.contactPerson);
+    setShowNewContact(false);
+    setNewContactForm({ companyName: "", contactPerson: "", phone: "", city: "" });
+    toast.success("Kontakt erstellt");
+  }
+
+  // ── Order combobox ───────────────────────────────────────────────────────────
   const [orderId, setOrderId] = useState(prefillOrder?.id ?? "");
   const [orderSearch, setOrderSearch] = useState(
     prefillOrder ? `${prefillOrder.orderNumber} – ${prefillOrder.title}` : ""
@@ -66,7 +142,7 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
       o.title.toLowerCase().includes(orderSearch.toLowerCase())
   );
 
-  // ── Form fields ─────────────────────────────────────────────────────────────
+  // ── Form fields ──────────────────────────────────────────────────────────────
   const [name, setName] = useState(prefillOrder?.title ?? "");
   const [address, setAddress] = useState(prefillOrder?.contact.address ?? "");
   const [postalCode, setPostalCode] = useState(prefillOrder?.contact.postalCode ?? "");
@@ -75,20 +151,16 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
   const [endDate, setEndDate] = useState(toDateInput(prefillOrder?.endDate));
   const [status, setStatus] = useState<BaustelleStatusType>("PLANNED");
   const [bauleiter, setBauleiter] = useState("");
-  const [contactPerson, setContactPerson] = useState(
-    prefillOrder?.contact.contactPerson ?? ""
-  );
+  const [contactPerson, setContactPerson] = useState(prefillOrder?.contact.contactPerson ?? "");
   const [phone, setPhone] = useState(prefillOrder?.contact.phone ?? "");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
 
-  // ── Select order and auto-fill all fields ───────────────────────────────────
+  // ── Select order and auto-fill ───────────────────────────────────────────────
   function selectOrder(o: OrderOption) {
     setOrderId(o.id);
     setOrderSearch(`${o.orderNumber} – ${o.title}`);
     setOrderOpen(false);
-
-    // Always auto-fill from order
     setName(o.title);
     setStartDate(toDateInput(o.startDate));
     if (o.endDate) setEndDate(toDateInput(o.endDate));
@@ -99,7 +171,7 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
     if (o.contact.phone) setPhone(o.contact.phone);
   }
 
-  // ── Submit ──────────────────────────────────────────────────────────────────
+  // ── Submit ───────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) { toast.error("Name ist erforderlich"); return; }
@@ -108,6 +180,7 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
     setLoading(true);
     const result = await createBaustelle({
       orderId,
+      contactId: contactId || undefined,
       name: name.trim(),
       address: address || undefined,
       postalCode: postalCode || undefined,
@@ -159,23 +232,12 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
                       className="w-full h-10 rounded-lg border border-gray-200 px-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder="Auftrag suchen..."
                       value={orderSearch}
-                      onChange={(e) => {
-                        setOrderSearch(e.target.value);
-                        setOrderId("");
-                        setOrderOpen(true);
-                      }}
+                      onChange={(e) => { setOrderSearch(e.target.value); setOrderId(""); setOrderOpen(true); }}
                       onFocus={() => setOrderOpen(true)}
                     />
                     {orderId ? (
-                      <button
-                        type="button"
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 hover:text-gray-600"
-                        onClick={() => {
-                          setOrderId("");
-                          setOrderSearch("");
-                          setOrderOpen(false);
-                        }}
-                      >
+                      <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 hover:text-gray-600"
+                        onClick={() => { setOrderId(""); setOrderSearch(""); setOrderOpen(false); }}>
                         <X className="h-4 w-4" />
                       </button>
                     ) : (
@@ -187,16 +249,11 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
                           <div className="px-3 py-2 text-sm text-gray-400">Kein Treffer</div>
                         )}
                         {filteredOrders.map((o) => (
-                          <button
-                            key={o.id}
-                            type="button"
+                          <button key={o.id} type="button"
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col"
-                            onMouseDown={() => selectOrder(o)}
-                          >
+                            onMouseDown={() => selectOrder(o)}>
                             <span className="font-medium text-gray-900">{o.orderNumber} – {o.title}</span>
-                            {o.contact.city && (
-                              <span className="text-xs text-gray-400">{o.contact.city}</span>
-                            )}
+                            {o.contact.city && <span className="text-xs text-gray-400">{o.contact.city}</span>}
                           </button>
                         ))}
                       </div>
@@ -216,14 +273,60 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
                 </div>
               </div>
 
+              {/* Kontakt combobox */}
+              <div className="space-y-1.5">
+                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kunde / Kontakt</Label>
+                <div ref={contactRef} className="relative">
+                  <input
+                    type="text"
+                    className="w-full h-10 rounded-lg border border-gray-200 px-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Firma oder Kontaktperson suchen..."
+                    value={contactSearch}
+                    onChange={(e) => { setContactSearch(e.target.value); setContactId(""); setContactOpen(true); }}
+                    onFocus={() => setContactOpen(true)}
+                  />
+                  {contactId ? (
+                    <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      onClick={() => { setContactId(""); setContactSearch(""); setContactOpen(false); }}>
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  )}
+                  {contactOpen && (
+                    <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredContacts.map((c) => (
+                        <button key={c.id} type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col border-b border-gray-50 last:border-0"
+                          onMouseDown={() => selectContact(c)}>
+                          <span className="font-medium text-gray-900">{c.companyName}</span>
+                          {(c.contactPerson || c.city) && (
+                            <span className="text-xs text-gray-400">
+                              {[c.contactPerson, c.city].filter(Boolean).join(" · ")}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className="w-full text-left px-3 py-2.5 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 border-t border-gray-100 font-medium"
+                        onMouseDown={() => {
+                          setContactOpen(false);
+                          setNewContactForm(f => ({ ...f, companyName: contactSearch }));
+                          setShowNewContact(true);
+                        }}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {contactSearch.trim() ? `"${contactSearch}" erstellen` : "Neuen Kontakt erstellen"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Adresse</Label>
-                <Input
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="h-10 rounded-lg border-gray-200"
-                  placeholder="Straße und Hausnummer"
-                />
+                <Input value={address} onChange={(e) => setAddress(e.target.value)} className="h-10 rounded-lg border-gray-200" placeholder="Straße und Hausnummer" />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -257,22 +360,16 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bauleiter</Label>
-                  <select
-                    className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={bauleiter}
-                    onChange={(e) => setBauleiter(e.target.value)}
-                  >
+                  <select className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={bauleiter} onChange={(e) => setBauleiter(e.target.value)}>
                     <option value="">– Kein Bauleiter –</option>
                     {userNames.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</Label>
-                  <select
-                    className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as BaustelleStatusType)}
-                  >
+                  <select className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={status} onChange={(e) => setStatus(e.target.value as BaustelleStatusType)}>
                     <option value="PLANNED">Geplant</option>
                     <option value="ACTIVE">Aktiv</option>
                     <option value="COMPLETED">Abgeschlossen</option>
@@ -299,23 +396,13 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
             <div className="border-t border-gray-100 pt-4 space-y-4">
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Beschreibung</Label>
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="rounded-lg border-gray-200 resize-none"
-                  placeholder="Beschreibung der Baustelle..."
-                />
+                <Textarea value={description} onChange={(e) => setDescription(e.target.value)}
+                  rows={3} className="rounded-lg border-gray-200 resize-none" placeholder="Beschreibung der Baustelle..." />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notizen</Label>
-                <Textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  className="rounded-lg border-gray-200 resize-none"
-                  placeholder="Interne Notizen..."
-                />
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)}
+                  rows={2} className="rounded-lg border-gray-200 resize-none" placeholder="Interne Notizen..." />
               </div>
             </div>
           </div>
@@ -323,16 +410,55 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
           {/* Actions */}
           <div className="flex justify-end gap-2 pb-6">
             <Button type="button" variant="outline" className="rounded-lg" onClick={() => router.back()}>Abbrechen</Button>
-            <Button
-              type="submit"
-              disabled={loading || !name.trim() || !startDate}
-              className="rounded-lg bg-blue-600 hover:bg-blue-700"
-            >
+            <Button type="submit" disabled={loading || !name.trim() || !startDate} className="rounded-lg bg-blue-600 hover:bg-blue-700">
               {loading ? "Erstelle..." : "Baustelle erstellen"}
             </Button>
           </div>
         </div>
       </form>
+
+      {/* ── Modal: Neuen Kontakt erstellen ──────────────────────────────────── */}
+      {showNewContact && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b flex items-center justify-between">
+              <h2 className="font-semibold text-gray-900">Neuer Kontakt</h2>
+              <button onClick={() => setShowNewContact(false)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Firma / Name *</label>
+                <input className={INP} placeholder="Mustermann GmbH" value={newContactForm.companyName}
+                  onChange={(e) => setNewContactForm(f => ({ ...f, companyName: e.target.value }))}
+                  autoFocus onKeyDown={(e) => e.key === "Enter" && handleCreateContact()} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Kontaktperson</label>
+                <input className={INP} placeholder="Max Mustermann" value={newContactForm.contactPerson}
+                  onChange={(e) => setNewContactForm(f => ({ ...f, contactPerson: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Telefon</label>
+                  <input className={INP} placeholder="+43 1 234 567" value={newContactForm.phone}
+                    onChange={(e) => setNewContactForm(f => ({ ...f, phone: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Ort</label>
+                  <input className={INP} placeholder="Wien" value={newContactForm.city}
+                    onChange={(e) => setNewContactForm(f => ({ ...f, city: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowNewContact(false)}>Abbrechen</Button>
+              <Button onClick={handleCreateContact} disabled={newContactLoading}>
+                {newContactLoading ? "Erstellt..." : "Kontakt erstellen"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
