@@ -33,6 +33,8 @@ type ContactOption = {
   companyName: string;
   contactPerson: string | null;
   phone: string | null;
+  address: string | null;
+  postalCode: string | null;
   city: string | null;
 };
 
@@ -84,6 +86,9 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
     setContactOpen(false);
     if (c.contactPerson) setContactPerson(c.contactPerson);
     if (c.phone) setPhone(c.phone);
+    if (c.address) setAddress(c.address);
+    if (c.postalCode) setPostalCode(c.postalCode);
+    if (c.city) setCity(c.city);
   }
 
   // ── Quick-create contact modal ────────────────────────────────────────────────
@@ -108,7 +113,10 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
     const newOpt: ContactOption = {
       id: c.id, companyName: c.companyName,
       contactPerson: newContactForm.contactPerson || null,
-      phone: c.phone ?? null, city: c.city ?? null,
+      phone: c.phone ?? null,
+      address: c.address ?? null,
+      postalCode: c.postalCode ?? null,
+      city: c.city ?? null,
     };
     setContacts(prev => [...prev, newOpt].sort((a, b) => a.companyName.localeCompare(b.companyName)));
     selectContact(newOpt);
