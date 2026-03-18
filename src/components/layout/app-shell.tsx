@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Menu, Search, Brain } from "lucide-react";
+import { UserButton } from "@clerk/nextjs";
 import { Sidebar } from "./sidebar";
 import { GlobalSearch, useGlobalSearch } from "./global-search";
 import { cn } from "@/lib/utils";
@@ -41,9 +42,10 @@ export function AppShell({ children, openTaskCount }: AppShellProps) {
 
       {/* Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile top bar */}
-        <div className="md:hidden flex items-center justify-between h-12 px-4 bg-white border-b border-gray-200 sticky top-0 z-20">
-          <div className="flex items-center gap-3">
+        {/* Top bar — mobile + desktop */}
+        <div className="flex items-center justify-between h-12 px-4 bg-white border-b border-gray-200 sticky top-0 z-20">
+          {/* Mobile: hamburger + logo */}
+          <div className="flex items-center gap-3 md:hidden">
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100 -ml-1"
@@ -60,12 +62,22 @@ export function AppShell({ children, openTaskCount }: AppShellProps) {
               <span className="text-sm font-semibold text-gray-900">braain.io</span>
             </div>
           </div>
-          <button
-            onClick={() => setSearchOpen(true)}
-            className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
-          >
-            <Search className="h-5 w-5" />
-          </button>
+          {/* Desktop: empty left side */}
+          <div className="hidden md:block" />
+          {/* Right side: search + user */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="p-1.5 rounded-md text-gray-500 hover:bg-gray-100"
+            >
+              <Search className="h-5 w-5" />
+            </button>
+            <UserButton
+              appearance={{ elements: { avatarBox: "w-8 h-8" } }}
+              userProfileMode="navigation"
+              userProfileUrl="/einstellungen"
+            />
+          </div>
         </div>
 
         <main className="flex-1 overflow-auto">{children}</main>
