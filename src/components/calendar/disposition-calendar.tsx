@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   format,
@@ -118,6 +118,10 @@ export function DispositionCalendar({
   const router = useRouter();
   const today = new Date();
   const rangeStart = parseISO(rangeStartISO);
+
+  // Local entries state for optimistic updates
+  const [localEntries, setLocalEntries] = useState<EntryWithRelations[]>(entries);
+  useEffect(() => { setLocalEntries(entries); }, [entries]);
 
   const [view, setView] = useState<ViewType>(initialView);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
@@ -268,7 +272,7 @@ export function DispositionCalendar({
     const newStart = new Date(dropForm.startDate);
     const newEnd = new Date(dropForm.endDate);
     if (newEnd <= newStart) return null;
-    const conflicts = entries.filter(e =>
+    const conflicts = localEntries.filter(e =>
       e.resourceId === dropModal.resourceId &&
       new Date(e.startDate) < newEnd &&
       new Date(e.endDate) > newStart
@@ -309,21 +313,32 @@ export function DispositionCalendar({
       const entry = dragEntry.current;
       dragEntry.current = null;
       setDraggingEntryId(null);
-      const origStart = startOfDay(new Date(entry.startDate));
-      const origEnd = startOfDay(new Date(entry.endDate));
-      const dayOffset = differenceInCalendarDays(startOfDay(day), origStart);
+      const dayOffset = differenceInCalendarDays(startOfDay(day), startOfDay(new Date(entry.startDate)));
       if (dayOffset === 0 && resourceId === entry.resourceId) return; // no change
       const newStart = addDays(new Date(entry.startDate), dayOffset);
       const newEnd = addDays(new Date(entry.endDate), dayOffset);
+      const newResourceId = resourceId !== entry.resourceId ? resourceId : entry.resourceId;
+
+      // Optimistic update — instant UI
+      const snapshot = localEntries;
+      setLocalEntries(prev => prev.map(e =>
+        e.id === entry.id
+          ? { ...e, startDate: newStart, endDate: newEnd, resourceId: newResourceId }
+          : e
+      ));
+
       const result = await updateDispositionEntry(entry.id, {
         startDate: newStart.toISOString(),
         endDate: newEnd.toISOString(),
         notes: entry.notes ?? undefined,
         resourceId: resourceId !== entry.resourceId ? resourceId : undefined,
       });
-      if ("error" in result && result.error) { toast.error("Fehler beim Verschieben"); return; }
-      toast.success("Eintrag verschoben");
-      router.refresh();
+      if ("error" in result && result.error) {
+        setLocalEntries(snapshot); // revert
+        toast.error("Fehler beim Verschieben");
+        return;
+      }
+      router.refresh(); // sync server state silently in background
       return;
     }
 
@@ -354,7 +369,10 @@ export function DispositionCalendar({
 
   async function handleDeleteEntry(id: string) {
     if (!confirm("Eintrag löschen?")) return;
-    await deleteDispositionEntry(id);
+    const snapshot = localEntries;
+    setLocalEntries(prev => prev.filter(e => e.id !== id));
+    const result = await deleteDispositionEntry(id);
+    if (!("success" in result)) { setLocalEntries(snapshot); toast.error("Fehler beim Löschen"); return; }
     toast.success("Eintrag gelöscht");
     router.refresh();
   }
@@ -651,7 +669,7 @@ export function DispositionCalendar({
 
                   {/* Resource rows in this group */}
                   {items.map((resource) => {
-                    const resourceEntries = entries.filter(e => e.resourceId === resource.id);
+                    const resourceEntries = localEntries.filter(e => e.resourceId === resource.id);
                     return (
                       <div key={resource.id} className="flex border-b border-gray-100 hover:bg-gray-50/50 transition-colors" style={{ minHeight: 56 }}>
                         {/* Resource label */}
