@@ -8,7 +8,6 @@ import {
   MessageSquare,
   FileText,
   ClipboardList,
-  FolderOpen,
   CalendarDays,
   LayoutDashboard,
   CheckSquare,
@@ -16,7 +15,6 @@ import {
   HardHat,
   Smartphone,
   Brain,
-  Search,
   X,
   MapPin,
 } from "lucide-react";
@@ -30,13 +28,12 @@ const navSections = [
     ],
   },
   {
-    label: "Verwaltung",
+    label: "CRM",
     items: [
       { href: "/kontakte", label: "Kontakte", icon: Users, badgeKey: "" },
       { href: "/anfragen", label: "Anfragen", icon: MessageSquare, badgeKey: "" },
       { href: "/angebote", label: "Angebote", icon: FileText, badgeKey: "" },
       { href: "/auftraege", label: "Aufträge", icon: ClipboardList, badgeKey: "" },
-      { href: "/dokumente", label: "Dokumente", icon: FolderOpen, badgeKey: "" },
     ],
   },
   {
@@ -98,23 +95,8 @@ export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen }: SidebarPro
         </div>
       </div>
 
-      {/* Search button */}
-      {onSearchOpen && (
-        <div className="px-2.5 pt-3 pb-1">
-          <button
-            onClick={onSearchOpen}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm text-gray-400 hover:bg-gray-100 transition-colors"
-          >
-            <Search className="h-4 w-4 flex-shrink-0" />
-            <span className="flex-1 text-left">Suche…</span>
-            <kbd className="hidden md:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-100 text-gray-400 border border-gray-200">
-              ⌘K
-            </kbd>
-          </button>
-        </div>
-      )}
 
-      <nav className="flex-1 px-2.5 py-3 overflow-y-auto space-y-4">
+<nav className="flex-1 px-2.5 py-3 overflow-y-auto space-y-4">
         {navSections.map(({ label, items }) => (
           <div key={label}>
             <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase px-2 mb-1">
