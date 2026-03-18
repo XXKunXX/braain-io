@@ -186,7 +186,7 @@ model Resource {
 model DispositionEntry {
   id          String     @id @default(cuid())
   resourceId  String
-  orderId     String
+  orderId     String?
   baustelleId String?
   startDate   DateTime
   endDate     DateTime
@@ -195,7 +195,7 @@ model DispositionEntry {
   updatedAt   DateTime   @updatedAt
 
   resource   Resource   @relation(fields: [resourceId], references: [id], onDelete: Cascade)
-  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order      Order?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
   baustelle  Baustelle? @relation(fields: [baustelleId], references: [id], onDelete: SetNull)
 }
 

@@ -29,7 +29,6 @@ import {
   deleteDispositionEntry,
   createResource,
 } from "@/actions/disposition";
-import type { Order, Contact, DispositionEntry, Resource as PrismaResource } from "@prisma/client";
 
 type ResourceItem = {
   id: string;
@@ -38,44 +37,55 @@ type ResourceItem = {
   licensePlate?: string | null;
   assignedDriver?: { id: string; name: string } | null;
 };
-type OrderWithContact = Order & { contact: Contact };
-type EntryWithRelations = DispositionEntry & {
-  resource: PrismaResource;
-  order: OrderWithContact;
+
+type BaustelleItem = {
+  id: string;
+  name: string;
+  status: string;
+  startDate: Date;
+  endDate: Date | null;
+  city: string | null;
+  orderId: string | null;
+  contact: { id: string; companyName: string } | null;
+  order: { id: string; orderNumber: string; title: string } | null;
 };
+
+type EntryWithRelations = {
+  id: string;
+  resourceId: string;
+  baustelleId: string | null;
+  orderId: string | null;
+  startDate: Date;
+  endDate: Date;
+  notes: string | null;
+  resource: { id: string; name: string; type: string };
+  baustelle: {
+    id: string;
+    name: string;
+    city: string | null;
+    contact: { id: string; companyName: string } | null;
+  } | null;
+};
+
 type ViewType = "tag" | "woche" | "monat" | "timeline";
 type TypeFilter = "ALL" | "FAHRER" | "FAHRZEUG" | "MASCHINE";
 
 const WEEKDAY_SHORT = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
-// Resource type display
 const TYPE_LABEL: Record<string, string> = {
   FAHRER: "Fahrer", MASCHINE: "Maschine", FAHRZEUG: "Fahrzeug", OTHER: "Sonstiges",
 };
 const TYPE_ROW_COLOR: Record<string, string> = {
-  FAHRER: "bg-blue-50",
-  MASCHINE: "bg-orange-50",
-  FAHRZEUG: "bg-emerald-50",
-  OTHER: "bg-gray-50",
-};
-const TYPE_BADGE: Record<string, string> = {
-  FAHRER: "bg-blue-100 text-blue-700",
-  MASCHINE: "bg-orange-100 text-orange-700",
-  FAHRZEUG: "bg-emerald-100 text-emerald-700",
-  OTHER: "bg-gray-100 text-gray-500",
+  FAHRER: "bg-blue-50", MASCHINE: "bg-orange-50", FAHRZEUG: "bg-emerald-50", OTHER: "bg-gray-50",
 };
 const TYPE_SECTION_LABEL: Record<string, string> = {
-  FAHRER: "Fahrer & Mitarbeiter",
-  MASCHINE: "Maschinen",
-  FAHRZEUG: "Fahrzeuge",
-  OTHER: "Sonstiges",
+  FAHRER: "Fahrer & Mitarbeiter", MASCHINE: "Maschinen", FAHRZEUG: "Fahrzeuge", OTHER: "Sonstiges",
 };
 
-const ORDER_STATUS_DOT: Record<string, string> = {
+const BAUSTELLE_STATUS_DOT: Record<string, string> = {
   ACTIVE: "bg-green-500", PLANNED: "bg-blue-400", COMPLETED: "bg-gray-300",
 };
 
-// Entry palette — softer tones that look good as bars
 const ENTRY_PALETTE = [
   "bg-violet-500", "bg-blue-500", "bg-emerald-500", "bg-amber-500",
   "bg-rose-500",   "bg-cyan-500", "bg-indigo-500",  "bg-pink-500",
@@ -85,20 +95,18 @@ const CELL_WIDTH: Record<ViewType, number | undefined> = {
   tag: undefined, woche: undefined, monat: 52, timeline: 80,
 };
 
-// Type filter options
 const TYPE_FILTERS: { key: TypeFilter; label: string }[] = [
-  { key: "ALL",     label: "Alle" },
-  { key: "FAHRER",  label: "Fahrer" },
+  { key: "ALL",      label: "Alle" },
+  { key: "FAHRER",   label: "Fahrer" },
   { key: "FAHRZEUG", label: "Fahrzeuge" },
   { key: "MASCHINE", label: "Maschinen" },
 ];
 
-// Resource type display order
 const TYPE_ORDER = ["FAHRER", "FAHRZEUG", "MASCHINE", "OTHER"];
 
 interface Props {
   resources: ResourceItem[];
-  orders: OrderWithContact[];
+  baustellen: BaustelleItem[];
   entries: EntryWithRelations[];
   rangeStartISO: string;
   initialView: ViewType;
@@ -108,7 +116,7 @@ interface Props {
 
 export function DispositionCalendar({
   resources,
-  orders,
+  baustellen,
   entries,
   rangeStartISO,
   initialView,
@@ -119,26 +127,22 @@ export function DispositionCalendar({
   const today = new Date();
   const rangeStart = parseISO(rangeStartISO);
 
-  // Local entries state for optimistic updates
-  const [localEntries, setLocalEntries] = useState<EntryWithRelations[]>(entries);
-  useEffect(() => { setLocalEntries(entries); }, [entries]);
-
   const [view, setView] = useState<ViewType>(initialView);
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [selectedBaustelleId, setSelectedBaustelleId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showAddEntry, setShowAddEntry] = useState(false);
   const [showAddResource, setShowAddResource] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Drag state
-  const dragOrderId = useRef<string | null>(null);
+  const dragBaustelleId = useRef<string | null>(null);
   const dragEntry = useRef<EntryWithRelations | null>(null);
   const [draggingEntryId, setDraggingEntryId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ resourceId: string; dayIdx: number } | null>(null);
 
-  // Drop modal
-  const [dropModal, setDropModal] = useState<{ resourceId: string; orderId: string } | null>(null);
+  // Drop modal (assign baustelle to resource)
+  const [dropModal, setDropModal] = useState<{ resourceId: string; baustelleId: string } | null>(null);
   const [dropForm, setDropForm] = useState({ startDate: "", endDate: "", notes: "" });
   const [dropSubmitting, setDropSubmitting] = useState(false);
 
@@ -147,12 +151,16 @@ export function DispositionCalendar({
   const [editForm, setEditForm] = useState({ startDate: "", endDate: "", notes: "" });
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  // Collapsed order sections
+  // Local entries for optimistic updates
+  const [localEntries, setLocalEntries] = useState<EntryWithRelations[]>(entries);
+  useEffect(() => { setLocalEntries(entries); }, [entries]);
+
+  // Collapsed sections
   const [activeCollapsed, setActiveCollapsed] = useState(false);
   const [plannedCollapsed, setPlannedCollapsed] = useState(true);
 
   const [entryForm, setEntryForm] = useState({
-    resourceId: "", orderId: "",
+    resourceId: "", baustelleId: baustelleId ?? "",
     startDate: format(rangeStart, "yyyy-MM-dd"),
     endDate: format(rangeStart, "yyyy-MM-dd"),
     notes: "",
@@ -191,12 +199,10 @@ export function DispositionCalendar({
       map[r.type] = map[r.type] ?? [];
       map[r.type].push(r);
     }
-    return TYPE_ORDER
-      .filter(t => map[t]?.length)
-      .map(t => ({ type: t, items: map[t] }));
+    return TYPE_ORDER.filter(t => map[t]?.length).map(t => ({ type: t, items: map[t] }));
   }, [visibleResources]);
 
-  // URL builder (preserves Baustelle filter)
+  // URL builder
   function dispoUrl(week: string, v: ViewType) {
     const p = new URLSearchParams({ week, view: v });
     if (baustelleId) p.set("baustelleId", baustelleId);
@@ -204,7 +210,6 @@ export function DispositionCalendar({
     return `/disposition?${p.toString()}`;
   }
 
-  // Navigation
   function navigate(direction: "prev" | "next" | "today") {
     let target: Date;
     if (direction === "today") { target = today; }
@@ -223,7 +228,6 @@ export function DispositionCalendar({
     router.push(dispoUrl(format(rangeStart, "yyyy-MM-dd"), v));
   }
 
-  // Range label
   const rangeLabel = useMemo(() => {
     if (view === "tag") return format(rangeStart, "EEEE, dd. MMMM yyyy", { locale: de });
     if (view === "monat") return format(rangeStart, "MMMM yyyy", { locale: de });
@@ -234,19 +238,24 @@ export function DispositionCalendar({
     return `KW ${format(rangeStart, "w", { locale: de })} · ${format(rangeStart, "dd.MM.", { locale: de })} – ${format(addDays(rangeStart, 5), "dd.MM.yyyy", { locale: de })}`;
   }, [view, rangeStart]);
 
-  // Orders panel
-  const filteredOrders = useMemo(() => {
+  // Baustellen panel
+  const filteredBaustellen = useMemo(() => {
     const q = search.toLowerCase();
-    return orders.filter(o => !q || o.title.toLowerCase().includes(q) || o.contact.companyName.toLowerCase().includes(q));
-  }, [orders, search]);
-  const activeOrders = filteredOrders.filter(o => o.status === "ACTIVE");
-  const plannedOrders = filteredOrders.filter(o => o.status === "PLANNED");
+    return baustellen.filter(b =>
+      !q ||
+      b.name.toLowerCase().includes(q) ||
+      (b.contact?.companyName ?? "").toLowerCase().includes(q) ||
+      (b.city ?? "").toLowerCase().includes(q)
+    );
+  }, [baustellen, search]);
+  const activeBaustellen = filteredBaustellen.filter(b => b.status === "ACTIVE");
+  const plannedBaustellen = filteredBaustellen.filter(b => b.status === "PLANNED");
 
-  const orderColorMap = useMemo(() => {
+  const baustelleColorMap = useMemo(() => {
     const map: Record<string, string> = {};
-    orders.forEach((o, i) => { map[o.id] = ENTRY_PALETTE[i % ENTRY_PALETTE.length]; });
+    baustellen.forEach((b, i) => { map[b.id] = ENTRY_PALETTE[i % ENTRY_PALETTE.length]; });
     return map;
-  }, [orders]);
+  }, [baustellen]);
 
   // Entry positioning
   function getEntryStyle(entry: EntryWithRelations) {
@@ -266,88 +275,64 @@ export function DispositionCalendar({
     return { left: `${(startOffset / numDays) * 100}%`, width: `calc(${(spanDays / numDays) * 100}% - 4px)`, spanDays };
   }
 
-  // Conflict detection
-  const dropConflict = useMemo(() => {
-    if (!dropModal || !dropForm.startDate || !dropForm.endDate) return null;
-    const newStart = new Date(dropForm.startDate);
-    const newEnd = new Date(dropForm.endDate);
-    if (newEnd <= newStart) return null;
-    const conflicts = localEntries.filter(e =>
-      e.resourceId === dropModal.resourceId &&
-      new Date(e.startDate) < newEnd &&
-      new Date(e.endDate) > newStart
-    );
-    return conflicts.length ? conflicts.map(e => e.order.title).join(", ") : null;
-  }, [dropModal, dropForm.startDate, dropForm.endDate, entries]);
-
   // Drag & drop
-  function handleDragStart(e: React.DragEvent, orderId: string) {
-    dragOrderId.current = orderId;
+  function handleDragStart(e: React.DragEvent, bId: string) {
+    dragBaustelleId.current = bId;
     dragEntry.current = null;
     e.dataTransfer.effectAllowed = "copy";
-    e.dataTransfer.setData("type", "order");
+    e.dataTransfer.setData("type", "baustelle");
   }
   function handleEntryDragStart(e: React.DragEvent, entry: EntryWithRelations) {
     e.stopPropagation();
     dragEntry.current = entry;
-    dragOrderId.current = null;
+    dragBaustelleId.current = null;
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("type", "entry");
     setDraggingEntryId(entry.id);
   }
-  function handleDragEnd() {
-    setDraggingEntryId(null);
-  }
+  function handleDragEnd() { setDraggingEntryId(null); }
   function handleDragOver(e: React.DragEvent, resourceId: string, dayIdx: number) {
     e.preventDefault();
     e.dataTransfer.dropEffect = dragEntry.current ? "move" : "copy";
     setDropTarget({ resourceId, dayIdx });
   }
   function handleDragLeave() { setDropTarget(null); }
+
   async function handleDrop(e: React.DragEvent, resourceId: string, day: Date) {
     e.preventDefault();
     setDropTarget(null);
 
-    // Moving an existing entry
+    // Move existing entry
     if (dragEntry.current) {
       const entry = dragEntry.current;
       dragEntry.current = null;
       setDraggingEntryId(null);
       const dayOffset = differenceInCalendarDays(startOfDay(day), startOfDay(new Date(entry.startDate)));
-      if (dayOffset === 0 && resourceId === entry.resourceId) return; // no change
+      if (dayOffset === 0 && resourceId === entry.resourceId) return;
       const newStart = addDays(new Date(entry.startDate), dayOffset);
       const newEnd = addDays(new Date(entry.endDate), dayOffset);
       const newResourceId = resourceId !== entry.resourceId ? resourceId : entry.resourceId;
-
-      // Optimistic update — instant UI
       const snapshot = localEntries;
       setLocalEntries(prev => prev.map(e =>
-        e.id === entry.id
-          ? { ...e, startDate: newStart, endDate: newEnd, resourceId: newResourceId }
-          : e
+        e.id === entry.id ? { ...e, startDate: newStart, endDate: newEnd, resourceId: newResourceId } : e
       ));
-
       const result = await updateDispositionEntry(entry.id, {
         startDate: newStart.toISOString(),
         endDate: newEnd.toISOString(),
         notes: entry.notes ?? undefined,
         resourceId: resourceId !== entry.resourceId ? resourceId : undefined,
       });
-      if ("error" in result && result.error) {
-        setLocalEntries(snapshot); // revert
-        toast.error("Fehler beim Verschieben");
-        return;
-      }
-      router.refresh(); // sync server state silently in background
+      if ("error" in result && result.error) { setLocalEntries(snapshot); toast.error("Fehler beim Verschieben"); return; }
+      router.refresh();
       return;
     }
 
-    // Assigning an order from the panel
-    const orderId = dragOrderId.current;
-    if (!orderId) return;
+    // Assign baustelle from panel
+    const bId = dragBaustelleId.current;
+    if (!bId) return;
     const dateStr = format(day, "yyyy-MM-dd");
     setDropForm({ startDate: `${dateStr}T07:00`, endDate: `${dateStr}T17:00`, notes: "" });
-    setDropModal({ resourceId, orderId });
+    setDropModal({ resourceId, baustelleId: bId });
   }
 
   async function handleDropModalSubmit() {
@@ -356,9 +341,11 @@ export function DispositionCalendar({
     if (new Date(dropForm.endDate) <= new Date(dropForm.startDate)) { toast.error("Ende muss nach dem Start liegen"); return; }
     setDropSubmitting(true);
     const result = await createDispositionEntry({
-      resourceId: dropModal.resourceId, orderId: dropModal.orderId,
-      baustelleId: baustelleId || null,
-      startDate: dropForm.startDate, endDate: dropForm.endDate, notes: dropForm.notes,
+      resourceId: dropModal.resourceId,
+      baustelleId: dropModal.baustelleId,
+      startDate: dropForm.startDate,
+      endDate: dropForm.endDate,
+      notes: dropForm.notes,
     });
     setDropSubmitting(false);
     if ("error" in result && result.error) { toast.error("Fehler beim Erstellen"); return; }
@@ -400,9 +387,9 @@ export function DispositionCalendar({
   }
 
   async function handleAddEntry() {
-    if (!entryForm.resourceId || !entryForm.orderId) { toast.error("Ressource und Auftrag sind erforderlich"); return; }
+    if (!entryForm.resourceId || !entryForm.baustelleId) { toast.error("Ressource und Baustelle sind erforderlich"); return; }
     setIsSubmitting(true);
-    const result = await createDispositionEntry({ ...entryForm, baustelleId: baustelleId || null });
+    const result = await createDispositionEntry({ ...entryForm });
     setIsSubmitting(false);
     if ("error" in result && result.error) { toast.error("Fehler beim Erstellen"); return; }
     toast.success("Eintrag erstellt");
@@ -438,7 +425,6 @@ export function DispositionCalendar({
           <p className="text-xs text-gray-400 mt-0.5">Ressourcenplanung</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Date navigation */}
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
             <button onClick={() => navigate("prev")} className="px-2.5 py-1.5 hover:bg-gray-50 border-r border-gray-200 transition-colors">
               <ChevronLeft className="h-4 w-4 text-gray-500" />
@@ -462,7 +448,6 @@ export function DispositionCalendar({
           <div className="flex items-center gap-2 text-sm text-blue-800">
             <span className="font-medium">Baustelle:</span>
             <span className="font-semibold">{baustelleName ?? baustelleId}</span>
-            <span className="text-blue-400 text-xs hidden sm:inline">· Neue Einträge werden dieser Baustelle zugeordnet</span>
           </div>
           <a href={`/baustellen/${baustelleId}`} className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium">
             <ArrowLeft className="h-3.5 w-3.5" />Zurück zur Baustelle
@@ -472,130 +457,104 @@ export function DispositionCalendar({
 
       {/* ── View tabs + type filter + range label ──────────────────────────── */}
       <div className="px-6 py-2 bg-white border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
-        {/* View tabs */}
         <div className="flex items-center gap-0.5">
           {(["tag", "woche", "monat", "timeline"] as ViewType[]).map((v) => (
-            <button
-              key={v}
-              onClick={() => switchView(v)}
+            <button key={v} onClick={() => switchView(v)}
               className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
                 view === v ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"
-              }`}
-            >
+              }`}>
               {v === "tag" ? "Tag" : v === "woche" ? "Woche" : v === "monat" ? "Monat" : "Timeline"}
             </button>
           ))}
         </div>
-
-        {/* Type filter chips */}
         <div className="flex items-center gap-1">
           {TYPE_FILTERS.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setTypeFilter(key)}
+            <button key={key} onClick={() => setTypeFilter(key)}
               className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors border ${
-                typeFilter === key
-                  ? "bg-gray-900 text-white border-gray-900"
-                  : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
-              }`}
-            >
+                typeFilter === key ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
+              }`}>
               {label}
             </button>
           ))}
         </div>
-
-        {/* Range label */}
         <span className="text-xs font-medium text-gray-500 capitalize whitespace-nowrap">{rangeLabel}</span>
       </div>
 
       {/* ── Main content ───────────────────────────────────────────────────── */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Left panel: orders */}
+        {/* Left panel: baustellen */}
         <div className="w-60 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">
           <div className="px-4 pt-3 pb-2 border-b border-gray-100">
-            <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-2">Aufträge</p>
+            <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-2">Baustellen</p>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-300 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Suchen..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-3 h-7 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-300"
-              />
+              <input type="text" placeholder="Suchen..." value={search} onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 h-7 text-xs bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-300" />
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {orders.length > 0 && (
+            {baustellen.length > 0 && (
               <p className="px-4 py-1.5 text-[10px] text-gray-300 bg-gray-50/60 border-b border-gray-100">
                 In Kalender ziehen zum Zuweisen
               </p>
             )}
 
-            {/* Active orders */}
-            {activeOrders.length > 0 && (
+            {activeBaustellen.length > 0 && (
               <div>
-                <button
-                  onClick={() => setActiveCollapsed(v => !v)}
-                  className="w-full flex items-center justify-between px-4 py-1.5 hover:bg-gray-50 transition-colors border-b border-gray-100"
-                >
-                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Aktiv ({activeOrders.length})</span>
+                <button onClick={() => setActiveCollapsed(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-1.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
+                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Aktiv ({activeBaustellen.length})</span>
                   {activeCollapsed ? <ChevronRightIcon className="h-3 w-3 text-gray-300" /> : <ChevronDown className="h-3 w-3 text-gray-300" />}
                 </button>
-                {!activeCollapsed && activeOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, order.id)}
-                    onClick={() => setSelectedOrderId(selectedOrderId === order.id ? null : order.id)}
+                {!activeCollapsed && activeBaustellen.map((b) => (
+                  <div key={b.id} draggable
+                    onDragStart={(e) => handleDragStart(e, b.id)}
+                    onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
                     className={`px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedOrderId === order.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
-                    }`}
-                  >
-                    <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${ORDER_STATUS_DOT[order.status]}`} />
+                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
+                    }`}>
+                    <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{order.title}</p>
-                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{order.contact.companyName}</p>
+                      <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{b.name}</p>
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                        {b.contact?.companyName ?? b.city ?? "–"}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Planned orders */}
-            {plannedOrders.length > 0 && (
+            {plannedBaustellen.length > 0 && (
               <div>
-                <button
-                  onClick={() => setPlannedCollapsed(v => !v)}
-                  className="w-full flex items-center justify-between px-4 py-1.5 hover:bg-gray-50 transition-colors border-b border-gray-100"
-                >
-                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Geplant ({plannedOrders.length})</span>
+                <button onClick={() => setPlannedCollapsed(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-1.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
+                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Geplant ({plannedBaustellen.length})</span>
                   {plannedCollapsed ? <ChevronRightIcon className="h-3 w-3 text-gray-300" /> : <ChevronDown className="h-3 w-3 text-gray-300" />}
                 </button>
-                {!plannedCollapsed && plannedOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, order.id)}
-                    onClick={() => setSelectedOrderId(selectedOrderId === order.id ? null : order.id)}
+                {!plannedCollapsed && plannedBaustellen.map((b) => (
+                  <div key={b.id} draggable
+                    onDragStart={(e) => handleDragStart(e, b.id)}
+                    onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
                     className={`px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedOrderId === order.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
-                    }`}
-                  >
-                    <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${ORDER_STATUS_DOT[order.status]}`} />
+                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
+                    }`}>
+                    <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{order.title}</p>
-                      <p className="text-[11px] text-gray-400 truncate mt-0.5">{order.contact.companyName}</p>
+                      <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{b.name}</p>
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                        {b.contact?.companyName ?? b.city ?? "–"}
+                      </p>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {filteredOrders.length === 0 && (
-              <div className="p-6 text-center text-xs text-gray-300">Keine Aufträge</div>
+            {filteredBaustellen.length === 0 && (
+              <div className="p-6 text-center text-xs text-gray-300">Keine Baustellen</div>
             )}
           </div>
         </div>
@@ -613,13 +572,9 @@ export function DispositionCalendar({
                   const isToday = isSameDay(day, today);
                   const isOtherMonth = view === "monat" && !isSameMonth(day, rangeStart);
                   return (
-                    <div
-                      key={idx}
-                      className={`text-center py-2 border-r last:border-r-0 border-gray-100 ${
-                        isToday ? "bg-blue-50" : isOtherMonth ? "bg-gray-50/60" : ""
-                      }`}
-                      style={dayCellStyle()}
-                    >
+                    <div key={idx}
+                      className={`text-center py-2 border-r last:border-r-0 border-gray-100 ${isToday ? "bg-blue-50" : isOtherMonth ? "bg-gray-50/60" : ""}`}
+                      style={dayCellStyle()}>
                       {view !== "tag" && (
                         <p className={`text-[9px] font-bold tracking-widest uppercase leading-none mb-0.5 ${isToday ? "text-blue-500" : "text-gray-300"}`}>
                           {WEEKDAY_SHORT[(day.getDay() + 6) % 7]}
@@ -635,7 +590,7 @@ export function DispositionCalendar({
             </div>
           </div>
 
-          {/* Resource rows — grouped by type */}
+          {/* Resource rows grouped by type */}
           {visibleResources.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
               <p className="text-sm text-gray-400 mb-3">
@@ -651,28 +606,20 @@ export function DispositionCalendar({
             <>
               {groupedResources.map(({ type, items }) => (
                 <div key={type}>
-                  {/* Section header */}
                   <div className="flex border-b border-gray-100">
                     <div className={`w-52 flex-shrink-0 px-4 py-1.5 border-r border-gray-200 ${TYPE_ROW_COLOR[type] ?? "bg-gray-50"}`}>
                       <span className={`text-[10px] font-bold tracking-widest uppercase ${
-                        type === "FAHRER" ? "text-blue-500" :
-                        type === "MASCHINE" ? "text-orange-500" :
+                        type === "FAHRER" ? "text-blue-500" : type === "MASCHINE" ? "text-orange-500" :
                         type === "FAHRZEUG" ? "text-emerald-500" : "text-gray-400"
-                      }`}>
-                        {TYPE_SECTION_LABEL[type] ?? type}
-                      </span>
+                      }`}>{TYPE_SECTION_LABEL[type] ?? type}</span>
                     </div>
-                    <div className={`flex-1 ${TYPE_ROW_COLOR[type] ?? "bg-gray-50"}`}
-                      style={cellWidth ? { width: numDays * cellWidth } : {}}
-                    />
+                    <div className={`flex-1 ${TYPE_ROW_COLOR[type] ?? "bg-gray-50"}`} style={cellWidth ? { width: numDays * cellWidth } : {}} />
                   </div>
 
-                  {/* Resource rows in this group */}
                   {items.map((resource) => {
                     const resourceEntries = localEntries.filter(e => e.resourceId === resource.id);
                     return (
                       <div key={resource.id} className="flex border-b border-gray-100 hover:bg-gray-50/50 transition-colors" style={{ minHeight: 56 }}>
-                        {/* Resource label */}
                         <div className="w-52 flex-shrink-0 px-4 py-3 border-r border-gray-200 bg-white flex flex-col justify-center">
                           <p className="text-xs font-semibold text-gray-900 truncate">{resource.name}</p>
                           <div className="flex items-center gap-1 mt-0.5 flex-wrap">
@@ -685,19 +632,14 @@ export function DispositionCalendar({
                           </div>
                         </div>
 
-                        {/* Gantt area */}
                         <div className="flex-1 relative" style={{ minHeight: 56, ...(cellWidth ? { width: numDays * cellWidth } : {}) }}>
-                          {/* Droppable day cells */}
                           <div className="absolute inset-0 flex">
                             {days.map((day, idx) => {
                               const isOver = dropTarget?.resourceId === resource.id && dropTarget?.dayIdx === idx;
                               const isToday = isSameDay(day, today);
                               return (
-                                <div
-                                  key={idx}
-                                  className={`border-r last:border-r-0 border-gray-100 transition-colors ${
-                                    isOver ? "bg-blue-100/50" : isToday ? "bg-blue-50/30" : ""
-                                  }`}
+                                <div key={idx}
+                                  className={`border-r last:border-r-0 border-gray-100 transition-colors ${isOver ? "bg-blue-100/50" : isToday ? "bg-blue-50/30" : ""}`}
                                   style={dayCellStyle()}
                                   onDragOver={(e) => handleDragOver(e, resource.id, idx)}
                                   onDragLeave={handleDragLeave}
@@ -707,34 +649,30 @@ export function DispositionCalendar({
                             })}
                           </div>
 
-                          {/* Entry blocks */}
                           {resourceEntries.map((entry) => {
                             const style = getEntryStyle(entry);
                             if (!style) return null;
-                            const isHighlighted = !selectedOrderId || selectedOrderId === entry.orderId;
+                            const isHighlighted = !selectedBaustelleId || selectedBaustelleId === entry.baustelleId;
                             const isDragging = draggingEntryId === entry.id;
-                            const colorClass = orderColorMap[entry.orderId] ?? "bg-violet-500";
+                            const colorClass = entry.baustelleId ? (baustelleColorMap[entry.baustelleId] ?? "bg-violet-500") : "bg-gray-400";
+                            const label = entry.baustelle?.name ?? "Eintrag";
+                            const sublabel = entry.baustelle?.contact?.companyName ?? entry.baustelle?.city ?? null;
                             return (
-                              <div
-                                key={entry.id}
-                                draggable
+                              <div key={entry.id} draggable
                                 onDragStart={(e) => handleEntryDragStart(e, entry)}
                                 onDragEnd={handleDragEnd}
                                 className={`absolute top-2 rounded-md px-2.5 flex items-center gap-1.5 text-white text-[11px] font-medium group cursor-grab active:cursor-grabbing transition-opacity shadow-sm ${colorClass} ${
                                   isDragging ? "opacity-30" : isHighlighted ? "opacity-100" : "opacity-15"
                                 }`}
                                 style={{ left: style.left, width: style.width, height: 32, bottom: 8 }}
-                                title={`${entry.order.title} — ${entry.order.contact.companyName}${entry.notes ? `\n${entry.notes}` : ""}`}
-                                onClick={() => handleOpenEditModal(entry)}
-                              >
+                                title={`${label}${sublabel ? ` — ${sublabel}` : ""}${entry.notes ? `\n${entry.notes}` : ""}`}
+                                onClick={() => handleOpenEditModal(entry)}>
                                 <span className="truncate flex-1 leading-tight">
-                                  {entry.order.title}
+                                  {label}
                                   {style.spanDays > 1 && <span className="opacity-60 ml-1">· {style.spanDays}T</span>}
                                 </span>
-                                <button
-                                  className="opacity-0 group-hover:opacity-100 hover:text-red-200 transition-opacity flex-shrink-0 ml-0.5"
-                                  onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id); }}
-                                >
+                                <button className="opacity-0 group-hover:opacity-100 hover:text-red-200 transition-opacity flex-shrink-0 ml-0.5"
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id); }}>
                                   <Trash2 className="h-3 w-3" />
                                 </button>
                               </div>
@@ -747,7 +685,6 @@ export function DispositionCalendar({
                 </div>
               ))}
 
-              {/* Add resource row */}
               <div className="flex border-b border-dashed border-gray-100">
                 <div className="w-52 flex-shrink-0 px-4 py-3 border-r border-gray-200">
                   <button onClick={() => setShowAddResource(true)} className="text-xs text-gray-300 hover:text-gray-500 flex items-center gap-1 transition-colors">
@@ -782,10 +719,10 @@ export function DispositionCalendar({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Auftrag *</label>
-                <select className={INP} value={entryForm.orderId} onChange={(e) => setEntryForm(d => ({ ...d, orderId: e.target.value }))}>
-                  <option value="">– Auftrag wählen –</option>
-                  {orders.map(o => <option key={o.id} value={o.id}>{o.title} — {o.contact.companyName}</option>)}
+                <label className="block text-xs font-medium text-gray-700 mb-1">Baustelle *</label>
+                <select className={INP} value={entryForm.baustelleId} onChange={(e) => setEntryForm(d => ({ ...d, baustelleId: e.target.value }))}>
+                  <option value="">– Baustelle wählen –</option>
+                  {baustellen.map(b => <option key={b.id} value={b.id}>{b.name}{b.contact ? ` — ${b.contact.companyName}` : ""}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -853,7 +790,9 @@ export function DispositionCalendar({
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <div>
                 <h2 className="font-semibold text-gray-900">Eintrag bearbeiten</h2>
-                <p className="text-xs text-gray-400 mt-0.5 truncate">{editModal.order.title} → {editModal.resource.name}</p>
+                <p className="text-xs text-gray-400 mt-0.5 truncate">
+                  {editModal.baustelle?.name ?? "Eintrag"} → {editModal.resource.name}
+                </p>
               </div>
               <button onClick={() => setEditModal(null)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
             </div>
@@ -892,7 +831,7 @@ export function DispositionCalendar({
               <div>
                 <h2 className="font-semibold text-gray-900">Zeitraum festlegen</h2>
                 <p className="text-xs text-gray-400 mt-0.5 truncate">
-                  {orders.find(o => o.id === dropModal.orderId)?.title} → {resources.find(r => r.id === dropModal.resourceId)?.name}
+                  {baustellen.find(b => b.id === dropModal.baustelleId)?.name} → {resources.find(r => r.id === dropModal.resourceId)?.name}
                 </p>
               </div>
               <button onClick={() => setDropModal(null)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
@@ -906,14 +845,6 @@ export function DispositionCalendar({
                 <label className="block text-xs font-medium text-gray-700 mb-1">Ende *</label>
                 <input type="datetime-local" className={INP} value={dropForm.endDate} onChange={(e) => setDropForm(d => ({ ...d, endDate: e.target.value }))} />
               </div>
-              {dropConflict && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
-                  <span className="text-amber-400 text-sm flex-shrink-0">⚠</span>
-                  <p className="text-xs text-amber-700">
-                    <strong>Terminkonflikt:</strong> Bereits belegt mit <strong>{dropConflict}</strong>. Trotzdem speichern möglich.
-                  </p>
-                </div>
-              )}
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Notizen</label>
                 <input type="text" className={INP} placeholder="Optional..." value={dropForm.notes} onChange={(e) => setDropForm(d => ({ ...d, notes: e.target.value }))} />

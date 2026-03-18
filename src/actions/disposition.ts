@@ -28,22 +28,40 @@ export async function getResources() {
   }>>;
 }
 
-export async function getOrdersForDisposition() {
-  return prisma.order.findMany({
-    where: { status: { in: ["ACTIVE", "PLANNED"] } },
-    include: { contact: true },
+export async function getBaustellenForDisposition() {
+  return (prisma as any).baustelle.findMany({
+    where: { status: { in: ["PLANNED", "ACTIVE"] } },
+    include: {
+      contact: { select: { id: true, companyName: true } },
+      order: { select: { id: true, orderNumber: true, title: true } },
+    },
     orderBy: { startDate: "asc" },
-  });
+  }) as Promise<Array<{
+    id: string;
+    name: string;
+    status: string;
+    startDate: Date;
+    endDate: Date | null;
+    city: string | null;
+    orderId: string | null;
+    contact: { id: string; companyName: string } | null;
+    order: { id: string; orderNumber: string; title: string } | null;
+  }>>;
 }
 
 export async function getDispositionEntries(weekStart: Date, weekEnd: Date) {
-  return prisma.dispositionEntry.findMany({
+  return (prisma as any).dispositionEntry.findMany({
     where: {
       startDate: { lte: weekEnd },
       endDate: { gte: weekStart },
     },
     include: {
       resource: true,
+      baustelle: {
+        include: {
+          contact: { select: { id: true, companyName: true } },
+        },
+      },
       order: { include: { contact: true } },
     },
   });
@@ -51,8 +69,7 @@ export async function getDispositionEntries(weekStart: Date, weekEnd: Date) {
 
 const entrySchema = z.object({
   resourceId: z.string().min(1, "Ressource erforderlich"),
-  orderId: z.string().min(1, "Auftrag erforderlich"),
-  baustelleId: z.string().optional().nullable(),
+  baustelleId: z.string().min(1, "Baustelle erforderlich"),
   startDate: z.string().min(1),
   endDate: z.string().min(1),
   notes: z.string().optional(),
@@ -62,32 +79,36 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
   const parsed = entrySchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const [entry] = await Promise.all([
-    prisma.dispositionEntry.create({
-      data: {
-        resourceId: parsed.data.resourceId,
-        orderId: parsed.data.orderId,
-        baustelleId: parsed.data.baustelleId || null,
-        startDate: new Date(parsed.data.startDate),
-        endDate: new Date(parsed.data.endDate),
-        notes: parsed.data.notes,
-      },
-      include: { resource: true, order: { include: { contact: true } } },
-    }),
-    prisma.order.updateMany({
-      where: { id: parsed.data.orderId, status: "PLANNED" },
-      data: { status: "ACTIVE" },
-    }),
-  ]);
+  // Derive orderId from the baustelle (optional)
+  const baustelle = await (prisma as any).baustelle.findUnique({
+    where: { id: parsed.data.baustelleId },
+    select: { orderId: true },
+  });
+
+  const entry = await (prisma as any).dispositionEntry.create({
+    data: {
+      resourceId: parsed.data.resourceId,
+      baustelleId: parsed.data.baustelleId,
+      orderId: baustelle?.orderId ?? null,
+      startDate: new Date(parsed.data.startDate),
+      endDate: new Date(parsed.data.endDate),
+      notes: parsed.data.notes,
+    },
+    include: {
+      resource: true,
+      baustelle: { include: { contact: { select: { id: true, companyName: true } } } },
+      order: { include: { contact: true } },
+    },
+  });
 
   revalidatePath("/disposition");
-  revalidatePath("/auftraege");
-  if (parsed.data.baustelleId) revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
+  revalidatePath("/baustellen");
+  revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
   return { entry };
 }
 
 export async function updateDispositionEntry(id: string, data: { startDate: string; endDate: string; notes?: string; resourceId?: string }) {
-  const entry = await prisma.dispositionEntry.update({
+  const entry = await (prisma as any).dispositionEntry.update({
     where: { id },
     data: {
       startDate: new Date(data.startDate),
@@ -95,7 +116,11 @@ export async function updateDispositionEntry(id: string, data: { startDate: stri
       notes: data.notes,
       ...(data.resourceId ? { resourceId: data.resourceId } : {}),
     },
-    include: { resource: true, order: { include: { contact: true } } },
+    include: {
+      resource: true,
+      baustelle: { include: { contact: { select: { id: true, companyName: true } } } },
+      order: { include: { contact: true } },
+    },
   });
   revalidatePath("/disposition");
   return { entry };

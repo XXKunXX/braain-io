@@ -90,7 +90,7 @@ const baustelleSchema = z.object({
 
 const dispositionSchema = z.object({
   baustelleId: z.string().min(1),
-  orderId: z.string().min(1),
+  orderId: z.string().optional().nullable(),
   resourceId: z.string().min(1),
   startDate: z.string().min(1),
   endDate: z.string().min(1),

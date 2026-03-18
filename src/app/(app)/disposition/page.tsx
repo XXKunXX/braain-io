@@ -7,7 +7,7 @@ import {
   startOfDay,
   endOfDay,
 } from "date-fns";
-import { getResources, getDispositionEntries, getOrdersForDisposition } from "@/actions/disposition";
+import { getResources, getDispositionEntries, getBaustellenForDisposition } from "@/actions/disposition";
 import { DispositionCalendar } from "@/components/calendar/disposition-calendar";
 
 export default async function DispositionPage({
@@ -32,21 +32,20 @@ export default async function DispositionPage({
     rangeStart = startOfWeek(baseDate, { weekStartsOn: 1 });
     rangeEnd = addDays(rangeStart, 13);
   } else {
-    // woche: Mon–Sat
     rangeStart = startOfWeek(baseDate, { weekStartsOn: 1 });
     rangeEnd = addDays(rangeStart, 5);
   }
 
-  const [resources, orders, entries] = await Promise.all([
+  const [resources, baustellen, entries] = await Promise.all([
     getResources(),
-    getOrdersForDisposition(),
+    getBaustellenForDisposition(),
     getDispositionEntries(rangeStart, rangeEnd),
   ]);
 
   return (
     <DispositionCalendar
       resources={resources}
-      orders={orders}
+      baustellen={baustellen}
       entries={entries}
       rangeStartISO={rangeStart.toISOString()}
       initialView={view}
