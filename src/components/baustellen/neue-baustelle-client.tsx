@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronDown, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -166,7 +166,21 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
                       }}
                       onFocus={() => setOrderOpen(true)}
                     />
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    {orderId ? (
+                      <button
+                        type="button"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 hover:text-gray-600"
+                        onClick={() => {
+                          setOrderId("");
+                          setOrderSearch("");
+                          setOrderOpen(false);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                    )}
                     {orderOpen && (
                       <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {filteredOrders.length === 0 && (
