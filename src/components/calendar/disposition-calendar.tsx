@@ -129,6 +129,8 @@ export function DispositionCalendar({
 
   // Drag state
   const dragOrderId = useRef<string | null>(null);
+  const dragEntry = useRef<EntryWithRelations | null>(null);
+  const [draggingEntryId, setDraggingEntryId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ resourceId: string; dayIdx: number } | null>(null);
 
   // Drop modal
@@ -277,17 +279,55 @@ export function DispositionCalendar({
   // Drag & drop
   function handleDragStart(e: React.DragEvent, orderId: string) {
     dragOrderId.current = orderId;
+    dragEntry.current = null;
     e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.setData("type", "order");
+  }
+  function handleEntryDragStart(e: React.DragEvent, entry: EntryWithRelations) {
+    e.stopPropagation();
+    dragEntry.current = entry;
+    dragOrderId.current = null;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("type", "entry");
+    setDraggingEntryId(entry.id);
+  }
+  function handleDragEnd() {
+    setDraggingEntryId(null);
   }
   function handleDragOver(e: React.DragEvent, resourceId: string, dayIdx: number) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+    e.dataTransfer.dropEffect = dragEntry.current ? "move" : "copy";
     setDropTarget({ resourceId, dayIdx });
   }
   function handleDragLeave() { setDropTarget(null); }
-  function handleDrop(e: React.DragEvent, resourceId: string, day: Date) {
+  async function handleDrop(e: React.DragEvent, resourceId: string, day: Date) {
     e.preventDefault();
     setDropTarget(null);
+
+    // Moving an existing entry
+    if (dragEntry.current) {
+      const entry = dragEntry.current;
+      dragEntry.current = null;
+      setDraggingEntryId(null);
+      const origStart = startOfDay(new Date(entry.startDate));
+      const origEnd = startOfDay(new Date(entry.endDate));
+      const dayOffset = differenceInCalendarDays(startOfDay(day), origStart);
+      if (dayOffset === 0 && resourceId === entry.resourceId) return; // no change
+      const newStart = addDays(new Date(entry.startDate), dayOffset);
+      const newEnd = addDays(new Date(entry.endDate), dayOffset);
+      const result = await updateDispositionEntry(entry.id, {
+        startDate: newStart.toISOString(),
+        endDate: newEnd.toISOString(),
+        notes: entry.notes ?? undefined,
+        resourceId: resourceId !== entry.resourceId ? resourceId : undefined,
+      });
+      if ("error" in result && result.error) { toast.error("Fehler beim Verschieben"); return; }
+      toast.success("Eintrag verschoben");
+      router.refresh();
+      return;
+    }
+
+    // Assigning an order from the panel
     const orderId = dragOrderId.current;
     if (!orderId) return;
     const dateStr = format(day, "yyyy-MM-dd");
@@ -654,12 +694,16 @@ export function DispositionCalendar({
                             const style = getEntryStyle(entry);
                             if (!style) return null;
                             const isHighlighted = !selectedOrderId || selectedOrderId === entry.orderId;
+                            const isDragging = draggingEntryId === entry.id;
                             const colorClass = orderColorMap[entry.orderId] ?? "bg-violet-500";
                             return (
                               <div
                                 key={entry.id}
-                                className={`absolute top-2 rounded-md px-2.5 flex items-center gap-1.5 text-white text-[11px] font-medium group cursor-pointer transition-opacity shadow-sm ${colorClass} ${
-                                  isHighlighted ? "opacity-100" : "opacity-15"
+                                draggable
+                                onDragStart={(e) => handleEntryDragStart(e, entry)}
+                                onDragEnd={handleDragEnd}
+                                className={`absolute top-2 rounded-md px-2.5 flex items-center gap-1.5 text-white text-[11px] font-medium group cursor-grab active:cursor-grabbing transition-opacity shadow-sm ${colorClass} ${
+                                  isDragging ? "opacity-30" : isHighlighted ? "opacity-100" : "opacity-15"
                                 }`}
                                 style={{ left: style.left, width: style.width, height: 32, bottom: 8 }}
                                 title={`${entry.order.title} — ${entry.order.contact.companyName}${entry.notes ? `\n${entry.notes}` : ""}`}

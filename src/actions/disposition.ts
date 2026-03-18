@@ -86,13 +86,14 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
   return { entry };
 }
 
-export async function updateDispositionEntry(id: string, data: { startDate: string; endDate: string; notes?: string }) {
+export async function updateDispositionEntry(id: string, data: { startDate: string; endDate: string; notes?: string; resourceId?: string }) {
   const entry = await prisma.dispositionEntry.update({
     where: { id },
     data: {
       startDate: new Date(data.startDate),
       endDate: new Date(data.endDate),
       notes: data.notes,
+      ...(data.resourceId ? { resourceId: data.resourceId } : {}),
     },
     include: { resource: true, order: { include: { contact: true } } },
   });
