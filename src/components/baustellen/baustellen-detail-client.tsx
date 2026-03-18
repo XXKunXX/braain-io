@@ -4,15 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, Settings2, FileText, FolderOpen, User, Truck, Users,
+  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, FileText, FolderOpen, User, Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   updateBaustelle,
   deleteBaustelleDispositionEntry,
-  createBaustelleMachineUsage,
-  deleteBaustelleMachineUsage,
   createTagesrapport,
   deleteTagesrapport,
 } from "@/actions/baustellen";
@@ -27,6 +25,15 @@ const STATUS_COLOR: Record<BaustelleStatusType, string> = {
   PLANNED: "border-gray-300 text-gray-600 bg-gray-50",
   ACTIVE: "border-blue-300 text-blue-700 bg-blue-50",
   COMPLETED: "border-green-300 text-green-700 bg-green-50",
+};
+const TYPE_LABEL: Record<string, string> = {
+  FAHRER: "Fahrer", MASCHINE: "Maschine", FAHRZEUG: "Fahrzeug", OTHER: "Sonstiges",
+};
+const TYPE_COLOR: Record<string, string> = {
+  FAHRER: "bg-blue-100 text-blue-700",
+  MASCHINE: "bg-orange-100 text-orange-700",
+  FAHRZEUG: "bg-green-100 text-green-700",
+  OTHER: "bg-gray-100 text-gray-600",
 };
 const IC = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
@@ -55,12 +62,16 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type MachineOption = { id: string; name: string; machineType: string };
 type OrderOption = { id: string; orderNumber: string; title: string };
+
+type DispositionEntry = {
+  id: string; startDate: Date; endDate: Date; notes: string | null;
+  resource: { id: string; name: string; type: string };
+};
 
 type Baustelle = {
   id: string;
-  orderId: string;
+  orderId: string | null;
   contactId: string | null;
   name: string;
   description: string | null;
@@ -77,15 +88,7 @@ type Baustelle = {
   notes: string | null;
   order: OrderOption;
   contact: { id: string; companyName: string; contactPerson: string | null } | null;
-  dispositionEntries: Array<{
-    id: string; startDate: Date; endDate: Date; notes: string | null;
-    resource: { id: string; name: string; type: string };
-  }>;
-  machineUsages: Array<{
-    id: string; startDate: Date; endDate: Date | null; hours: number | null;
-    notes: string | null; driverName: string | null;
-    machine: { id: string; name: string; machineType: string };
-  }>;
+  dispositionEntries: DispositionEntry[];
   rapporte: Array<{
     id: string; date: Date; driverName: string | null; machineName: string | null;
     hours: number | null; employees: number | null; description: string | null;
@@ -98,22 +101,21 @@ type Baustelle = {
 
 interface Props {
   baustelle: Baustelle;
-  machines: MachineOption[];
   orders: OrderOption[];
   userNames: string[];
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export function BaustellenDetailClient({ baustelle: init, machines, orders, userNames }: Props) {
+export function BaustellenDetailClient({ baustelle: init, orders, userNames }: Props) {
   const router = useRouter();
   const [b, setB] = useState(init);
-  const [tab, setTab] = useState<"overview" | "dispo" | "maschinen" | "rapporte" | "lieferscheine" | "mitarbeiter" | "rechnungen" | "dokumente">("overview");
+  const [tab, setTab] = useState<"overview" | "dispo" | "rapporte" | "lieferscheine" | "dokumente">("overview");
 
   // ── Overview edit ──────────────────────────────────────────────────────────
   const [editMode, setEditMode] = useState(false);
   const [ef, setEf] = useState({
-    orderId: b.orderId,
+    orderId: b.orderId ?? "",
     name: b.name,
     description: b.description ?? "",
     address: b.address ?? "",
@@ -148,36 +150,6 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
     toast.success("Gelöscht");
   }
 
-  // ── Machine modal ──────────────────────────────────────────────────────────
-  const [machOpen, setMachOpen] = useState(false);
-  const [mf, setMf] = useState({ machineId: "", driverName: "", startDate: "", endDate: "", hours: "", notes: "" });
-  const [savingMach, setSavingMach] = useState(false);
-
-  async function handleCreateMachine() {
-    if (!mf.machineId || !mf.startDate) { toast.error("Maschine und Startdatum erforderlich"); return; }
-    setSavingMach(true);
-    const r = await createBaustelleMachineUsage({
-      baustelleId: b.id, orderId: b.orderId,
-      machineId: mf.machineId, driverName: mf.driverName || undefined,
-      startDate: mf.startDate, endDate: mf.endDate || undefined,
-      hours: mf.hours ? parseFloat(mf.hours) : null,
-      notes: mf.notes || undefined,
-    });
-    setSavingMach(false);
-    if ("error" in r) { toast.error("Fehler"); return; }
-    setB(prev => ({ ...prev, machineUsages: [r.usage, ...prev.machineUsages] }));
-    setMachOpen(false);
-    setMf({ machineId: "", driverName: "", startDate: "", endDate: "", hours: "", notes: "" });
-    toast.success("Maschine hinzugefügt");
-  }
-
-  async function handleDeleteMachine(id: string) {
-    if (!confirm("Maschineneinsatz wirklich löschen?")) return;
-    await deleteBaustelleMachineUsage(id, b.id);
-    setB(prev => ({ ...prev, machineUsages: prev.machineUsages.filter(u => u.id !== id) }));
-    toast.success("Gelöscht");
-  }
-
   // ── Rapport modal ──────────────────────────────────────────────────────────
   const [rapOpen, setRapOpen] = useState(false);
   const [rf, setRf] = useState({ date: "", driverName: "", machineName: "", hours: "", employees: "", description: "" });
@@ -208,15 +180,20 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
     toast.success("Gelöscht");
   }
 
-  const mitarbeiter = b.dispositionEntries.filter(e => e.resource.type === "FAHRER");
+  // ── Resource overview (from disposition) ──────────────────────────────────
+  const now = new Date();
+  const activeNow = b.dispositionEntries.filter(
+    e => new Date(e.startDate) <= now && new Date(e.endDate) >= now
+  );
+  const upcoming = b.dispositionEntries
+    .filter(e => new Date(e.startDate) > now)
+    .sort((a, z) => new Date(a.startDate).getTime() - new Date(z.startDate).getTime());
 
   const TABS = [
     { key: "overview" as const, label: "Übersicht", icon: Info },
+    { key: "dispo" as const, label: "Disposition", icon: CalendarDays, count: b.dispositionEntries.length },
     { key: "rapporte" as const, label: "Tagesberichte", icon: FileText, count: b.rapporte.length },
     { key: "lieferscheine" as const, label: "Lieferscheine", icon: Truck, count: b.deliveryNotes.length },
-    { key: "maschinen" as const, label: "Maschinen", icon: Settings2, count: b.machineUsages.length },
-    { key: "mitarbeiter" as const, label: "Mitarbeiter", icon: Users, count: mitarbeiter.length },
-    { key: "dispo" as const, label: "Disposition", icon: CalendarDays, count: b.dispositionEntries.length },
     { key: "dokumente" as const, label: "Dokumente", icon: FolderOpen },
   ];
 
@@ -237,7 +214,7 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
               </span>
             </div>
             <p className="text-sm text-gray-400 mt-0.5">
-              {b.order.orderNumber} {b.order.title}
+              {b.order ? `${b.order.orderNumber} ${b.order.title}` : "Kein Auftrag"}
               {(b.address || b.city) && <> · {[b.address, b.city].filter(Boolean).join(", ")}</>}
             </p>
           </div>
@@ -266,7 +243,9 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
 
         {/* ── TAB: Übersicht ─────────────────────────────────────────────── */}
         {tab === "overview" && (
-          <div className="max-w-2xl">
+          <div className="max-w-2xl space-y-5">
+
+            {/* Stammdaten */}
             <div className="bg-white border border-gray-200 rounded-xl p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold text-gray-900">Stammdaten</h2>
@@ -287,7 +266,7 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4">
                   {[
                     ["Baustellenname", b.name],
-                    ["Auftrag", `${b.order.orderNumber} – ${b.order.title}`],
+                    ["Auftrag", b.order ? `${b.order.orderNumber} – ${b.order.title}` : "–"],
                     ["Adresse", b.address],
                     ["PLZ / Ort", [b.postalCode, b.city].filter(Boolean).join(" ")],
                     ["Startdatum", fmt(b.startDate)],
@@ -333,8 +312,9 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <Field label="Name *"><input type="text" className={IC} value={ef.name} onChange={e => setEf(f => ({ ...f, name: e.target.value }))} /></Field>
-                    <Field label="Auftrag *">
+                    <Field label="Auftrag">
                       <select className={IC} value={ef.orderId} onChange={e => setEf(f => ({ ...f, orderId: e.target.value }))}>
+                        <option value="">– Kein Auftrag –</option>
                         {orders.map(o => <option key={o.id} value={o.id}>{o.orderNumber} – {o.title}</option>)}
                       </select>
                     </Field>
@@ -372,6 +352,65 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
                 </div>
               )}
             </div>
+
+            {/* Ressourcen-Übersicht (read-only, aus Disposition) */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-gray-900">Ressourcen</h2>
+                <a
+                  href={`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`}
+                  className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                >
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  Im Disposition planen
+                </a>
+              </div>
+
+              {/* Aktuell im Einsatz */}
+              <div className="mb-4">
+                <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">Heute im Einsatz</p>
+                {activeNow.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">Keine Ressourcen aktuell eingeplant</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {activeNow.map(e => (
+                      <div key={e.id} className="flex items-center gap-2.5 py-1.5 px-3 bg-green-50 border border-green-100 rounded-lg">
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${TYPE_COLOR[e.resource.type] ?? "bg-gray-100 text-gray-600"}`}>
+                          {TYPE_LABEL[e.resource.type] ?? e.resource.type}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900">{e.resource.name}</span>
+                        <span className="text-xs text-gray-400 ml-auto">{fmt(e.startDate)} – {fmt(e.endDate)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Kommende Einsätze */}
+              <div>
+                <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">Kommende Einsätze</p>
+                {upcoming.length === 0 ? (
+                  <p className="text-sm text-gray-400 italic">Keine bevorstehenden Einsätze</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {upcoming.slice(0, 5).map(e => (
+                      <div key={e.id} className="flex items-center gap-2.5 py-1.5 px-3 bg-gray-50 border border-gray-100 rounded-lg">
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${TYPE_COLOR[e.resource.type] ?? "bg-gray-100 text-gray-600"}`}>
+                          {TYPE_LABEL[e.resource.type] ?? e.resource.type}
+                        </span>
+                        <span className="text-sm font-medium text-gray-900">{e.resource.name}</span>
+                        <span className="text-xs text-gray-400 ml-auto">{fmt(e.startDate)} – {fmt(e.endDate)}</span>
+                      </div>
+                    ))}
+                    {upcoming.length > 5 && (
+                      <p className="text-xs text-gray-400 pl-1">+{upcoming.length - 5} weitere →{" "}
+                        <button onClick={() => setTab("dispo")} className="text-blue-500 hover:underline">Alle anzeigen</button>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -384,7 +423,7 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
                 href={`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
               >
-                <CalendarDays className="h-4 w-4" />Einsatz in Disposition planen
+                <CalendarDays className="h-4 w-4" />Im Disposition öffnen
               </a>
             </div>
             {b.dispositionEntries.length === 0 ? (
@@ -400,9 +439,11 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
                   <div key={e.id} className={`grid grid-cols-[1fr_1fr_2fr_1fr_40px] gap-3 px-5 py-3 items-center group hover:bg-gray-50 ${i !== b.dispositionEntries.length - 1 ? "border-b border-gray-100" : ""}`}>
                     <p className="text-sm text-gray-900">{fmt(e.startDate)}</p>
                     <p className="text-sm text-gray-500">{fmt(e.endDate)}</p>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{e.resource.name}</p>
-                      <p className="text-xs text-gray-400">{e.resource.type}</p>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${TYPE_COLOR[e.resource.type] ?? "bg-gray-100 text-gray-600"}`}>
+                        {TYPE_LABEL[e.resource.type] ?? e.resource.type}
+                      </span>
+                      <p className="text-sm font-medium text-gray-900 truncate">{e.resource.name}</p>
                     </div>
                     <p className="text-sm text-gray-500 truncate">{e.notes || "–"}</p>
                     <button onClick={() => handleDeleteDispo(e.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -416,51 +457,13 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
           </div>
         )}
 
-        {/* ── TAB: Maschinen ─────────────────────────────────────────────── */}
-        {tab === "maschinen" && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Maschineneinsätze</h2>
-              <Button onClick={() => setMachOpen(true)} size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
-                <Plus className="h-4 w-4" />Maschine hinzufügen
-              </Button>
-            </div>
-            {b.machineUsages.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Maschinen zugeordnet</div>
-            ) : (
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_40px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-                  {["Maschine", "Typ", "Einsatzbeginn", "Einsatzende", "Stunden", ""].map(h => (
-                    <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-                  ))}
-                </div>
-                {b.machineUsages.map((u, i) => (
-                  <div key={u.id} className={`grid grid-cols-[2fr_1.5fr_1fr_1fr_1fr_40px] gap-3 px-5 py-3 items-center group hover:bg-gray-50 ${i !== b.machineUsages.length - 1 ? "border-b border-gray-100" : ""}`}>
-                    <div>
-                      <Link href={`/ressourcen/maschinen/${u.machine.id}`} className="text-sm font-medium text-blue-600 hover:underline">{u.machine.name}</Link>
-                      {u.driverName && <p className="text-xs text-gray-400">{u.driverName}</p>}
-                    </div>
-                    <p className="text-sm text-gray-500">{u.machine.machineType}</p>
-                    <p className="text-sm text-gray-900">{fmt(u.startDate)}</p>
-                    <p className="text-sm text-gray-500">{u.endDate ? fmt(u.endDate) : "laufend"}</p>
-                    <p className="text-sm text-gray-500">{u.hours != null ? `${u.hours} h` : "–"}</p>
-                    <button onClick={() => handleDeleteMachine(u.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* ── TAB: Tagesberichte ─────────────────────────────────────────── */}
         {tab === "rapporte" && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Tagesrapporte</h2>
-              <Button onClick={() => setRapOpen(true)} size="sm" className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
-                <Plus className="h-4 w-4" />Rapport erstellen
+              <h2 className="text-base font-semibold text-gray-900">Tagesberichte</h2>
+              <Button onClick={() => setRapOpen(true)} size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+                <Plus className="h-4 w-4" />Tagesbericht erstellen
               </Button>
             </div>
             {b.rapporte.length === 0 ? (
@@ -496,7 +499,7 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">Lieferscheine</h2>
               <a
-                href={`/lieferscheine/neu?baustelleId=${b.id}&orderId=${b.orderId}`}
+                href={`/lieferscheine/neu?baustelleId=${b.id}${b.orderId ? `&orderId=${b.orderId}` : ""}`}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
               >
                 <Plus className="h-4 w-4" />Neuer Lieferschein
@@ -526,42 +529,6 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
           </div>
         )}
 
-        {/* ── TAB: Mitarbeiter ───────────────────────────────────────────── */}
-        {tab === "mitarbeiter" && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Mitarbeiter & Fahrer</h2>
-              <a
-                href={`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
-              >
-                <CalendarDays className="h-4 w-4" />In Disposition einteilen
-              </a>
-            </div>
-            {mitarbeiter.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Mitarbeiter eingeteilt</div>
-            ) : (
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[2fr_1fr_1fr_40px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-                  {["Name", "Von", "Bis", ""].map(h => (
-                    <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-                  ))}
-                </div>
-                {mitarbeiter.map((e, i) => (
-                  <div key={e.id} className={`grid grid-cols-[2fr_1fr_1fr_40px] gap-3 px-5 py-3 items-center group hover:bg-gray-50 ${i !== mitarbeiter.length - 1 ? "border-b border-gray-100" : ""}`}>
-                    <p className="text-sm font-medium text-gray-900">{e.resource.name}</p>
-                    <p className="text-sm text-gray-500">{fmt(e.startDate)}</p>
-                    <p className="text-sm text-gray-500">{fmt(e.endDate)}</p>
-                    <button onClick={() => handleDeleteDispo(e.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
         {/* ── TAB: Dokumente ─────────────────────────────────────────────── */}
         {tab === "dokumente" && (
           <div className="max-w-xl">
@@ -577,36 +544,9 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
         )}
       </div>
 
-      {/* ── Modal: Maschine hinzufügen ────────────────────────────────────────── */}
-      {machOpen && (
-        <Modal title="Maschine hinzufügen" onClose={() => setMachOpen(false)}>
-          <div className="space-y-3">
-            <Field label="Maschine *">
-              <select className={IC} value={mf.machineId} onChange={e => setMf(f => ({ ...f, machineId: e.target.value }))}>
-                <option value="">– Maschine wählen –</option>
-                {machines.map(m => <option key={m.id} value={m.id}>{m.name} ({m.machineType})</option>)}
-              </select>
-            </Field>
-            <Field label="Fahrer">
-              <input type="text" className={IC} placeholder="Name des Fahrers" value={mf.driverName} onChange={e => setMf(f => ({ ...f, driverName: e.target.value }))} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Einsatzbeginn *"><input type="date" className={IC} value={mf.startDate} onChange={e => setMf(f => ({ ...f, startDate: e.target.value }))} /></Field>
-              <Field label="Einsatzende"><input type="date" className={IC} value={mf.endDate} onChange={e => setMf(f => ({ ...f, endDate: e.target.value }))} /></Field>
-            </div>
-            <Field label="Einsatzstunden"><input type="number" min="0" step="0.5" className={IC} value={mf.hours} onChange={e => setMf(f => ({ ...f, hours: e.target.value }))} /></Field>
-            <Field label="Notizen"><textarea rows={2} className={`${IC} resize-none`} value={mf.notes} onChange={e => setMf(f => ({ ...f, notes: e.target.value }))} /></Field>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
-            <Button variant="outline" onClick={() => setMachOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleCreateMachine} disabled={savingMach}>{savingMach ? "Speichert..." : "Maschine hinzufügen"}</Button>
-          </div>
-        </Modal>
-      )}
-
-      {/* ── Modal: Rapport erstellen ──────────────────────────────────────────── */}
+      {/* ── Modal: Tagesbericht erstellen ─────────────────────────────────────── */}
       {rapOpen && (
-        <Modal title="Tagesrapport erstellen" onClose={() => setRapOpen(false)}>
+        <Modal title="Tagesbericht erstellen" onClose={() => setRapOpen(false)}>
           <div className="space-y-3">
             <Field label="Datum *"><input type="date" className={IC} value={rf.date} onChange={e => setRf(f => ({ ...f, date: e.target.value }))} /></Field>
             <div className="grid grid-cols-2 gap-3">
@@ -621,7 +561,7 @@ export function BaustellenDetailClient({ baustelle: init, machines, orders, user
           </div>
           <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
             <Button variant="outline" onClick={() => setRapOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleCreateRapport} disabled={savingRap}>{savingRap ? "Speichert..." : "Rapport speichern"}</Button>
+            <Button onClick={handleCreateRapport} disabled={savingRap}>{savingRap ? "Speichert..." : "Bericht speichern"}</Button>
           </div>
         </Modal>
       )}

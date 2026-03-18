@@ -4,9 +4,6 @@ import { BaustellenDetailClient } from "@/components/baustellen/baustellen-detai
 import { prisma } from "@/lib/prisma";
 import { getUsers } from "@/actions/users";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const db = prisma as any;
-
 export default async function BaustelleDetailPage({
   params,
 }: {
@@ -14,12 +11,8 @@ export default async function BaustelleDetailPage({
 }) {
   const { id } = await params;
 
-  const [baustelle, machines, orders, users] = await Promise.all([
+  const [baustelle, orders, users] = await Promise.all([
     getBaustelle(id),
-    db.machine.findMany({
-      select: { id: true, name: true, machineType: true },
-      orderBy: { name: "asc" },
-    }),
     prisma.order.findMany({
       where: { status: { in: ["PLANNED", "ACTIVE"] } },
       select: { id: true, orderNumber: true, title: true },
@@ -39,7 +32,6 @@ export default async function BaustelleDetailPage({
   return (
     <BaustellenDetailClient
       baustelle={baustelle}
-      machines={machines}
       orders={orders}
       userNames={userNames}
     />
