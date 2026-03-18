@@ -13,7 +13,15 @@ export function Header({ title, children }: HeaderProps) {
       <h2 className="text-sm font-semibold text-gray-800 truncate">{title}</h2>
       <div className="flex items-center gap-2 md:gap-3 flex-shrink-0 ml-3">
         {children}
-        <UserButton />
+        <UserButton
+          appearance={{
+            elements: {
+              avatarBox: "w-8 h-8",
+            },
+          }}
+          userProfileMode="navigation"
+          userProfileUrl="/einstellungen"
+        />
       </div>
     </header>
   );
