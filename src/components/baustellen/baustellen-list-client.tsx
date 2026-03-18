@@ -214,7 +214,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
           <div className="hidden md:grid grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
-            {["", "Baustelle", "Auftrag", "Adresse", "Zeitraum", "Status", ""].map((h, i) => (
+            {["", "Baustelle", "Kunde", "Adresse", "Zeitraum", "Status", ""].map((h, i) => (
               <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
             ))}
           </div>
@@ -238,9 +238,9 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
                 <span className="text-sm font-medium text-gray-900 truncate">{b.name}</span>
               </div>
 
-              {/* Auftrag */}
+              {/* Kunde */}
               <span className="hidden md:block text-xs text-gray-500 truncate">
-                {b.order.orderNumber} {b.order.title}
+                {b.contact?.companyName ?? "–"}
               </span>
 
               {/* Adresse */}
