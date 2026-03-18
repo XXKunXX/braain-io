@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, Settings2, FileText, FolderOpen, User, Truck, Users, Receipt,
+  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, Settings2, FileText, FolderOpen, User, Truck, Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -251,12 +251,11 @@ export function BaustellenDetailClient({ baustelle: init, resources, machines, o
 
   const TABS = [
     { key: "overview" as const, label: "Übersicht", icon: Info },
-    { key: "rapporte" as const, label: "Rapporte", icon: FileText, count: b.rapporte.length },
+    { key: "rapporte" as const, label: "Tagesberichte", icon: FileText, count: b.rapporte.length },
     { key: "lieferscheine" as const, label: "Lieferscheine", icon: Truck, count: b.deliveryNotes.length },
     { key: "maschinen" as const, label: "Maschinen", icon: Settings2, count: b.machineUsages.length },
     { key: "mitarbeiter" as const, label: "Mitarbeiter", icon: Users, count: mitarbeiter.length },
     { key: "dispo" as const, label: "Disposition", icon: CalendarDays, count: b.dispositionEntries.length },
-    { key: "rechnungen" as const, label: "Rechnungen", icon: Receipt },
     { key: "dokumente" as const, label: "Dokumente", icon: FolderOpen },
   ];
 
@@ -491,7 +490,7 @@ export function BaustellenDetailClient({ baustelle: init, resources, machines, o
           </div>
         )}
 
-        {/* ── TAB: Rapporte ──────────────────────────────────────────────── */}
+        {/* ── TAB: Tagesberichte ─────────────────────────────────────────── */}
         {tab === "rapporte" && (
           <div>
             <div className="flex items-center justify-between mb-4">
@@ -501,7 +500,7 @@ export function BaustellenDetailClient({ baustelle: init, resources, machines, o
               </Button>
             </div>
             {b.rapporte.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Rapporte erfasst</div>
+              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Tagesberichte erfasst</div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <div className="grid grid-cols-[1fr_1.5fr_1.5fr_0.7fr_0.7fr_2fr_40px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
@@ -596,20 +595,6 @@ export function BaustellenDetailClient({ baustelle: init, resources, machines, o
                 ))}
               </div>
             )}
-          </div>
-        )}
-
-        {/* ── TAB: Rechnungen ────────────────────────────────────────────── */}
-        {tab === "rechnungen" && (
-          <div className="max-w-xl">
-            <div className="bg-white border border-gray-200 rounded-xl p-10 text-center">
-              <Receipt className="h-10 w-10 text-gray-200 mx-auto mb-3" />
-              <p className="text-sm font-medium text-gray-500">Rechnungen</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Rechnungen können aus einem Auftrag oder aus den Leistungen einer Baustelle generiert werden.<br />
-                Diese Funktion wird in einer zukünftigen Version verfügbar sein.
-              </p>
-            </div>
           </div>
         )}
 
