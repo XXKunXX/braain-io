@@ -14,13 +14,8 @@ export default async function BaustelleDetailPage({
 }) {
   const { id } = await params;
 
-  const [baustelle, resources, machines, orders, users] = await Promise.all([
+  const [baustelle, machines, orders, users] = await Promise.all([
     getBaustelle(id),
-    prisma.resource.findMany({
-      where: { active: true },
-      select: { id: true, name: true, type: true },
-      orderBy: [{ type: "asc" }, { name: "asc" }],
-    }),
     db.machine.findMany({
       select: { id: true, name: true, machineType: true },
       orderBy: { name: "asc" },
@@ -44,7 +39,6 @@ export default async function BaustelleDetailPage({
   return (
     <BaustellenDetailClient
       baustelle={baustelle}
-      resources={resources}
       machines={machines}
       orders={orders}
       userNames={userNames}

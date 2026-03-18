@@ -52,6 +52,7 @@ export async function getDispositionEntries(weekStart: Date, weekEnd: Date) {
 const entrySchema = z.object({
   resourceId: z.string().min(1, "Ressource erforderlich"),
   orderId: z.string().min(1, "Auftrag erforderlich"),
+  baustelleId: z.string().optional().nullable(),
   startDate: z.string().min(1),
   endDate: z.string().min(1),
   notes: z.string().optional(),
@@ -66,6 +67,7 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
       data: {
         resourceId: parsed.data.resourceId,
         orderId: parsed.data.orderId,
+        baustelleId: parsed.data.baustelleId || null,
         startDate: new Date(parsed.data.startDate),
         endDate: new Date(parsed.data.endDate),
         notes: parsed.data.notes,
@@ -80,6 +82,7 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
 
   revalidatePath("/disposition");
   revalidatePath("/auftraege");
+  if (parsed.data.baustelleId) revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
   return { entry };
 }
 

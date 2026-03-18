@@ -17,7 +17,7 @@ import {
   parseISO,
 } from "date-fns";
 import { de } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Plus, Trash2, Search, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon, Plus, Trash2, Search, X, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -88,6 +88,8 @@ interface Props {
   entries: EntryWithRelations[];
   rangeStartISO: string;
   initialView: ViewType;
+  baustelleId?: string;
+  baustelleName?: string;
 }
 
 export function DispositionCalendar({
@@ -96,6 +98,8 @@ export function DispositionCalendar({
   entries,
   rangeStartISO,
   initialView,
+  baustelleId,
+  baustelleName,
 }: Props) {
   const router = useRouter();
   const today = new Date();
@@ -162,6 +166,14 @@ export function DispositionCalendar({
   const numDays = days.length;
   const cellWidth = CELL_WIDTH[view];
 
+  // Build URL helper that preserves Baustelle filter
+  function dispoUrl(week: string, v: ViewType) {
+    const params = new URLSearchParams({ week, view: v });
+    if (baustelleId) params.set("baustelleId", baustelleId);
+    if (baustelleName) params.set("baustelleName", baustelleName);
+    return `/disposition?${params.toString()}`;
+  }
+
   // Navigation
   function navigate(direction: "prev" | "next" | "today") {
     let target: Date;
@@ -174,12 +186,12 @@ export function DispositionCalendar({
       else if (view === "timeline") target = delta < 0 ? subWeeks(rangeStart, 2) : addWeeks(rangeStart, 2);
       else target = delta < 0 ? subWeeks(rangeStart, 1) : addWeeks(rangeStart, 1);
     }
-    router.push(`/disposition?week=${format(target, "yyyy-MM-dd")}&view=${view}`);
+    router.push(dispoUrl(format(target, "yyyy-MM-dd"), view));
   }
 
   function switchView(v: ViewType) {
     setView(v);
-    router.push(`/disposition?week=${format(rangeStart, "yyyy-MM-dd")}&view=${v}`);
+    router.push(dispoUrl(format(rangeStart, "yyyy-MM-dd"), v));
   }
 
   // Range label
@@ -287,6 +299,7 @@ export function DispositionCalendar({
     const result = await createDispositionEntry({
       resourceId: dropModal.resourceId,
       orderId: dropModal.orderId,
+      baustelleId: baustelleId || null,
       startDate: dropForm.startDate,
       endDate: dropForm.endDate,
       notes: dropForm.notes,
@@ -330,7 +343,7 @@ export function DispositionCalendar({
   async function handleAddEntry() {
     if (!entryForm.resourceId || !entryForm.orderId) { toast.error("Ressource und Auftrag sind erforderlich"); return; }
     setIsSubmitting(true);
-    const result = await createDispositionEntry(entryForm);
+    const result = await createDispositionEntry({ ...entryForm, baustelleId: baustelleId || null });
     setIsSubmitting(false);
     if ("error" in result && result.error) { toast.error("Fehler beim Erstellen"); return; }
     toast.success("Eintrag erstellt");
@@ -382,6 +395,24 @@ export function DispositionCalendar({
           </Button>
         </div>
       </div>
+
+      {/* Baustelle filter banner */}
+      {baustelleId && (
+        <div className="px-6 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2 text-sm text-blue-800">
+            <span className="font-medium">Planung für Baustelle:</span>
+            <span>{baustelleName ?? baustelleId}</span>
+            <span className="text-blue-400 text-xs">· Neue Einträge werden dieser Baustelle zugeordnet</span>
+          </div>
+          <a
+            href={`/baustellen/${baustelleId}`}
+            className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Zurück zur Baustelle
+          </a>
+        </div>
+      )}
 
       {/* View tabs + range label */}
       <div className="px-6 py-2 bg-white border-b border-gray-100 flex items-center justify-between flex-shrink-0">
