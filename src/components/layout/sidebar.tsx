@@ -37,7 +37,7 @@ const navSections = [
     ],
   },
   {
-    label: "Planung",
+    label: "Baustellenmanagement",
     items: [
       { href: "/baustellen", label: "Baustellen", icon: MapPin, badgeKey: "" },
       { href: "/disposition", label: "Disposition", icon: CalendarDays, badgeKey: "" },

@@ -5,6 +5,7 @@ import { Menu, Search, Brain } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { Sidebar } from "./sidebar";
 import { GlobalSearch, useGlobalSearch } from "./global-search";
+import { NotificationBell } from "./notification-bell";
 import { cn } from "@/lib/utils";
 
 interface AppShellProps {
@@ -72,6 +73,7 @@ export function AppShell({ children, openTaskCount }: AppShellProps) {
             >
               <Search className="h-5 w-5" />
             </button>
+            <NotificationBell />
             <UserButton
               appearance={{ elements: { avatarBox: "w-8 h-8" } }}
               userProfileMode="navigation"

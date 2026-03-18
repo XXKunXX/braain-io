@@ -426,3 +426,16 @@ model Tagesrapport {
   baustelle   Baustelle @relation(fields: [baustelleId], references: [id], onDelete: Cascade)
 }
 
+model Notification {
+  id          String   @id @default(cuid())
+  clerkUserId String
+  title       String
+  message     String?
+  type        String   @default("INFO")
+  read        Boolean  @default(false)
+  link        String?
+  createdAt   DateTime @default(now())
+
+  @@index([clerkUserId, read])
+}
+
