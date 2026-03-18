@@ -82,27 +82,26 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
 
-  // ── Select order and auto-fill ──────────────────────────────────────────────
+  // ── Select order and auto-fill all fields ───────────────────────────────────
   function selectOrder(o: OrderOption) {
     setOrderId(o.id);
     setOrderSearch(`${o.orderNumber} – ${o.title}`);
     setOrderOpen(false);
 
-    // Auto-fill only if field is still empty
-    if (!name) setName(o.title);
-    if (!startDate) setStartDate(toDateInput(o.startDate));
-    if (!endDate) setEndDate(toDateInput(o.endDate));
-    if (!address && o.contact.address) setAddress(o.contact.address);
-    if (!postalCode && o.contact.postalCode) setPostalCode(o.contact.postalCode);
-    if (!city && o.contact.city) setCity(o.contact.city);
-    if (!contactPerson && o.contact.contactPerson) setContactPerson(o.contact.contactPerson);
-    if (!phone && o.contact.phone) setPhone(o.contact.phone);
+    // Always auto-fill from order
+    setName(o.title);
+    setStartDate(toDateInput(o.startDate));
+    if (o.endDate) setEndDate(toDateInput(o.endDate));
+    if (o.contact.address) setAddress(o.contact.address);
+    if (o.contact.postalCode) setPostalCode(o.contact.postalCode);
+    if (o.contact.city) setCity(o.contact.city);
+    if (o.contact.contactPerson) setContactPerson(o.contact.contactPerson);
+    if (o.contact.phone) setPhone(o.contact.phone);
   }
 
   // ── Submit ──────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!orderId) { toast.error("Bitte Auftrag auswählen"); return; }
     if (!name.trim()) { toast.error("Name ist erforderlich"); return; }
     if (!startDate) { toast.error("Startdatum ist erforderlich"); return; }
 
@@ -153,7 +152,7 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
               <div className="grid grid-cols-2 gap-4">
                 {/* Auftrag combobox */}
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Auftrag *</Label>
+                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Auftrag</Label>
                   <div ref={orderRef} className="relative">
                     <input
                       type="text"
@@ -312,7 +311,7 @@ export function NeueBaustelleClient({ orders, userNames, prefillOrder }: Props) 
             <Button type="button" variant="outline" className="rounded-lg" onClick={() => router.back()}>Abbrechen</Button>
             <Button
               type="submit"
-              disabled={loading || !orderId || !name.trim() || !startDate}
+              disabled={loading || !name.trim() || !startDate}
               className="rounded-lg bg-blue-600 hover:bg-blue-700"
             >
               {loading ? "Erstelle..." : "Baustelle erstellen"}

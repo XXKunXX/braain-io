@@ -385,7 +385,7 @@ enum BaustelleStatus {
 
 model Baustelle {
   id            String          @id @default(cuid())
-  orderId       String
+  orderId       String?
   contactId     String?
   name          String
   description   String?
@@ -403,7 +403,7 @@ model Baustelle {
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 
-  order              Order              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order              Order?             @relation(fields: [orderId], references: [id], onDelete: SetNull)
   contact            Contact?           @relation(fields: [contactId], references: [id], onDelete: SetNull)
   dispositionEntries DispositionEntry[]
   machineUsages      MachineUsage[]
