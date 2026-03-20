@@ -159,7 +159,7 @@ export function OrderDetail({
   const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
   const [editMilestone, setEditMilestone] = useState<{ title: string; type: "ANZAHLUNG" | "ZWISCHENRECHNUNG" | "SCHLUSSRECHNUNG"; amount: string; dueDate: string; assignedTo: string; notes: string; invoiceNumber: string; skontoPercent: string; skontoDays: string } | null>(null);
   const [savingMilestone, setSavingMilestone] = useState(false);
-  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [showAddMilestone, setShowAddMilestone] = useState(() => searchParams.get("neu") === "1");
   const [milestoneTitle, setMilestoneTitle] = useState("");
   const [milestoneType, setMilestoneType] = useState<"ANZAHLUNG" | "ZWISCHENRECHNUNG" | "SCHLUSSRECHNUNG">("ANZAHLUNG");
   const [milestoneAmount, setMilestoneAmount] = useState("");
@@ -172,6 +172,18 @@ export function OrderDetail({
   const [milestoneSkontoPercent, setMilestoneSkontoPercent] = useState("");
   const [milestoneSkontoDays, setMilestoneSkontoDays] = useState("");
   const [addingTemplate, setAddingTemplate] = useState(false);
+  const [payingMilestoneId, setPayingMilestoneId] = useState<string | null>(null);
+  const [payingDate, setPayingDate] = useState("");
+
+  useEffect(() => {
+    if (searchParams.get("neu") === "1" && totalPrice) {
+      setMilestoneAmount(String(Math.round(totalPrice * 0.2 * 100) / 100));
+      setMilestonePercent("20");
+      const base = new Date();
+      base.setDate(base.getDate() + 14);
+      setMilestoneDueDate(format(nextWorkingDay(base), "yyyy-MM-dd"));
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSave() {
     setSaving(true);
@@ -256,9 +268,11 @@ export function OrderDetail({
     router.refresh();
   }
 
-  async function handleMarkPaid(milestoneId: string) {
-    await markPaymentMilestonePaid(milestoneId, order.id);
+  async function handleMarkPaid(milestoneId: string, date: string) {
+    await markPaymentMilestonePaid(milestoneId, order.id, date);
     toast.success("Als bezahlt markiert");
+    setPayingMilestoneId(null);
+    setPayingDate("");
     router.refresh();
   }
 
@@ -300,6 +314,12 @@ export function OrderDetail({
   const milestoneTotal = order.paymentMilestones.reduce((s, m) => s + m.amount, 0);
   const openAmount = milestoneTotal - paidAmount;
   const unplannedAmount = totalPrice != null ? totalPrice - milestoneTotal : null;
+  const sortedMilestones = [...order.paymentMilestones].sort((a, b) => {
+    if (!a.dueDate && !b.dueDate) return 0;
+    if (!a.dueDate) return 1;
+    if (!b.dueDate) return -1;
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
   const overdueCount = order.paymentMilestones.filter(m => m.status === "OFFEN" && m.dueDate && new Date(m.dueDate) < new Date()).length;
 
   return (
@@ -665,6 +685,16 @@ export function OrderDetail({
               </div>
             )}
 
+            {order.paymentMilestones.length === 0 && totalPrice != null && (
+              <div className="bg-blue-50/60 border border-blue-100 rounded-xl px-5 py-3.5 flex items-center gap-3">
+                <Euro className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                <p className="text-sm text-gray-700">
+                  Auftragswert: <span className="font-semibold text-gray-900">{totalPrice.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                  <span className="text-gray-400 ml-2">· Noch nichts verplant</span>
+                </p>
+              </div>
+            )}
+
             {/* ── Card ── */}
             <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
 
@@ -843,7 +873,7 @@ export function OrderDetail({
               {/* Milestone list */}
               {order.paymentMilestones.length > 0 && (
                 <div className="divide-y divide-gray-100">
-                  {order.paymentMilestones.map((m) => {
+                  {sortedMilestones.map((m) => {
                     const isOverdue = m.status === "OFFEN" && m.dueDate && new Date(m.dueDate) < new Date();
                     return (
                       <div key={m.id} className="px-6 py-4">
@@ -979,7 +1009,7 @@ export function OrderDetail({
                                       <Pencil className="h-3.5 w-3.5" />
                                     </button>
                                     {m.status === "OFFEN" ? (
-                                      <button onClick={() => handleMarkPaid(m.id)} className="w-7 h-7 rounded-lg hover:bg-green-50 flex items-center justify-center text-gray-400 hover:text-green-600 transition-colors" title="Als bezahlt markieren">
+                                      <button onClick={() => { setPayingMilestoneId(m.id); setPayingDate(format(new Date(), "yyyy-MM-dd")); }} className="w-7 h-7 rounded-lg hover:bg-green-50 flex items-center justify-center text-gray-400 hover:text-green-600 transition-colors" title="Als bezahlt markieren">
                                         <CheckCircle className="h-4 w-4" />
                                       </button>
                                     ) : (
@@ -993,6 +1023,30 @@ export function OrderDetail({
                                   </div>
                                 </div>
                               </div>
+                              {payingMilestoneId === m.id && (
+                                <div className="mt-3 flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                                  <span className="text-xs font-medium text-green-800">Zahlungseingang:</span>
+                                  <Input
+                                    type="date"
+                                    value={payingDate}
+                                    onChange={(e) => setPayingDate(e.target.value)}
+                                    className="h-8 rounded-lg border-gray-200 bg-white w-40 text-sm"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    className="rounded-lg bg-green-600 hover:bg-green-700 text-white h-8 px-3 text-xs"
+                                    onClick={() => handleMarkPaid(m.id, payingDate)}
+                                  >
+                                    Bestätigen
+                                  </Button>
+                                  <button
+                                    onClick={() => { setPayingMilestoneId(null); setPayingDate(""); }}
+                                    className="text-xs text-gray-400 hover:text-gray-600"
+                                  >
+                                    Abbrechen
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           </div>
                         )}

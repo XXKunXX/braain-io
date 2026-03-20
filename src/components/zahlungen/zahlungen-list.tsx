@@ -14,6 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type OrderOption = { id: string; title: string; orderNumber: string };
+
 type Milestone = {
   id: string;
   title: string;
@@ -55,10 +57,12 @@ function isOverdue(m: Milestone) {
   return m.status === "OFFEN" && m.dueDate && new Date(m.dueDate) < new Date();
 }
 
-export function ZahlungenList({ milestones }: { milestones: Milestone[] }) {
+export function ZahlungenList({ milestones, orders }: { milestones: Milestone[], orders: OrderOption[] }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [showOrderSelect, setShowOrderSelect] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState("");
 
   const overdueCount = useMemo(() => milestones.filter(isOverdue).length, [milestones]);
   const openAmount = useMemo(
@@ -113,9 +117,42 @@ export function ZahlungenList({ milestones }: { milestones: Milestone[] }) {
             {overdueCount} überfällig
           </span>
         )}
-        <span className="ml-auto text-xs text-gray-400 hidden sm:block">
+        <span className="text-xs text-gray-400 hidden sm:block">
           {openAmount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })} ausstehend
         </span>
+        <div className="ml-auto flex items-center gap-2">
+          {showOrderSelect ? (
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedOrderId}
+                onChange={(e) => setSelectedOrderId(e.target.value)}
+                className="h-9 rounded-lg border border-gray-200 text-sm px-2.5 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="">Auftrag wählen...</option>
+                {orders.map((o) => (
+                  <option key={o.id} value={o.id}>{o.orderNumber} – {o.title}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => { if (selectedOrderId) router.push(`/auftraege/${selectedOrderId}?tab=Zahlungen&neu=1`); }}
+                disabled={!selectedOrderId}
+                className="h-9 px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium disabled:opacity-50 transition-colors"
+              >
+                Weiter
+              </button>
+              <button onClick={() => { setShowOrderSelect(false); setSelectedOrderId(""); }} className="h-9 px-3 rounded-lg border border-gray-200 bg-white text-sm text-gray-500 hover:bg-gray-50 transition-colors">
+                Abbrechen
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowOrderSelect(true)}
+              className="h-9 px-3.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium flex items-center gap-1.5 transition-colors"
+            >
+              + Neu
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List */}

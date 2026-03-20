@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CheckSquare,
   AlertCircle,
+  Banknote,
 } from "lucide-react";
 import { OverviewWidget } from "@/components/dashboard/overview-widget";
 
@@ -28,6 +29,8 @@ async function getDashboardData() {
     recentRequests,
     overduePayments,
     overduePaymentsCount,
+    upcomingPayments,
+    upcomingPaymentsCount,
   ] = await Promise.all([
     // Offene Aufgaben (OPEN + IN_PROGRESS)
     prisma.task.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
@@ -72,9 +75,25 @@ async function getDashboardData() {
     prisma.paymentMilestone.count({
       where: { status: "OFFEN", dueDate: { lt: new Date() } },
     }),
+    // Zahlungen fällig diese Woche
+    prisma.paymentMilestone.findMany({
+      where: {
+        status: "OFFEN",
+        dueDate: { gte: new Date(), lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      },
+      include: { order: { include: { contact: { select: { companyName: true } } } } },
+      orderBy: { dueDate: "asc" },
+      take: 5,
+    }),
+    prisma.paymentMilestone.count({
+      where: {
+        status: "OFFEN",
+        dueDate: { gte: new Date(), lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+      },
+    }),
   ]);
 
-  return { openTasks, newRequestsToday, openQuotes, activeOrders, todayOrders, recentRequests, overduePayments, overduePaymentsCount };
+  return { openTasks, newRequestsToday, openQuotes, activeOrders, todayOrders, recentRequests, overduePayments, overduePaymentsCount, upcomingPayments, upcomingPaymentsCount };
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -191,6 +210,35 @@ export default async function DashboardPage() {
                   {m.assignedTo && <span className="text-xs text-gray-400">{m.assignedTo}</span>}
                   <span className="text-sm font-semibold text-red-600">{Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
                   <span className="text-xs text-red-400">{m.dueDate ? format(new Date(m.dueDate), "dd.MM.yy", { locale: de }) : ""}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Fällig diese Woche */}
+      {data.upcomingPaymentsCount > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Banknote className="h-4 w-4 text-amber-500" />
+              <h3 className="text-sm font-semibold text-amber-800">Fällig diese Woche ({data.upcomingPaymentsCount})</h3>
+            </div>
+            <Link href="/zahlungen" className="text-xs text-amber-700 hover:underline flex items-center gap-0.5">
+              Alle <ChevronRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {data.upcomingPayments.map((m) => (
+              <Link key={m.id} href={`/auftraege/${m.orderId}?tab=Zahlungen`} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 hover:shadow-sm transition-shadow">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
+                  <p className="text-xs text-gray-400">{m.order.contact.companyName} · {m.order.title}</p>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                  <span className="text-sm font-semibold text-amber-700">{Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                  <span className="text-xs text-amber-500">{m.dueDate ? format(new Date(m.dueDate), "dd.MM.yy", { locale: de }) : ""}</span>
                 </div>
               </Link>
             ))}

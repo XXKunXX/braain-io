@@ -82,10 +82,10 @@ export async function updatePaymentMilestone(
   return { success: true };
 }
 
-export async function markPaymentMilestonePaid(id: string, orderId: string) {
+export async function markPaymentMilestonePaid(id: string, orderId: string, paidAt?: string) {
   await prisma.paymentMilestone.update({
     where: { id },
-    data: { status: "BEZAHLT", paidAt: new Date() },
+    data: { status: "BEZAHLT", paidAt: paidAt ? new Date(paidAt) : new Date() },
   });
   revalidatePath(`/auftraege/${orderId}`);
   return { success: true };
