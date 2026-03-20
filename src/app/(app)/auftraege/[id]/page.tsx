@@ -34,7 +34,8 @@ export default async function AuftragDetailPage({
       ...m,
       amount: m.amount.toNumber(),
     })),
-  } as unknown as typeof order;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
 
   return <OrderDetail order={serializedOrder} contacts={contacts} users={users} />;
 }
