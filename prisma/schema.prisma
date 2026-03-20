@@ -172,8 +172,11 @@ model PaymentMilestone {
   dueDate   DateTime?
   status     PaymentMilestoneStatus @default(OFFEN)
   paidAt     DateTime?
-  assignedTo String?
-  notes      String?
+  assignedTo     String?
+  notes          String?
+  invoiceNumber  String?
+  skontoPercent  Decimal?               @db.Decimal(5, 2)
+  skontoDays     Int?
   createdAt DateTime               @default(now())
   updatedAt DateTime               @updatedAt
 

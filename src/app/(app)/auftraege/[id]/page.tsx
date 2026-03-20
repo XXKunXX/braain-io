@@ -33,6 +33,7 @@ export default async function AuftragDetailPage({
     paymentMilestones: (order.paymentMilestones ?? []).map((m) => ({
       ...m,
       amount: m.amount.toNumber(),
+      skontoPercent: m.skontoPercent ? m.skontoPercent.toNumber() : null,
     })),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;

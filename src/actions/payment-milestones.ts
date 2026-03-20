@@ -27,6 +27,9 @@ export async function createPaymentMilestone(
     amount: number;
     dueDate?: string;
     notes?: string;
+    invoiceNumber?: string;
+    skontoPercent?: number;
+    skontoDays?: number;
   }
 ) {
   await prisma.paymentMilestone.create({
@@ -37,6 +40,9 @@ export async function createPaymentMilestone(
       amount: data.amount,
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       notes: data.notes,
+      invoiceNumber: data.invoiceNumber,
+      skontoPercent: data.skontoPercent,
+      skontoDays: data.skontoDays,
     },
   });
   revalidatePath(`/auftraege/${orderId}`);
@@ -53,6 +59,9 @@ export async function updatePaymentMilestone(
     dueDate?: string;
     assignedTo?: string;
     notes?: string;
+    invoiceNumber?: string;
+    skontoPercent?: number;
+    skontoDays?: number;
   }
 ) {
   await prisma.paymentMilestone.update({
@@ -64,6 +73,9 @@ export async function updatePaymentMilestone(
       dueDate: data.dueDate ? new Date(data.dueDate) : null,
       assignedTo: data.assignedTo || null,
       notes: data.notes || null,
+      invoiceNumber: data.invoiceNumber || null,
+      skontoPercent: data.skontoPercent ?? null,
+      skontoDays: data.skontoDays ?? null,
     },
   });
   revalidatePath(`/auftraege/${orderId}`);
