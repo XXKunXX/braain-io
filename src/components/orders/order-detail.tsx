@@ -191,7 +191,6 @@ export function OrderDetail({
       type: milestoneType,
       amount: parseFloat(milestoneAmount.replace(",", ".")),
       dueDate: milestoneDueDate || undefined,
-      assignedTo: milestoneAssignedTo || undefined,
       notes: milestoneNotes || undefined,
     });
     toast.success("Zahlungsmeilenstein hinzugefügt");
