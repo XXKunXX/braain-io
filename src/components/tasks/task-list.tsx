@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Search, Trash2, ChevronRight, CheckSquare, AlertCircle, Clock } from "lucide-react";
@@ -16,6 +16,8 @@ import { updateTaskStatus, deleteTask } from "@/actions/tasks";
 import { toast } from "sonner";
 import type { Task, Contact, Request, DeliveryNote } from "@prisma/client";
 import { TaskDetailDrawer } from "./task-detail-drawer";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
 
 type TaskWithContact = Task & { contact: Contact | null; request: Request | null; deliveryNote: DeliveryNote | null };
 
@@ -53,15 +55,33 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
   const [statusFilter, setStatusFilter] = useState("OPEN_AND_IN_PROGRESS");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [selectedTask, setSelectedTask] = useState<TaskWithContact | null>(null);
+  const [sortKey, setSortKey] = useState<string | null>("dueDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [, startTransition] = useTransition();
 
-  const filtered = tasks.filter((t) => {
-    if (statusFilter === "OPEN_AND_IN_PROGRESS" && t.status === "DONE") return false;
-    if (statusFilter !== "ALL" && statusFilter !== "OPEN_AND_IN_PROGRESS" && t.status !== statusFilter) return false;
-    if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
-    if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
+  const filtered = useMemo(() => {
+    const base = tasks.filter((t) => {
+      if (statusFilter === "OPEN_AND_IN_PROGRESS" && t.status === "DONE") return false;
+      if (statusFilter !== "ALL" && statusFilter !== "OPEN_AND_IN_PROGRESS" && t.status !== statusFilter) return false;
+      if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
+      if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "title") return item.title;
+      if (key === "contact") return item.contact?.companyName ?? "";
+      if (key === "dueDate") return item.dueDate ? new Date(item.dueDate) : new Date("9999");
+      if (key === "priority") return ({ HIGH: 0, MEDIUM: 1, LOW: 2 } as Record<string, number>)[item.priority] ?? 3;
+      if (key === "status") return item.status;
+      if (key === "assignedTo") return item.assignedTo ?? "";
+      return (item as Record<string, unknown>)[key];
+    });
+  }, [tasks, search, statusFilter, priorityFilter, sortKey, sortDir]);
 
   const openCount = tasks.filter((t) => t.status === "OPEN").length;
   const overdueCount = tasks.filter((t) => isOverdue(t)).length;
@@ -169,12 +189,12 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
           {/* Header */}
           <div className="grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_60px] gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
             <span />
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Titel</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fälligkeit</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Priorität</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</span>
+            <SortHeader label="Titel" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Zugewiesen an" sortKey="assignedTo" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Fälligkeit" sortKey="dueDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Priorität" sortKey="priority" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
           </div>
 
           {/* Rows */}

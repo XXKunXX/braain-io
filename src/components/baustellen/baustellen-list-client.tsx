@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Pencil, Trash2, X, ChevronRight, HardHat } from "lucide-react";
@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { updateBaustelle, deleteBaustelle } from "@/actions/baustellen";
 import type { BaustelleRow, BaustelleStatusType } from "@/actions/baustellen";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
 
 const STATUS_LABEL: Record<BaustelleStatusType, string> = {
   PLANNED: "Geplant",
@@ -62,6 +64,8 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [sortKey, setSortKey] = useState<string | null>("startDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Filters
   const [filterOrder, setFilterOrder] = useState("ALL");
@@ -69,13 +73,28 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
 
-  const filtered = baustellen.filter((b) => {
-    if (filterOrder !== "ALL" && b.orderId !== filterOrder) return false;
-    if (filterStatus !== "ALL" && b.status !== filterStatus) return false;
-    if (filterFrom && new Date(b.startDate) < new Date(filterFrom)) return false;
-    if (filterTo && b.endDate && new Date(b.endDate) > new Date(filterTo)) return false;
-    return true;
-  });
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
+  const filtered = useMemo(() => {
+    const base = baustellen.filter((b) => {
+      if (filterOrder !== "ALL" && b.orderId !== filterOrder) return false;
+      if (filterStatus !== "ALL" && b.status !== filterStatus) return false;
+      if (filterFrom && new Date(b.startDate) < new Date(filterFrom)) return false;
+      if (filterTo && b.endDate && new Date(b.endDate) > new Date(filterTo)) return false;
+      return true;
+    });
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "name") return item.name;
+      if (key === "contact") return (item.contact ?? item.order.contact)?.companyName ?? "";
+      if (key === "city") return item.city ?? "";
+      if (key === "startDate") return new Date(item.startDate);
+      if (key === "status") return item.status;
+      return (item as Record<string, unknown>)[key];
+    });
+  }, [baustellen, filterOrder, filterStatus, filterFrom, filterTo, sortKey, sortDir]);
 
   function openEdit(b: BaustelleRow) {
     setForm({
@@ -214,9 +233,13 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
           <div className="hidden md:grid grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
-            {["", "Baustelle", "Kunde", "Adresse", "Zeitraum", "Status", ""].map((h, i) => (
-              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-            ))}
+            <span />
+            <SortHeader label="Baustelle" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Kunde" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Adresse" sortKey="city" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Zeitraum" sortKey="startDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <span />
           </div>
 
           {/* Rows */}

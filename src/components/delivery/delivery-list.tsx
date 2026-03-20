@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { deleteDeliveryNote } from "@/actions/delivery-notes";
 import { toast } from "sonner";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
 
 type DeliveryWithRelations = Omit<DeliveryNote, "quantity"> & {
   quantity: number;
@@ -28,6 +30,8 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [contactFilter, setContactFilter] = useState("ALL");
+  const [sortKey, setSortKey] = useState<string | null>("deliveryDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // Unique contacts for filter
   const contacts = useMemo(() => {
@@ -36,8 +40,13 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
     return Array.from(map.entries());
   }, [deliveryNotes]);
 
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
   const filtered = useMemo(() => {
-    return deliveryNotes.filter((dn) => {
+    const base = deliveryNotes.filter((dn) => {
       const matchesContact = contactFilter === "ALL" || dn.contactId === contactFilter;
       const q = search.toLowerCase();
       const matchesSearch =
@@ -48,7 +57,13 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
         (dn.driver ?? "").toLowerCase().includes(q);
       return matchesContact && matchesSearch;
     });
-  }, [deliveryNotes, search, contactFilter]);
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "number") return item.deliveryNumber;
+      if (key === "deliveryDate") return new Date(item.date);
+      if (key === "quantity") return item.quantity;
+      return (item as Record<string, unknown>)[key];
+    });
+  }, [deliveryNotes, search, contactFilter, sortKey, sortDir]);
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.preventDefault();
@@ -99,10 +114,10 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
           <div className="grid grid-cols-[minmax(0,2fr)_1.5fr_1fr_1fr_1fr_32px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Lieferschein</span>
+            <SortHeader label="Lieferschein" sortKey="number" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Material</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Datum</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Menge</span>
+            <SortHeader label="Datum" sortKey="deliveryDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Menge" sortKey="quantity" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fahrer</span>
             <span />
           </div>

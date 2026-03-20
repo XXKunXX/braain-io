@@ -13,6 +13,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Building2, User, ChevronRight, Search } from "lucide-react";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
 
 const typeLabels: Record<string, string> = {
   COMPANY: "Firma",
@@ -36,6 +38,8 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
   const [search, setSearch] = useState(initialSearch ?? "");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [ownerFilter, setOwnerFilter] = useState("ALL");
+  const [sortKey, setSortKey] = useState<string | null>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const ownerNames = useMemo(() => {
     const names = contacts.map((c) => c.owner).filter(Boolean) as string[];
@@ -49,13 +53,24 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
     router.push(`/kontakte?${params.toString()}`);
   }
 
-  const filtered = useMemo(
-    () => contacts.filter((c) =>
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
+  const filtered = useMemo(() => {
+    const base = contacts.filter((c) =>
       (typeFilter === "ALL" || c.type === typeFilter) &&
       (ownerFilter === "ALL" || c.owner === ownerFilter)
-    ),
-    [contacts, typeFilter, ownerFilter]
-  );
+    );
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "name") return item.companyName ?? `${(item as any).firstName ?? ""} ${(item as any).lastName ?? ""}`;
+      if (key === "type") return item.type;
+      if (key === "city") return item.city;
+      if (key === "owner") return (item as Contact & { owner?: string }).owner ?? "";
+      return (item as Record<string, unknown>)[key];
+    });
+  }, [contacts, typeFilter, ownerFilter, sortKey, sortDir]);
 
   return (
     <div className="space-y-4">
@@ -108,9 +123,12 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Desktop header row — hidden on mobile */}
           <div className="hidden md:grid grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
-            {["", "Kontakt", "Typ", "Owner", "Ort", ""].map((h, i) => (
-              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-            ))}
+            <span />
+            <SortHeader label="Kontakt" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Typ" sortKey="type" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Owner" sortKey="owner" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Ort" sortKey="city" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <span />
           </div>
 
           {filtered.map((contact, i) => {

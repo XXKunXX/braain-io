@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { createResource } from "@/actions/resources";
 import type { ResourceFormData } from "@/actions/resources";
+import { formatLicensePlate } from "@/lib/license-plate";
 
 type FahrerOption = { id: string; name: string };
 
@@ -205,7 +206,7 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kennzeichen</Label>
                       <Input
                         value={licensePlate}
-                        onChange={(e) => setLicensePlate(e.target.value.toUpperCase())}
+                        onChange={(e) => setLicensePlate(formatLicensePlate(e.target.value))}
                         className={IC}
                         placeholder="W 12345 A"
                       />

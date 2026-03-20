@@ -22,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
 
 export interface UnifiedDocument {
   id: string;
@@ -78,10 +80,17 @@ export function DocumentList({ documents, contacts }: DocumentListProps) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [contactFilter, setContactFilter] = useState("ALL");
+  const [sortKey, setSortKey] = useState<string | null>("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return documents.filter((d) => {
+    const base = documents.filter((d) => {
       if (typeFilter !== "ALL" && d.type !== typeFilter) return false;
       if (contactFilter !== "ALL" && d.contactId !== contactFilter) return false;
       if (q) {
@@ -90,7 +99,13 @@ export function DocumentList({ documents, contacts }: DocumentListProps) {
       }
       return true;
     });
-  }, [documents, search, typeFilter, contactFilter]);
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "name") return item.title;
+      if (key === "contact") return item.contactName ?? "";
+      if (key === "date") return new Date(item.createdAt);
+      return (item as unknown as Record<string, unknown>)[key];
+    });
+  }, [documents, search, typeFilter, contactFilter, sortKey, sortDir]);
 
   const isPdf = (doc: UnifiedDocument) =>
     doc.type === "ANGEBOT" || doc.type === "LIEFERSCHEIN" || doc.mimeType === "application/pdf";
@@ -152,9 +167,12 @@ export function DocumentList({ documents, contacts }: DocumentListProps) {
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           {/* Desktop header */}
           <div className="hidden md:grid grid-cols-[28px_minmax(0,2.5fr)_minmax(0,1fr)_minmax(0,1fr)_90px_28px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
-            {["", "Dokument", "Kontakt", "Verknüpft mit", "Datum", ""].map((h, i) => (
-              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-            ))}
+            <span />
+            <SortHeader label="Dokument" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <span className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">Verknüpft mit</span>
+            <SortHeader label="Datum" sortKey="date" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <span />
           </div>
 
           {filtered.map((doc, i) => {

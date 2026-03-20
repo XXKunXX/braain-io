@@ -8,6 +8,7 @@ import {
   Wrench, Clock, Activity, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatLicensePlate } from "@/lib/license-plate";
 import { toast } from "sonner";
 import {
   updateMachine,
@@ -287,7 +288,7 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
                     ["Modell", machine.model],
                     ["Baujahr", machine.year],
                     ["Seriennummer", machine.serialNumber],
-                    ["Kennzeichen", machine.licensePlate],
+                    ["Kennzeichen", machine.licensePlate ? formatLicensePlate(machine.licensePlate) : null],
                     ["Stundensatz", machine.hourlyRate != null ? `${machine.hourlyRate.toLocaleString("de-DE")} €/h` : null],
                     ["Status", STATUS_LABEL[machine.status]],
                     ["Erfasst am", fmt(machine.createdAt)],
@@ -332,7 +333,7 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
                       <input type="number" className={INPUT_CLS} placeholder="2020" value={editForm.year} onChange={(e) => setEditForm((f) => ({ ...f, year: e.target.value }))} />
                     </Field>
                     <Field label="Kennzeichen">
-                      <input type="text" className={INPUT_CLS} value={editForm.licensePlate} onChange={(e) => setEditForm((f) => ({ ...f, licensePlate: e.target.value }))} />
+                      <input type="text" className={INPUT_CLS} placeholder="W 12345 A" value={editForm.licensePlate} onChange={(e) => setEditForm((f) => ({ ...f, licensePlate: formatLicensePlate(e.target.value) }))} />
                     </Field>
                   </div>
                   <div className="grid grid-cols-2 gap-3">

@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { deleteOrder } from "@/actions/orders";
 import { toast } from "sonner";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
 
 type OrderWithRelations = Order & { contact: Contact; quote: Quote | null };
 
@@ -38,9 +40,16 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [sortKey, setSortKey] = useState<string | null>("startDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
 
   const filtered = useMemo(() => {
-    return orders.filter((o) => {
+    const base = orders.filter((o) => {
       const matchesStatus = statusFilter === "ALL" || o.status === statusFilter;
       const q = search.toLowerCase();
       const matchesSearch =
@@ -50,7 +59,15 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
         (o.quote?.siteAddress ?? "").toLowerCase().includes(q);
       return matchesStatus && matchesSearch;
     });
-  }, [orders, search, statusFilter]);
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "title") return item.title;
+      if (key === "contact") return item.contact.companyName;
+      if (key === "totalPrice") return item.quote ? Number(item.quote.totalPrice) : 0;
+      if (key === "status") return item.status;
+      if (key === "startDate") return new Date(item.startDate);
+      return (item as Record<string, unknown>)[key];
+    });
+  }, [orders, search, statusFilter, sortKey, sortDir]);
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.preventDefault();
@@ -96,9 +113,13 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
           <div className="hidden md:grid grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
-            {["", "Projekt", "Kontakt", "Zeitraum", "Summe", "Status", ""].map((h, i) => (
-              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-            ))}
+            <span />
+            <SortHeader label="Projekt" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Zeitraum" sortKey="startDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Summe" sortKey="totalPrice" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <span />
           </div>
 
           {/* Rows */}

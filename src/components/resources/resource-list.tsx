@@ -11,6 +11,9 @@ import { updateResource, deleteResource } from "@/actions/resources";
 import type { ResourceFormData } from "@/actions/resources";
 import { MachineTab } from "@/components/machines/machine-tab";
 import type { MachineRow } from "@/actions/machines";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
+import { formatLicensePlate } from "@/lib/license-plate";
 
 type Resource = {
   id: string;
@@ -60,6 +63,8 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
   const [form, setForm] = useState<ResourceFormData>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clerkUsers, setClerkUsers] = useState<ClerkUser[]>([]);
+  const [sortKey, setSortKey] = useState<string | null>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     fetch("/api/clerk-users")
@@ -78,9 +83,14 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
     return counts;
   }, [resources, machines]);
 
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return resources.filter(
+    const base = resources.filter(
       (r) =>
         r.type === activeTab &&
         (!q ||
@@ -88,7 +98,12 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
           (r.email ?? "").toLowerCase().includes(q) ||
           (r.phone ?? "").toLowerCase().includes(q))
     );
-  }, [resources, activeTab, search]);
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "name") return item.name;
+      if (key === "active") return item.active ? "aktiv" : "inaktiv";
+      return (item as Record<string, unknown>)[key];
+    });
+  }, [resources, activeTab, search, sortKey, sortDir]);
 
   function openEdit(r: Resource) {
     setForm({
@@ -202,22 +217,26 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
           {/* Header */}
           {activeTab === "FAHRZEUG" ? (
             <div className="grid grid-cols-[2fr_1.5fr_2fr_1fr_64px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-              {["Name", "Kennzeichen", "Fahrer", "Status", ""].map(h => (
-                <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-              ))}
+              <SortHeader label="Name" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kennzeichen</span>
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fahrer</span>
+              <SortHeader label="Status" sortKey="active" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <span />
             </div>
           ) : activeTab === "PRODUKT" ? (
             <div className="grid grid-cols-[2fr_1fr_1fr_2fr_64px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-              {["Name", "Einheit", "Preis", "Artikelbeschreibung", ""].map(h => (
-                <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-              ))}
+              <SortHeader label="Name" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Einheit</span>
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Preis</span>
+              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Artikelbeschreibung</span>
+              <span />
             </div>
           ) : (
             <div className={`grid gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80 ${activeTab === "FAHRER" ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]" : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"}`}>
-              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Name</span>
+              <SortHeader label="Name" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">E-Mail</span>
               <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Telefon</span>
-              <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</span>
+              <SortHeader label="Status" sortKey="active" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               {activeTab === "FAHRER" && <span />}
               <span />
             </div>
@@ -240,7 +259,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
               <p className="text-sm font-semibold text-gray-900 truncate">{resource.name}</p>
               {activeTab === "FAHRZEUG" ? (
                 <>
-                  <p className="text-sm text-gray-500 font-mono">{resource.licensePlate || "–"}</p>
+                  <p className="text-sm text-gray-500 font-mono">{resource.licensePlate ? formatLicensePlate(resource.licensePlate) : "–"}</p>
                   <p className="text-sm text-gray-500 truncate">{resource.assignedDriver?.name || "–"}</p>
                 </>
               ) : activeTab === "PRODUKT" ? (
@@ -404,7 +423,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                       className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
                       placeholder="z.B. W 12345 A"
                       value={form.licensePlate ?? ""}
-                      onChange={(e) => setForm((d) => ({ ...d, licensePlate: e.target.value.toUpperCase() }))}
+                      onChange={(e) => setForm((d) => ({ ...d, licensePlate: formatLicensePlate(e.target.value) }))}
                     />
                   </div>
                   <div>

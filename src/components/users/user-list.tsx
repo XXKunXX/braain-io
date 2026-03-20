@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { setUserRole, updateUser, deleteUser } from "@/actions/users";
 import { toast } from "sonner";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
 
 const ROLES = ["Admin", "Backoffice", "Fahrer"] as const;
 
@@ -142,14 +144,30 @@ function EditUserDialog({ user, onClose }: { user: User; onClose: () => void }) 
 export function UserList({ users }: { users: User[] }) {
   const [search, setSearch] = useState("");
   const [editUser, setEditUser] = useState<User | null>(null);
+  const [sortKey, setSortKey] = useState<string | null>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [, startTransition] = useTransition();
   const router = useRouter();
 
-  const filtered = users.filter(
-    (u) =>
-      `${u.firstName} ${u.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase())
-  );
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
+  const filtered = useMemo(() => {
+    const base = users.filter(
+      (u) =>
+        `${u.firstName} ${u.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
+        u.email.toLowerCase().includes(search.toLowerCase())
+    );
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "name") return `${item.firstName} ${item.lastName}`;
+      if (key === "email") return item.email;
+      if (key === "role") return item.role;
+      if (key === "active") return item.status === "Aktiv" ? "a" : "z";
+      return (item as unknown as Record<string, unknown>)[key];
+    });
+  }, [users, search, sortKey, sortDir]);
 
   function handleDelete(user: User) {
     if (!confirm(`Benutzer "${user.firstName} ${user.lastName}" wirklich löschen?`)) return;
@@ -177,11 +195,11 @@ export function UserList({ users }: { users: User[] }) {
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
           <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,2fr)_1fr_1fr_1fr_80px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Name</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">E-Mail</span>
+            <SortHeader label="Name" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="E-Mail" sortKey="email" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Telefon</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Rolle</span>
-            <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</span>
+            <SortHeader label="Rolle" sortKey="role" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Status" sortKey="active" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
             <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Aktionen</span>
           </div>
 

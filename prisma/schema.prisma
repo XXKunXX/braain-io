@@ -226,6 +226,7 @@ model DispositionEntry {
   startDate   DateTime
   endDate     DateTime
   notes       String?
+  blockType   String?    // URLAUB, SERVICE, KRANK – Sperrzeiten ohne Baustelle
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 

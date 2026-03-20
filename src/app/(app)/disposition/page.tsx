@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import {
   parseISO,
   startOfWeek,
@@ -16,7 +18,7 @@ export default async function DispositionPage({
   searchParams: Promise<{ week?: string; view?: string; baustelleId?: string; baustelleName?: string }>;
 }) {
   const params = await searchParams;
-  const view = (params.view ?? "woche") as "tag" | "woche" | "monat" | "timeline";
+  const view = (params.view ?? "woche") as "tag" | "woche" | "monat" | "timeline" | "6wochen";
   const baseDate = params.week ? parseISO(params.week) : new Date();
 
   let rangeStart: Date;
@@ -31,6 +33,9 @@ export default async function DispositionPage({
   } else if (view === "timeline") {
     rangeStart = startOfWeek(baseDate, { weekStartsOn: 1 });
     rangeEnd = addDays(rangeStart, 13);
+  } else if (view === "6wochen") {
+    rangeStart = startOfWeek(baseDate, { weekStartsOn: 1 });
+    rangeEnd = addDays(rangeStart, 41);
   } else {
     rangeStart = startOfWeek(baseDate, { weekStartsOn: 1 });
     rangeEnd = addDays(rangeStart, 5);

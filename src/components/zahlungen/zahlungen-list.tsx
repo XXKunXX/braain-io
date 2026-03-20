@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { sortItems } from "@/lib/sort";
+import { SortHeader } from "@/components/ui/sort-header";
 
 type OrderOption = { id: string; title: string; orderNumber: string };
 
@@ -63,6 +65,8 @@ export function ZahlungenList({ milestones, orders }: { milestones: Milestone[],
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [showOrderSelect, setShowOrderSelect] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState("");
+  const [sortKey, setSortKey] = useState<string | null>("dueDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const overdueCount = useMemo(() => milestones.filter(isOverdue).length, [milestones]);
   const openAmount = useMemo(
@@ -70,8 +74,13 @@ export function ZahlungenList({ milestones, orders }: { milestones: Milestone[],
     [milestones]
   );
 
+  function handleSort(key: string) {
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
+
   const filtered = useMemo(() => {
-    return milestones.filter((m) => {
+    const base = milestones.filter((m) => {
       const q = search.toLowerCase();
       const matchesSearch =
         !q ||
@@ -86,7 +95,16 @@ export function ZahlungenList({ milestones, orders }: { milestones: Milestone[],
       if (statusFilter === "OFFEN") return matchesSearch && m.status === "OFFEN" && !isOverdue(m);
       return matchesSearch;
     });
-  }, [milestones, search, statusFilter]);
+    return sortItems(base, sortKey, sortDir, (item, key) => {
+      if (key === "title") return item.title;
+      if (key === "type") return item.type;
+      if (key === "amount") return item.amount;
+      if (key === "dueDate") return item.dueDate ? new Date(item.dueDate) : new Date("9999");
+      if (key === "status") return item.status;
+      if (key === "order") return item.order?.title ?? "";
+      return (item as Record<string, unknown>)[key];
+    });
+  }, [milestones, search, statusFilter, sortKey, sortDir]);
 
   return (
     <div className="space-y-4">
@@ -164,9 +182,13 @@ export function ZahlungenList({ milestones, orders }: { milestones: Milestone[],
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
           <div className="hidden md:grid grid-cols-[28px_minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.5fr)_16px] gap-3 px-4 py-2 border-b border-gray-100 bg-gray-50/80">
-            {["", "Bezeichnung", "Typ", "Betrag", "Fällig am", "Auftrag", ""].map((h, i) => (
-              <span key={i} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-            ))}
+            <span />
+            <SortHeader label="Bezeichnung" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Typ" sortKey="type" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Betrag" sortKey="amount" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Fällig am" sortKey="dueDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <SortHeader label="Auftrag" sortKey="order" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[10px] font-semibold tracking-wider uppercase" />
+            <span />
           </div>
 
           {/* Rows */}

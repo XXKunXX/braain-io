@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { startOfDay, endOfDay, format } from "date-fns";
+import { de } from "date-fns/locale";
 
 export async function getResources() {
   return (prisma as any).resource.findMany({
@@ -69,30 +71,41 @@ export async function getDispositionEntries(weekStart: Date, weekEnd: Date) {
 
 const entrySchema = z.object({
   resourceId: z.string().min(1, "Ressource erforderlich"),
-  baustelleId: z.string().min(1, "Baustelle erforderlich"),
+  baustelleId: z.string().optional(),
   startDate: z.string().min(1),
   endDate: z.string().min(1),
   notes: z.string().optional(),
+  blockType: z.enum(["URLAUB", "SERVICE", "KRANK"]).optional(),
 });
 
 export async function createDispositionEntry(data: z.infer<typeof entrySchema>) {
   const parsed = entrySchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
+  // Require either baustelleId or blockType
+  if (!parsed.data.baustelleId && !parsed.data.blockType) {
+    return { error: { baustelleId: ["Baustelle oder Sperrtyp erforderlich"] } };
+  }
+
   // Derive orderId from the baustelle (optional)
-  const baustelle = await (prisma as any).baustelle.findUnique({
-    where: { id: parsed.data.baustelleId },
-    select: { orderId: true },
-  });
+  let orderId: string | null = null;
+  if (parsed.data.baustelleId) {
+    const baustelle = await (prisma as any).baustelle.findUnique({
+      where: { id: parsed.data.baustelleId },
+      select: { orderId: true },
+    });
+    orderId = baustelle?.orderId ?? null;
+  }
 
   const entry = await (prisma as any).dispositionEntry.create({
     data: {
       resourceId: parsed.data.resourceId,
-      baustelleId: parsed.data.baustelleId,
-      orderId: baustelle?.orderId ?? null,
+      baustelleId: parsed.data.baustelleId ?? null,
+      orderId,
       startDate: new Date(parsed.data.startDate),
       endDate: new Date(parsed.data.endDate),
       notes: parsed.data.notes,
+      blockType: parsed.data.blockType ?? null,
     },
     include: {
       resource: true,
@@ -103,7 +116,7 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
 
   revalidatePath("/disposition");
   revalidatePath("/baustellen");
-  revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
+  if (parsed.data.baustelleId) revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
   return { entry };
 }
 
@@ -151,4 +164,49 @@ export async function deleteResource(id: string) {
   await prisma.resource.delete({ where: { id } });
   revalidatePath("/disposition");
   return { success: true };
+}
+
+export async function sendTagesplan(dateISO: string) {
+  const day = new Date(dateISO);
+  const dayStart = startOfDay(day);
+  const dayEnd = endOfDay(day);
+  const dateStr = format(day, "EEEE, d. MMMM", { locale: de });
+
+  // Fetch all entries for the day
+  const entries = await (prisma as any).dispositionEntry.findMany({
+    where: { startDate: { lte: dayEnd }, endDate: { gte: dayStart }, blockType: null },
+    include: {
+      resource: { select: { id: true, name: true, clerkUserId: true } },
+      baustelle: { select: { id: true, name: true, city: true } },
+    },
+  });
+
+  // Group entries by resource
+  const byResource: Record<string, { resource: { id: string; name: string; clerkUserId: string | null }; baustellenNames: string[] }> = {};
+  for (const e of entries) {
+    if (!byResource[e.resourceId]) {
+      byResource[e.resourceId] = { resource: e.resource, baustellenNames: [] };
+    }
+    if (e.baustelle?.name) byResource[e.resourceId].baustellenNames.push(e.baustelle.name);
+  }
+
+  let sent = 0;
+  for (const { resource, baustellenNames } of Object.values(byResource)) {
+    if (!resource.clerkUserId) continue;
+    const msg = baustellenNames.length > 0
+      ? `Einsätze: ${[...new Set(baustellenNames)].join(", ")}`
+      : "Kein Einsatz geplant";
+    await prisma.notification.create({
+      data: {
+        clerkUserId: resource.clerkUserId,
+        title: `Tagesplan ${dateStr}`,
+        message: msg,
+        type: "TAGESPLAN",
+        link: "/fahrer/tagesplan",
+      },
+    });
+    sent++;
+  }
+
+  return { sent };
 }
