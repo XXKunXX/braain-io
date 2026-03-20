@@ -666,7 +666,7 @@ export function OrderDetail({
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
-                      <Select value={milestoneAssignedTo} onValueChange={(v) => setMilestoneAssignedTo(v === "_none" ? "" : v)}>
+                      <Select value={milestoneAssignedTo} onValueChange={(v) => setMilestoneAssignedTo(v === "_none" ? "" : (v ?? ""))}>
                         <SelectTrigger className="h-9 rounded-lg bg-white"><SelectValue placeholder="Niemand" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="_none">Niemand</SelectItem>
@@ -736,7 +736,7 @@ export function OrderDetail({
                               </div>
                               <div className="space-y-1.5">
                                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
-                                <Select value={editMilestone.assignedTo} onValueChange={(v) => setEditMilestone({ ...editMilestone, assignedTo: v === "_none" ? "" : v })}>
+                                <Select value={editMilestone.assignedTo} onValueChange={(v) => setEditMilestone({ ...editMilestone, assignedTo: v === "_none" ? "" : (v ?? "") })}>
                                   <SelectTrigger className="h-9 rounded-lg"><SelectValue placeholder="Niemand" /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="_none">Niemand</SelectItem>
