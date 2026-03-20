@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getOrder } from "@/actions/orders";
 import { getContacts } from "@/actions/contacts";
 import { getUsers } from "@/actions/users";
+import { getOrderActivity } from "@/actions/activity";
 import { OrderDetail } from "@/components/orders/order-detail";
 
 export default async function AuftragDetailPage({
@@ -10,7 +11,7 @@ export default async function AuftragDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [order, contacts, users] = await Promise.all([getOrder(id), getContacts(), getUsers()]);
+  const [order, contacts, users, activity] = await Promise.all([getOrder(id), getContacts(), getUsers(), getOrderActivity(id)]);
   if (!order) notFound();
 
   const serializedOrder = {
@@ -38,5 +39,5 @@ export default async function AuftragDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
-  return <OrderDetail order={serializedOrder} contacts={contacts} users={users} />;
+  return <OrderDetail order={serializedOrder} contacts={contacts} users={users} activity={activity} />;
 }

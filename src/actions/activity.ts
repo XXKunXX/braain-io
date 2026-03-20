@@ -1,0 +1,132 @@
+"use server";
+import { prisma } from "@/lib/prisma";
+
+export type ActivityEvent = {
+  id: string;
+  type: "created" | "note" | "document" | "payment" | "delivery" | "baustelle" | "status" | "quote" | "request" | "task" | "disposition";
+  title: string;
+  description?: string;
+  actor?: string;
+  date: Date;
+  link?: string;
+};
+
+export async function getOrderActivity(orderId: string): Promise<ActivityEvent[]> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      quote: true,
+      baustellen: { orderBy: { createdAt: "asc" } },
+      deliveryNotes: { orderBy: { createdAt: "asc" } },
+      paymentMilestones: { orderBy: { createdAt: "asc" } },
+      dispositionEntries: { include: { resource: true }, orderBy: { createdAt: "asc" } },
+    },
+  });
+  if (!order) return [];
+
+  const events: ActivityEvent[] = [];
+
+  // Order created
+  events.push({ id: `order-created`, type: "created", title: "Auftrag erstellt", description: order.title, date: order.createdAt, link: `/auftraege/${order.id}` });
+
+  // Quote linked
+  if (order.quote) {
+    events.push({ id: `quote-${order.quote.id}`, type: "quote", title: `Angebot ${order.quote.quoteNumber} verknüpft`, description: order.quote.title, date: order.quote.createdAt, link: `/angebote/${order.quote.id}` });
+    if (order.quote.status === "ACCEPTED") {
+      events.push({ id: `quote-accepted-${order.quote.id}`, type: "status", title: `Angebot ${order.quote.quoteNumber} angenommen`, date: order.quote.updatedAt });
+    }
+  }
+
+  // Status changes (approximate)
+  if (order.status === "ACTIVE" || order.status === "COMPLETED") {
+    events.push({ id: `order-active`, type: "status", title: "Auftrag gestartet", date: order.updatedAt });
+  }
+  if (order.status === "COMPLETED") {
+    events.push({ id: `order-completed`, type: "status", title: "Auftrag abgeschlossen", date: order.updatedAt });
+  }
+
+  // Baustellen
+  for (const b of order.baustellen) {
+    events.push({ id: `baustelle-${b.id}`, type: "baustelle", title: `Baustelle „${b.name}" hinzugefügt`, description: b.city ?? undefined, date: b.createdAt, link: `/baustellen/${b.id}` });
+  }
+
+  // Delivery notes
+  for (const d of order.deliveryNotes) {
+    events.push({ id: `delivery-${d.id}`, type: "delivery", title: `Lieferschein ${d.deliveryNumber} erstellt`, description: d.material ?? undefined, date: d.createdAt });
+  }
+
+  // Payment milestones
+  for (const m of order.paymentMilestones) {
+    events.push({ id: `milestone-created-${m.id}`, type: "payment", title: `Zahlungsmeilenstein angelegt`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, date: m.createdAt });
+    if (m.paidAt) {
+      events.push({ id: `milestone-paid-${m.id}`, type: "payment", title: `Zahlung eingegangen`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, date: m.paidAt });
+    }
+  }
+
+  // Disposition entries (group by date to avoid clutter)
+  const dispDates = new Set<string>();
+  for (const e of order.dispositionEntries) {
+    const dateKey = e.createdAt.toISOString().slice(0, 10);
+    if (!dispDates.has(dateKey)) {
+      dispDates.add(dateKey);
+      events.push({ id: `disp-${e.id}`, type: "disposition", title: `Disposition eingetragen`, description: e.resource.name, date: e.createdAt });
+    }
+  }
+
+  return events.sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
+export async function getContactActivity(contactId: string): Promise<ActivityEvent[]> {
+  const contact = await prisma.contact.findUnique({
+    where: { id: contactId },
+    include: {
+      requests: { orderBy: { createdAt: "asc" } },
+      quotes: { orderBy: { createdAt: "asc" } },
+      orders: { orderBy: { createdAt: "asc" } },
+      deliveryNotes: { orderBy: { createdAt: "asc" } },
+      contactNotes: { orderBy: { createdAt: "asc" } },
+      attachments: { orderBy: { createdAt: "asc" } },
+    },
+  });
+  if (!contact) return [];
+
+  const events: ActivityEvent[] = [];
+
+  // Contact created
+  events.push({ id: `contact-created`, type: "created", title: "Kontakt angelegt", description: contact.companyName, date: contact.createdAt });
+
+  // Requests
+  for (const r of contact.requests) {
+    events.push({ id: `request-${r.id}`, type: "request", title: `Anfrage erstellt`, description: r.title, date: r.createdAt, link: `/anfragen/${r.id}` });
+  }
+
+  // Quotes
+  for (const q of contact.quotes) {
+    events.push({ id: `quote-${q.id}`, type: "quote", title: `Angebot ${q.quoteNumber} erstellt`, description: q.title, date: q.createdAt, link: `/angebote/${q.id}` });
+    if (q.status === "SENT") events.push({ id: `quote-sent-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} versendet`, date: q.updatedAt });
+    if (q.status === "ACCEPTED") events.push({ id: `quote-accepted-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} angenommen`, date: q.updatedAt });
+    if (q.status === "REJECTED") events.push({ id: `quote-rejected-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} abgelehnt`, date: q.updatedAt });
+  }
+
+  // Orders
+  for (const o of contact.orders) {
+    events.push({ id: `order-${o.id}`, type: "created", title: `Auftrag ${o.orderNumber} erstellt`, description: o.title, date: o.createdAt, link: `/auftraege/${o.id}` });
+  }
+
+  // Delivery notes
+  for (const d of contact.deliveryNotes) {
+    events.push({ id: `delivery-${d.id}`, type: "delivery", title: `Lieferschein ${d.deliveryNumber} erstellt`, description: d.material ?? undefined, date: d.createdAt });
+  }
+
+  // Contact notes
+  for (const n of contact.contactNotes) {
+    events.push({ id: `note-${n.id}`, type: "note", title: "Notiz hinzugefügt", description: n.content.slice(0, 80) + (n.content.length > 80 ? "…" : ""), actor: n.createdBy ?? undefined, date: n.createdAt });
+  }
+
+  // Attachments
+  for (const a of contact.attachments) {
+    events.push({ id: `attachment-${a.id}`, type: "document", title: "Dokument hochgeladen", description: a.fileName, date: a.createdAt });
+  }
+
+  return events.sort((a, b) => b.date.getTime() - a.date.getTime());
+}

@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useTabLabels } from "@/hooks/use-tab-labels";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2, Activity } from "lucide-react";
+import { OrderActivityTab } from "./order-activity-tab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,7 +69,14 @@ const statusColors: Record<string, string> = {
   COMPLETED: "border border-gray-200 text-gray-500 bg-gray-50",
 };
 
-const tabs = ["Details", "Baustellen", "Leistungen", "Lieferscheine", "Zahlungen", "Aktivität"] as const;
+const TABS = [
+  { key: "Details" as const, label: "Details", icon: ClipboardList },
+  { key: "Baustellen" as const, label: "Baustellen", icon: HardHat },
+  { key: "Leistungen" as const, label: "Leistungen", icon: Receipt },
+  { key: "Lieferscheine" as const, label: "Lieferscheine", icon: Truck },
+  { key: "Zahlungen" as const, label: "Zahlungen", icon: Euro },
+  { key: "Aktivität" as const, label: "Aktivität", icon: Activity },
+];
 
 function getEasterSunday(year: number): Date {
   const a = year % 19, b = Math.floor(year / 100), c = year % 100;
@@ -104,7 +113,7 @@ const typeLabels: Record<string, string> = {
   ZWISCHENRECHNUNG: "Zwischenrechnung",
   SCHLUSSRECHNUNG: "Schlussrechnung",
 };
-type Tab = typeof tabs[number];
+type Tab = typeof TABS[number]["key"];
 
 function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -135,13 +144,16 @@ export function OrderDetail({
   order,
   contacts,
   users = [],
+  activity = [],
 }: {
   order: OrderWithRelations;
   contacts: Contact[];
   users?: UserSummary[];
+  activity?: import("@/actions/activity").ActivityEvent[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { containerRef: tabContainerRef, showLabels } = useTabLabels();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
     const tabs: Tab[] = ["Details", "Leistungen", "Lieferscheine", "Baustellen", "Zahlungen", "Aktivität"];
@@ -406,25 +418,27 @@ export function OrderDetail({
       </div>
 
       {/* ── Tabs ── */}
-      <div className="px-6 border-b border-gray-200 bg-white flex gap-1">
-        {tabs.map((tab) => (
+      <div className="overflow-hidden border-b border-gray-200 bg-white">
+      <div ref={tabContainerRef} className="px-6 flex gap-1">
+        {TABS.map(({ key, label, icon: Icon }) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === tab
+            key={key}
+            onClick={() => setActiveTab(key)}
+            title={label}
+            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === key
                 ? "border-gray-900 text-gray-900"
                 : "border-transparent text-gray-400 hover:text-gray-600"
             }`}
           >
-            {tab === "Zahlungen" && overdueCount > 0 ? (
-              <span className="flex items-center gap-1.5">
-                {tab}
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
-              </span>
-            ) : tab}
+            <Icon className="h-3.5 w-3.5 shrink-0" />
+            <span data-tab-label className={showLabels ? "inline" : "hidden"}>{label}</span>
+            {key === "Zahlungen" && overdueCount > 0 && (
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
+            )}
           </button>
         ))}
+      </div>
       </div>
 
       {/* ── Tab content ── */}
@@ -1060,23 +1074,7 @@ export function OrderDetail({
         )}
 
         {activeTab === "Aktivität" && (
-          <div className="max-w-md">
-            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-              {[
-                { label: "Auftrag erstellt", date: order.createdAt, color: "bg-blue-500" },
-                ...(order.status === "ACTIVE" ? [{ label: "Auftrag gestartet", date: order.updatedAt, color: "bg-green-500" }] : []),
-                ...(order.status === "COMPLETED" ? [{ label: "Auftrag abgeschlossen", date: order.updatedAt, color: "bg-gray-500" }] : []),
-              ].map((a, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${a.color}`} />
-                  <div>
-                    <p className="text-sm text-gray-700">{a.label}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{format(new Date(a.date), "dd. MMMM yyyy", { locale: de })}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <OrderActivityTab events={activity} />
         )}
       </div>
     </div>

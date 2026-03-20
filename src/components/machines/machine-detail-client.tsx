@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTabLabels } from "@/hooks/use-tab-labels";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -72,6 +73,7 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
   const router = useRouter();
   const [machine, setMachine] = useState(initialMachine);
   const [activeTab, setActiveTab] = useState<"overview" | "usage" | "maintenance" | "documents">("overview");
+  const { containerRef: tabContainerRef, showLabels } = useTabLabels();
 
   // ── Overview edit mode ───────────────────────────────────────────────────
   const [editMode, setEditMode] = useState(false);
@@ -235,25 +237,28 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
         </div>
 
         {/* Tab bar */}
-        <div className="flex items-center gap-1 mt-4">
+        <div className="overflow-hidden mt-4">
+        <div ref={tabContainerRef} className="flex items-center gap-1">
           {TABS.map(({ key, label, icon: Icon, count, warn }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
+              title={label}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
                 activeTab === key
                   ? "bg-white border-gray-300 text-gray-900 shadow-sm"
                   : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
               }`}
             >
-              <Icon className="h-3.5 w-3.5" />
-              {label}
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span data-tab-label className={showLabels ? "inline" : "hidden"}>{label}</span>
               {count !== undefined && count > 0 && (
-                <span className="text-xs text-gray-400">({count})</span>
+                <span data-tab-label className={showLabels ? "inline text-xs text-gray-400" : "hidden"}>({count})</span>
               )}
               {warn && <AlertTriangle className="h-3 w-3 text-amber-500" />}
             </button>
           ))}
+        </div>
         </div>
       </div>
 

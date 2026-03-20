@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useTabLabels } from "@/hooks/use-tab-labels";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import {
   Building2, User, ChevronLeft, Phone, Mail, MapPin,
   Plus, FileText, Package, Truck, Receipt, FolderOpen,
-  MessageSquare, ExternalLink, StickyNote, Clock, Trash2, Paperclip, Upload,
+  MessageSquare, ExternalLink, StickyNote, Clock, Trash2, Paperclip, Upload, Activity,
 } from "lucide-react";
+import { ContactActivityTab } from "./contact-activity-tab";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import type { Attachment, Contact, ContactNote, Quote, Order, DeliveryNote, Request } from "@prisma/client";
@@ -89,12 +91,14 @@ const TABS = [
   { id: "rechnungen", label: "Rechnungen", icon: Receipt },
   { id: "dokumente", label: "Dokumente", icon: FolderOpen },
   { id: "notizen", label: "Notizen", icon: StickyNote },
+  { id: "aktivitaet", label: "Aktivität", icon: Activity },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
 
-export function ContactDetail({ contact, userNames = [], currentUserName }: { contact: ContactWithRelations; userNames?: string[]; currentUserName?: string }) {
+export function ContactDetail({ contact, userNames = [], currentUserName, activity = [] }: { contact: ContactWithRelations; userNames?: string[]; currentUserName?: string; activity?: import("@/actions/activity").ActivityEvent[] }) {
   const [activeTab, setActiveTab] = useState<TabId>("anfragen");
+  const { containerRef: tabContainerRef, showLabels } = useTabLabels();
   const isCompany = contact.type !== "PRIVATE";
   const [notes, setNotes] = useState<NoteWithRequest[]>(contact.contactNotes);
   const [noteAdding, setNoteAdding] = useState(false);
@@ -209,6 +213,34 @@ export function ContactDetail({ contact, userNames = [], currentUserName }: { co
         </div>
       </div>
 
+      {/* Tab bar – full content width, above the sidebar grid */}
+      <div className="px-6 pt-4 pb-0">
+        <div className="overflow-hidden">
+          <div ref={tabContainerRef} className="flex items-center gap-1">
+            {TABS.map((tab) => {
+              const count = tabCounts[tab.id];
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  title={tab.label}
+                  className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
+                    isActive ? "bg-white border-gray-300 text-gray-900 shadow-sm" : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                  }`}
+                >
+                  <tab.icon className="h-3.5 w-3.5 shrink-0" />
+                  <span data-tab-label className={showLabels ? "inline" : "hidden"}>{tab.label}</span>
+                  {count !== undefined && count > 0 && (
+                    <span data-tab-label className={showLabels ? "inline text-xs text-gray-400" : "hidden"}>({count})</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       {/* Body */}
       <div className="flex-1 p-6">
         <div className="grid grid-cols-[260px_1fr] gap-6 max-w-6xl">
@@ -285,33 +317,8 @@ export function ContactDetail({ contact, userNames = [], currentUserName }: { co
             </p>
           </div>
 
-          {/* Tabs */}
+          {/* Tab content */}
           <div className="min-w-0">
-            <div className="flex items-center gap-0.5 bg-white border border-gray-200 rounded-xl p-1.5 mb-5 overflow-x-auto">
-              {TABS.map((tab) => {
-                const count = tabCounts[tab.id];
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-                      isActive ? "bg-gray-900 text-white" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    <tab.icon className="h-3.5 w-3.5" />
-                    {tab.label}
-                    {count !== undefined && count > 0 && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                        isActive ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
-                      }`}>
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
 
             {/* Anfragen */}
             {activeTab === "anfragen" && (
@@ -579,6 +586,21 @@ export function ContactDetail({ contact, userNames = [], currentUserName }: { co
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {activeTab === "aktivitaet" && (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
+                  <div className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center">
+                    <Activity className="h-4 w-4 text-gray-500" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-gray-900">Aktivitätshistorie</h3>
+                  <span className="ml-auto text-xs text-gray-400">{activity.length} Einträge</span>
+                </div>
+                <div className="px-5 py-5">
+                  <ContactActivityTab events={activity} />
+                </div>
               </div>
             )}
 

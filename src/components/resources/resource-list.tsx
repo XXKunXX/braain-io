@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { useTabLabels } from "@/hooks/use-tab-labels";
 import { useRouter } from "next/navigation";
 import { Search, Plus, X, User, Truck, Settings2, Package, Pencil, Trash2, Link2 } from "lucide-react";
 import Link from "next/link";
@@ -57,6 +58,7 @@ const EMPTY_FORM: ResourceFormData = {
 export function ResourceList({ resources, machines = [] }: { resources: Resource[]; machines?: MachineRow[] }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<string>("FAHRER");
+  const { containerRef: tabContainerRef, showLabels } = useTabLabels();
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -169,26 +171,29 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
       </div>
 
       {/* Type tabs */}
-      <div className="flex items-center gap-1">
+      <div className="overflow-hidden">
+      <div ref={tabContainerRef} className="flex items-center gap-1">
         {TYPE_TABS.filter((t) => (tabCounts[t.key] ?? 0) > 0 || t.key === activeTab || t.key === "MASCHINE" || t.key === "FAHRZEUG").map(
           ({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
+              title={label}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
                 activeTab === key
                   ? "bg-white border-gray-300 text-gray-900 shadow-sm"
                   : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
               }`}
             >
-              <Icon className="h-4 w-4" />
-              {label}
+              <Icon className="h-4 w-4 shrink-0" />
+              <span data-tab-label className={showLabels ? "inline" : "hidden"}>{label}</span>
               {(tabCounts[key] ?? 0) > 0 && (
-                <span className="text-xs text-gray-400">({tabCounts[key]})</span>
+                <span data-tab-label className={showLabels ? "inline text-xs text-gray-400" : "hidden"}>({tabCounts[key]})</span>
               )}
             </button>
           )
         )}
+      </div>
       </div>
 
       {/* Machine tab — handled by its own component */}
