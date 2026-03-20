@@ -10,20 +10,21 @@ datasource db {
 // ─── Contacts ───────────────────────────────────────────────────────────────
 
 model Contact {
-  id            String      @id @default(cuid())
-  companyName   String
-  contactPerson String?
-  email         String?
-  phone         String?
-  address       String?
-  postalCode    String?
-  city          String?
-  country       String      @default("Österreich")
-  type          ContactType @default(COMPANY)
-  owner         String?
-  notes         String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  id                      String      @id @default(cuid())
+  companyName             String
+  contactPerson           String?
+  email                   String?
+  phone                   String?
+  address                 String?
+  postalCode              String?
+  city                    String?
+  country                 String      @default("Österreich")
+  type                    ContactType @default(COMPANY)
+  owner                   String?
+  notes                   String?
+  autoInvoicePerDelivery  Boolean     @default(false)
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
 
   requests      Request[]
   quotes        Quote[]
@@ -140,12 +141,43 @@ model Order {
   dispositionEntries DispositionEntry[]
   machineUsages      MachineUsage[]
   baustellen         Baustelle[]
+  paymentMilestones  PaymentMilestone[]
 }
 
 enum OrderStatus {
   PLANNED
   ACTIVE
   COMPLETED
+}
+
+// ─── Payment Milestones (Zahlungsmeilensteine) ────────────────────────────────
+
+enum PaymentMilestoneType {
+  ANZAHLUNG
+  ZWISCHENRECHNUNG
+  SCHLUSSRECHNUNG
+}
+
+enum PaymentMilestoneStatus {
+  OFFEN
+  BEZAHLT
+}
+
+model PaymentMilestone {
+  id        String                 @id @default(cuid())
+  orderId   String
+  title     String
+  type      PaymentMilestoneType   @default(ANZAHLUNG)
+  amount    Decimal                @db.Decimal(12, 2)
+  dueDate   DateTime?
+  status     PaymentMilestoneStatus @default(OFFEN)
+  paidAt     DateTime?
+  assignedTo String?
+  notes      String?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  order     Order                  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 // ─── Disposition ─────────────────────────────────────────────────────────────

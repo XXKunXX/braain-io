@@ -10,6 +10,7 @@ import {
   MapPin,
   ChevronRight,
   CheckSquare,
+  AlertCircle,
 } from "lucide-react";
 import { OverviewWidget } from "@/components/dashboard/overview-widget";
 
@@ -25,6 +26,8 @@ async function getDashboardData() {
     activeOrders,
     todayOrders,
     recentRequests,
+    overduePayments,
+    overduePaymentsCount,
   ] = await Promise.all([
     // Offene Aufgaben (OPEN + IN_PROGRESS)
     prisma.task.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
@@ -58,9 +61,20 @@ async function getDashboardData() {
       orderBy: { createdAt: "desc" },
       include: { contact: { select: { companyName: true } } },
     }),
+    // Überfällige Zahlungsmeilensteine
+    prisma.paymentMilestone.findMany({
+      where: { status: "OFFEN", dueDate: { lt: new Date() } },
+      include: { order: { include: { contact: { select: { companyName: true } } } } },
+      orderBy: { dueDate: "asc" },
+      take: 5,
+    }),
+    // Anzahl überfälliger Zahlungen
+    prisma.paymentMilestone.count({
+      where: { status: "OFFEN", dueDate: { lt: new Date() } },
+    }),
   ]);
 
-  return { openTasks, newRequestsToday, openQuotes, activeOrders, todayOrders, recentRequests };
+  return { openTasks, newRequestsToday, openQuotes, activeOrders, todayOrders, recentRequests, overduePayments, overduePaymentsCount };
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -117,6 +131,15 @@ export default async function DashboardPage() {
       icon: <ClipboardList className="h-5 w-5 text-green-500" />,
       border: "",
     },
+    {
+      label: "Überfällige Zahlungen",
+      value: data.overduePaymentsCount,
+      href: "/zahlungen",
+      numColor: "text-red-600",
+      iconBg: "bg-red-100",
+      icon: <AlertCircle className="h-5 w-5 text-red-500" />,
+      border: data.overduePaymentsCount > 0 ? "border-red-200 bg-red-50/40" : "",
+    },
   ];
 
   return (
@@ -128,7 +151,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {statCards.map(({ label, value, href, numColor, iconBg, icon, border }) => (
           <Link
             key={label}
@@ -147,6 +170,33 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      {/* Überfällige Zahlungen */}
+      {data.overduePaymentsCount > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500" />
+              <h3 className="text-sm font-semibold text-red-800">Überfällige Zahlungen ({data.overduePaymentsCount})</h3>
+            </div>
+          </div>
+          <div className="space-y-2">
+            {data.overduePayments.map((m) => (
+              <Link key={m.id} href={`/auftraege/${m.orderId}?tab=Zahlungen`} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 hover:shadow-sm transition-shadow">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
+                  <p className="text-xs text-gray-400">{m.order.contact.companyName} · {m.order.title}</p>
+                </div>
+                <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                  {m.assignedTo && <span className="text-xs text-gray-400">{m.assignedTo}</span>}
+                  <span className="text-sm font-semibold text-red-600">{Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                  <span className="text-xs text-red-400">{m.dueDate ? format(new Date(m.dueDate), "dd.MM.yy", { locale: de }) : ""}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Bottom 3-col */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

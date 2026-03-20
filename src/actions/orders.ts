@@ -116,6 +116,7 @@ export async function getOrder(id: string) {
           city: true,
         },
       },
+      paymentMilestones: { orderBy: { createdAt: "asc" } },
     },
   });
 }

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getOrder } from "@/actions/orders";
 import { getContacts } from "@/actions/contacts";
+import { getUsers } from "@/actions/users";
 import { OrderDetail } from "@/components/orders/order-detail";
 
 export default async function AuftragDetailPage({
@@ -9,7 +10,7 @@ export default async function AuftragDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [order, contacts] = await Promise.all([getOrder(id), getContacts()]);
+  const [order, contacts, users] = await Promise.all([getOrder(id), getContacts(), getUsers()]);
   if (!order) notFound();
 
   const serializedOrder = {
@@ -29,7 +30,11 @@ export default async function AuftragDetailPage({
       quantity: dn.quantity.toNumber(),
     })),
     baustellen: order.baustellen,
+    paymentMilestones: (order.paymentMilestones ?? []).map((m) => ({
+      ...m,
+      amount: m.amount.toNumber(),
+    })),
   } as unknown as typeof order;
 
-  return <OrderDetail order={serializedOrder} contacts={contacts} />;
+  return <OrderDetail order={serializedOrder} contacts={contacts} users={users} />;
 }

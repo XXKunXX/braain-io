@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus } from "lucide-react";
+import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateOrderStatus, updateOrder } from "@/actions/orders";
+import { createPaymentMilestone, updatePaymentMilestone, markPaymentMilestonePaid, markPaymentMilestoneUnpaid, deletePaymentMilestone } from "@/actions/payment-milestones";
 import { CreateDeliveryButton } from "@/components/delivery/create-delivery-button";
 import type { Contact, DeliveryNote, Order, Quote, QuoteItem } from "@prisma/client";
 
@@ -31,11 +32,24 @@ type BaustelleSummary = {
   city: string | null;
 };
 
+type PaymentMilestoneSummary = {
+  id: string;
+  title: string;
+  type: string;
+  amount: number;
+  dueDate: Date | null;
+  status: string;
+  paidAt: Date | null;
+  assignedTo: string | null;
+  notes: string | null;
+};
+
 type OrderWithRelations = Order & {
   contact: Contact;
   quote: (Quote & { items: QuoteItem[] }) | null;
   deliveryNotes: DeliveryNote[];
   baustellen: BaustelleSummary[];
+  paymentMilestones: PaymentMilestoneSummary[];
 };
 
 const statusLabels: Record<string, string> = {
@@ -50,7 +64,43 @@ const statusColors: Record<string, string> = {
   COMPLETED: "border border-gray-200 text-gray-500 bg-gray-50",
 };
 
-const tabs = ["Details", "Baustellen", "Leistungen", "Lieferscheine", "Aktivität"] as const;
+const tabs = ["Details", "Baustellen", "Leistungen", "Lieferscheine", "Zahlungen", "Aktivität"] as const;
+
+function getEasterSunday(year: number): Date {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+function isAustrianHoliday(date: Date): boolean {
+  const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+  const fixed = [[1,1],[1,6],[5,1],[8,15],[10,26],[11,1],[12,8],[12,25],[12,26]];
+  if (fixed.some(([fm, fd]) => m === fm && d === fd)) return true;
+  const easter = getEasterSunday(y);
+  const addDays = (base: Date, n: number) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + n);
+  const movable = [addDays(easter, 1), addDays(easter, 39), addDays(easter, 49), addDays(easter, 60)];
+  return movable.some(md => md.getFullYear() === y && md.getMonth() + 1 === m && md.getDate() === d);
+}
+
+function nextWorkingDay(date: Date): Date {
+  const d = new Date(date);
+  while (d.getDay() === 0 || d.getDay() === 6 || isAustrianHoliday(d)) {
+    d.setDate(d.getDate() + 1);
+  }
+  return d;
+}
+
+const typeLabels: Record<string, string> = {
+  ANZAHLUNG: "Anzahlung",
+  ZWISCHENRECHNUNG: "Zwischenrechnung",
+  SCHLUSSRECHNUNG: "Schlussrechnung",
+};
 type Tab = typeof tabs[number];
 
 function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
@@ -76,15 +126,24 @@ function InfoItem({ icon: Icon, label, children }: { icon: React.ElementType; la
   );
 }
 
+type UserSummary = { id: string; firstName: string; lastName: string };
+
 export function OrderDetail({
   order,
   contacts,
+  users = [],
 }: {
   order: OrderWithRelations;
   contacts: Contact[];
+  users?: UserSummary[];
 }) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("Details");
+  const searchParams = useSearchParams();
+  const [activeTab, setActiveTab] = useState<Tab>(() => {
+    const tab = searchParams.get("tab");
+    const tabs: Tab[] = ["Details", "Leistungen", "Lieferscheine", "Baustellen", "Zahlungen", "Aktivität"];
+    return (tabs.includes(tab as Tab) ? tab : "Details") as Tab;
+  });
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editTitle, setEditTitle] = useState(order.title);
@@ -92,6 +151,19 @@ export function OrderDetail({
   const [editEnd, setEditEnd] = useState(format(new Date(order.endDate), "yyyy-MM-dd"));
   const [editNotes, setEditNotes] = useState(order.notes ?? "");
   const [editStatus, setEditStatus] = useState(order.status);
+
+  // Payment milestone state
+  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
+  const [editMilestone, setEditMilestone] = useState<{ title: string; type: "ANZAHLUNG" | "ZWISCHENRECHNUNG" | "SCHLUSSRECHNUNG"; amount: string; dueDate: string; assignedTo: string; notes: string } | null>(null);
+  const [savingMilestone, setSavingMilestone] = useState(false);
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [milestoneTitle, setMilestoneTitle] = useState("");
+  const [milestoneType, setMilestoneType] = useState<"ANZAHLUNG" | "ZWISCHENRECHNUNG" | "SCHLUSSRECHNUNG">("ANZAHLUNG");
+  const [milestoneAmount, setMilestoneAmount] = useState("");
+  const [milestoneDueDate, setMilestoneDueDate] = useState("");
+  const [milestoneAssignedTo, setMilestoneAssignedTo] = useState("");
+  const [milestoneNotes, setMilestoneNotes] = useState("");
+  const [addingMilestone, setAddingMilestone] = useState(false);
 
   async function handleSave() {
     setSaving(true);
@@ -111,7 +183,81 @@ export function OrderDetail({
     router.refresh();
   }
 
+  async function handleAddMilestone() {
+    if (!milestoneTitle || !milestoneAmount) return;
+    setAddingMilestone(true);
+    await createPaymentMilestone(order.id, {
+      title: milestoneTitle,
+      type: milestoneType,
+      amount: parseFloat(milestoneAmount.replace(",", ".")),
+      dueDate: milestoneDueDate || undefined,
+      assignedTo: milestoneAssignedTo || undefined,
+      notes: milestoneNotes || undefined,
+    });
+    toast.success("Zahlungsmeilenstein hinzugefügt");
+    setMilestoneTitle("");
+    setMilestoneAmount("");
+    setMilestoneDueDate("");
+    setMilestoneAssignedTo("");
+    setMilestoneNotes("");
+    setMilestoneType("ANZAHLUNG");
+    setShowAddMilestone(false);
+    setAddingMilestone(false);
+    router.refresh();
+  }
+
+  function startEditMilestone(m: PaymentMilestoneSummary) {
+    setEditingMilestoneId(m.id);
+    setEditMilestone({
+      title: m.title,
+      type: m.type as "ANZAHLUNG" | "ZWISCHENRECHNUNG" | "SCHLUSSRECHNUNG",
+      amount: String(m.amount),
+      dueDate: m.dueDate ? format(new Date(m.dueDate), "yyyy-MM-dd") : "",
+      assignedTo: m.assignedTo ?? "",
+      notes: m.notes ?? "",
+    });
+  }
+
+  async function handleSaveMilestone(milestoneId: string) {
+    if (!editMilestone) return;
+    setSavingMilestone(true);
+    await updatePaymentMilestone(milestoneId, order.id, {
+      title: editMilestone.title,
+      type: editMilestone.type,
+      amount: parseFloat(editMilestone.amount.replace(",", ".")),
+      dueDate: editMilestone.dueDate || undefined,
+      assignedTo: editMilestone.assignedTo || undefined,
+      notes: editMilestone.notes || undefined,
+    });
+    toast.success("Gespeichert");
+    setEditingMilestoneId(null);
+    setEditMilestone(null);
+    setSavingMilestone(false);
+    router.refresh();
+  }
+
+  async function handleMarkPaid(milestoneId: string) {
+    await markPaymentMilestonePaid(milestoneId, order.id);
+    toast.success("Als bezahlt markiert");
+    router.refresh();
+  }
+
+  async function handleMarkUnpaid(milestoneId: string) {
+    await markPaymentMilestoneUnpaid(milestoneId, order.id);
+    toast.success("Status auf Offen zurückgesetzt");
+    router.refresh();
+  }
+
+  async function handleDeleteMilestone(milestoneId: string) {
+    await deletePaymentMilestone(milestoneId, order.id);
+    toast.success("Gelöscht");
+    router.refresh();
+  }
+
   const totalPrice = order.quote ? Number(order.quote.totalPrice) : null;
+  const paidAmount = order.paymentMilestones.filter(m => m.status === "BEZAHLT").reduce((s, m) => s + m.amount, 0);
+  const milestoneTotal = order.paymentMilestones.reduce((s, m) => s + m.amount, 0);
+  const openAmount = milestoneTotal - paidAmount;
 
   return (
     <div className="flex flex-col min-h-full">
@@ -157,7 +303,10 @@ export function OrderDetail({
                 <FileUp className="h-3.5 w-3.5" />Dokument
               </Button>
             )}
-            <Button className="rounded-lg gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+            <Button
+              className="rounded-lg gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => { setActiveTab("Zahlungen"); setShowAddMilestone(true); }}
+            >
               <Receipt className="h-3.5 w-3.5" />Rechnung erstellen
             </Button>
             <CreateDeliveryButton
@@ -420,6 +569,267 @@ export function OrderDetail({
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === "Zahlungen" && (
+          <div className="max-w-4xl space-y-5">
+
+            {/* ── Summary ── */}
+            {order.paymentMilestones.length > 0 && (
+              <div className="bg-white border border-gray-200 rounded-xl p-5">
+                <div className="grid grid-cols-3 gap-6 mb-4">
+                  <div>
+                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-1">Geplant</p>
+                    <p className="text-2xl font-bold text-gray-900">{milestoneTotal.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-1">Eingegangen</p>
+                    <p className="text-2xl font-bold text-green-600">{paidAmount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-1">Ausstehend</p>
+                    <p className="text-2xl font-bold text-amber-500">{openAmount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</p>
+                  </div>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full transition-all duration-500"
+                    style={{ width: milestoneTotal > 0 ? `${Math.round((paidAmount / milestoneTotal) * 100)}%` : "0%" }}
+                  />
+                </div>
+                <p className="text-xs text-gray-400 mt-1.5">
+                  {milestoneTotal > 0 ? Math.round((paidAmount / milestoneTotal) * 100) : 0}% bezahlt
+                </p>
+              </div>
+            )}
+
+            {/* ── Card ── */}
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+
+              {/* Header */}
+              <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900">Zahlungsplan</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">{order.paymentMilestones.length} Meilenstein{order.paymentMilestones.length !== 1 ? "e" : ""}</p>
+                </div>
+                <Button
+                  size="sm"
+                  className="rounded-lg gap-1.5 bg-yellow-400 hover:bg-yellow-500 text-gray-900 h-9 px-4 text-sm font-semibold shadow-sm"
+                  onClick={() => {
+                    if (!showAddMilestone) {
+                      if (totalPrice) {
+                        setMilestoneAmount(String(Math.round(totalPrice * 0.3 * 100) / 100));
+                      }
+                      const base = new Date();
+                      base.setDate(base.getDate() + 14);
+                      setMilestoneDueDate(format(nextWorkingDay(base), "yyyy-MM-dd"));
+                    }
+                    setShowAddMilestone(!showAddMilestone);
+                  }}
+                >
+                  <Plus className="h-4 w-4" />Hinzufügen
+                </Button>
+              </div>
+
+              {/* Add form */}
+              {showAddMilestone && (
+                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/60">
+                  <div className="grid grid-cols-5 gap-3 mb-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bezeichnung</Label>
+                      <Input value={milestoneTitle} onChange={(e) => setMilestoneTitle(e.target.value)} placeholder="z.B. Anzahlung 30%" className="h-9 rounded-lg bg-white" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Typ</Label>
+                      <Select value={milestoneType} onValueChange={(v) => {
+                        const t = v as typeof milestoneType;
+                        setMilestoneType(t);
+                        if (t === "SCHLUSSRECHNUNG" && openAmount > 0) {
+                          setMilestoneAmount(String(Math.round(openAmount * 100) / 100));
+                        }
+                      }}>
+                        <SelectTrigger className="h-9 rounded-lg bg-white"><SelectValue>{typeLabels[milestoneType]}</SelectValue></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ANZAHLUNG">Anzahlung</SelectItem>
+                          <SelectItem value="ZWISCHENRECHNUNG">Zwischenrechnung</SelectItem>
+                          <SelectItem value="SCHLUSSRECHNUNG">Schlussrechnung</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Betrag €</Label>
+                      <Input type="number" value={milestoneAmount} onChange={(e) => setMilestoneAmount(e.target.value)} placeholder="0.00" className="h-9 rounded-lg bg-white" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fällig am</Label>
+                      <Input type="date" value={milestoneDueDate} onChange={(e) => setMilestoneDueDate(e.target.value)} className="h-9 rounded-lg bg-white" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
+                      <Select value={milestoneAssignedTo} onValueChange={(v) => setMilestoneAssignedTo(v === "_none" ? "" : v)}>
+                        <SelectTrigger className="h-9 rounded-lg bg-white"><SelectValue placeholder="Niemand" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="_none">Niemand</SelectItem>
+                          {users.map((u) => (
+                            <SelectItem key={u.id} value={`${u.firstName} ${u.lastName}`.trim()}>{u.firstName} {u.lastName}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 mb-4">
+                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notiz</Label>
+                    <Input value={milestoneNotes} onChange={(e) => setMilestoneNotes(e.target.value)} placeholder="Optionale Anmerkung zur Zahlung..." className="h-9 rounded-lg bg-white" />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800 text-white h-9 px-4" onClick={handleAddMilestone} disabled={addingMilestone || !milestoneTitle || !milestoneAmount}>
+                      {addingMilestone ? "Speichert..." : "Speichern"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="rounded-lg h-9 px-4" onClick={() => setShowAddMilestone(false)}>Abbrechen</Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {order.paymentMilestones.length === 0 && !showAddMilestone && (
+                <div className="py-16 text-center">
+                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <Euro className="h-6 w-6 text-gray-300" />
+                  </div>
+                  <p className="text-sm font-medium text-gray-500">Kein Zahlungsplan</p>
+                  <p className="text-xs text-gray-400 mt-1">Füge Anzahlungen, Zwischenrechnungen oder eine Schlussrechnung hinzu.</p>
+                </div>
+              )}
+
+              {/* Milestone list */}
+              {order.paymentMilestones.length > 0 && (
+                <div className="divide-y divide-gray-100">
+                  {order.paymentMilestones.map((m) => {
+                    const isOverdue = m.status === "OFFEN" && m.dueDate && new Date(m.dueDate) < new Date();
+                    return (
+                      <div key={m.id} className="px-6 py-4">
+                        {editingMilestoneId === m.id && editMilestone ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-5 gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bezeichnung</Label>
+                                <Input value={editMilestone.title} onChange={(e) => setEditMilestone({ ...editMilestone, title: e.target.value })} className="h-9 rounded-lg" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Typ</Label>
+                                <Select value={editMilestone.type} onValueChange={(v) => setEditMilestone({ ...editMilestone, type: v as typeof editMilestone.type })}>
+                                  <SelectTrigger className="h-9 rounded-lg"><SelectValue>{typeLabels[editMilestone.type]}</SelectValue></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="ANZAHLUNG">Anzahlung</SelectItem>
+                                    <SelectItem value="ZWISCHENRECHNUNG">Zwischenrechnung</SelectItem>
+                                    <SelectItem value="SCHLUSSRECHNUNG">Schlussrechnung</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Betrag €</Label>
+                                <Input type="number" value={editMilestone.amount} onChange={(e) => setEditMilestone({ ...editMilestone, amount: e.target.value })} className="h-9 rounded-lg" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fällig am</Label>
+                                <Input type="date" value={editMilestone.dueDate} onChange={(e) => setEditMilestone({ ...editMilestone, dueDate: e.target.value })} className="h-9 rounded-lg" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
+                                <Select value={editMilestone.assignedTo} onValueChange={(v) => setEditMilestone({ ...editMilestone, assignedTo: v === "_none" ? "" : v })}>
+                                  <SelectTrigger className="h-9 rounded-lg"><SelectValue placeholder="Niemand" /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="_none">Niemand</SelectItem>
+                                    {users.map((u) => (
+                                      <SelectItem key={u.id} value={`${u.firstName} ${u.lastName}`.trim()}>{u.firstName} {u.lastName}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notiz</Label>
+                              <Input value={editMilestone.notes} onChange={(e) => setEditMilestone({ ...editMilestone, notes: e.target.value })} placeholder="Optionale Anmerkung..." className="h-9 rounded-lg" />
+                            </div>
+                            <div className="flex gap-2">
+                              <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800 text-white h-8 px-4 text-xs" onClick={() => handleSaveMilestone(m.id)} disabled={savingMilestone}>
+                                {savingMilestone ? "..." : "Speichern"}
+                              </Button>
+                              <Button size="sm" variant="outline" className="rounded-lg h-8 px-4 text-xs" onClick={() => { setEditingMilestoneId(null); setEditMilestone(null); }}>Abbrechen</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start gap-4">
+                            {/* Status dot */}
+                            <div className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${m.status === "BEZAHLT" ? "bg-green-500" : isOverdue ? "bg-red-500" : "bg-amber-400"}`} />
+
+                            {/* Content */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-sm font-semibold text-gray-900">{m.title}</p>
+                                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                                      m.type === "ANZAHLUNG" ? "bg-blue-50 text-blue-700 border-blue-200" :
+                                      m.type === "ZWISCHENRECHNUNG" ? "bg-purple-50 text-purple-700 border-purple-200" :
+                                      "bg-gray-50 text-gray-600 border-gray-200"
+                                    }`}>{typeLabels[m.type]}</span>
+                                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                                      m.status === "BEZAHLT" ? "bg-green-50 text-green-700 border-green-200" :
+                                      isOverdue ? "bg-red-50 text-red-700 border-red-200" :
+                                      "bg-amber-50 text-amber-700 border-amber-200"
+                                    }`}>
+                                      {m.status === "BEZAHLT" ? "✓ Bezahlt" : isOverdue ? "Überfällig" : "Offen"}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                                    {m.dueDate && (
+                                      <span className={`text-xs ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
+                                        Fällig: {format(new Date(m.dueDate), "dd. MMMM yyyy", { locale: de })}
+                                      </span>
+                                    )}
+                                    {m.assignedTo && (
+                                      <span className="text-xs text-gray-400">· {m.assignedTo}</span>
+                                    )}
+                                    {m.paidAt && (
+                                      <span className="text-xs text-gray-400">· Bezahlt am {format(new Date(m.paidAt), "dd.MM.yyyy", { locale: de })}</span>
+                                    )}
+                                  </div>
+                                  {m.notes && (
+                                    <p className="text-xs text-gray-500 mt-1.5 bg-gray-50 rounded-lg px-3 py-1.5 italic">{m.notes}</p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 flex-shrink-0">
+                                  <p className="text-base font-bold text-gray-900 font-mono">{m.amount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</p>
+                                  <div className="flex items-center gap-1.5">
+                                    <button onClick={() => startEditMilestone(m)} className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors" title="Bearbeiten">
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </button>
+                                    {m.status === "OFFEN" ? (
+                                      <button onClick={() => handleMarkPaid(m.id)} className="w-7 h-7 rounded-lg hover:bg-green-50 flex items-center justify-center text-gray-400 hover:text-green-600 transition-colors" title="Als bezahlt markieren">
+                                        <CheckCircle className="h-4 w-4" />
+                                      </button>
+                                    ) : (
+                                      <button onClick={() => handleMarkUnpaid(m.id)} className="w-7 h-7 rounded-lg hover:bg-amber-50 flex items-center justify-center text-green-500 hover:text-amber-600 transition-colors" title="Zahlung rückgängig">
+                                        <CheckCircle className="h-4 w-4" />
+                                      </button>
+                                    )}
+                                    <button onClick={() => handleDeleteMilestone(m.id)} className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors" title="Löschen">
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
