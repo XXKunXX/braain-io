@@ -717,11 +717,11 @@ export function OrderDetail({
 
               {/* Add form */}
               {showAddMilestone && (
-                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/60">
-                  <div className="grid grid-cols-5 gap-3 mb-3">
+                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/40 space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bezeichnung</Label>
-                      <Input value={milestoneTitle} onChange={(e) => setMilestoneTitle(e.target.value)} placeholder="z.B. Anzahlung 30%" className="h-9 rounded-lg bg-white" />
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bezeichnung *</Label>
+                      <Input value={milestoneTitle} onChange={(e) => setMilestoneTitle(e.target.value)} placeholder="z.B. Anzahlung 30%" className="h-10 rounded-lg border-gray-200 bg-white" />
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Typ</Label>
@@ -730,11 +730,13 @@ export function OrderDetail({
                         setMilestoneType(t);
                         if (t === "ANZAHLUNG" && totalPrice) {
                           setMilestoneAmount(String(Math.round(totalPrice * 0.2 * 100) / 100));
+                          setMilestonePercent("20");
                         } else if ((t === "ZWISCHENRECHNUNG" || t === "SCHLUSSRECHNUNG") && unplannedAmount != null && unplannedAmount > 0) {
                           setMilestoneAmount(String(Math.round(unplannedAmount * 100) / 100));
+                          if (totalPrice) setMilestonePercent(String(Math.round(unplannedAmount / totalPrice * 1000) / 10));
                         }
                       }}>
-                        <SelectTrigger className="h-9 rounded-lg bg-white"><SelectValue>{typeLabels[milestoneType]}</SelectValue></SelectTrigger>
+                        <SelectTrigger className="h-10 rounded-lg border-gray-200 bg-white w-full"><SelectValue>{typeLabels[milestoneType]}</SelectValue></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="ANZAHLUNG">Anzahlung</SelectItem>
                           <SelectItem value="ZWISCHENRECHNUNG">Zwischenrechnung</SelectItem>
@@ -742,9 +744,11 @@ export function OrderDetail({
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Betrag</Label>
-                      <div className="flex h-9 rounded-lg border border-input bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Betrag *</Label>
+                      <div className="flex h-10 rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
                         <input
                           type="number"
                           value={milestoneAmount}
@@ -757,7 +761,7 @@ export function OrderDetail({
                           className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         {totalPrice && (
-                          <div className="flex items-center border-l border-gray-200 px-2 gap-1 flex-shrink-0">
+                          <div className="flex items-center border-l border-gray-200 px-2.5 gap-1 flex-shrink-0">
                             <input
                               type="number"
                               value={milestonePercent}
@@ -766,21 +770,23 @@ export function OrderDetail({
                                 if (totalPrice && e.target.value) setMilestoneAmount(String(Math.round(totalPrice * parseFloat(e.target.value) / 100 * 100) / 100));
                               }}
                               placeholder="—"
-                              className="w-9 text-xs text-gray-500 bg-transparent outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              className="w-9 text-sm text-gray-500 bg-transparent outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                             />
-                            <span className="text-xs text-gray-400">%</span>
+                            <span className="text-sm text-gray-400">%</span>
                           </div>
                         )}
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fällig am</Label>
-                      <Input type="date" value={milestoneDueDate} onChange={(e) => setMilestoneDueDate(e.target.value)} className="h-9 rounded-lg bg-white" />
+                      <Input type="date" value={milestoneDueDate} onChange={(e) => setMilestoneDueDate(e.target.value)} className="h-10 rounded-lg border-gray-200 bg-white" />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
                       <Select value={milestoneAssignedTo} onValueChange={(v) => setMilestoneAssignedTo(v === "_none" ? "" : (v ?? ""))}>
-                        <SelectTrigger className="h-9 rounded-lg bg-white"><SelectValue placeholder="Niemand" /></SelectTrigger>
+                        <SelectTrigger className="h-10 rounded-lg border-gray-200 bg-white w-full"><SelectValue placeholder="Niemand" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="_none">Niemand</SelectItem>
                           {users.map((u) => (
@@ -789,48 +795,36 @@ export function OrderDetail({
                         </SelectContent>
                       </Select>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-4 gap-3 mb-3">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Rechnungs-Nr.</Label>
-                      <Input value={milestoneInvoiceNumber} onChange={(e) => setMilestoneInvoiceNumber(e.target.value)} placeholder="RE-2024-001" className="h-9 rounded-lg bg-white" />
+                      <Input value={milestoneInvoiceNumber} onChange={(e) => setMilestoneInvoiceNumber(e.target.value)} placeholder="z.B. RE-2024-001" className="h-10 rounded-lg border-gray-200 bg-white" />
                     </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto</Label>
-                      <div className="flex h-9 rounded-lg border border-input bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
-                        <input
-                          type="number"
-                          value={milestoneSkontoPercent}
-                          onChange={(e) => setMilestoneSkontoPercent(e.target.value)}
-                          placeholder="—"
-                          className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <span className="flex items-center pr-2.5 text-xs text-gray-400 flex-shrink-0">%</span>
+                      <div className="flex h-10 rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+                        <input type="number" value={milestoneSkontoPercent} onChange={(e) => setMilestoneSkontoPercent(e.target.value)} placeholder="z.B. 2" className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <span className="flex items-center pr-3 text-sm text-gray-400 flex-shrink-0">%</span>
                       </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto Frist</Label>
-                      <div className="flex h-9 rounded-lg border border-input bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
-                        <input
-                          type="number"
-                          value={milestoneSkontoDays}
-                          onChange={(e) => setMilestoneSkontoDays(e.target.value)}
-                          placeholder="—"
-                          className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <span className="flex items-center pr-2.5 text-xs text-gray-400 flex-shrink-0 whitespace-nowrap">Tage</span>
+                      <div className="flex h-10 rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+                        <input type="number" value={milestoneSkontoDays} onChange={(e) => setMilestoneSkontoDays(e.target.value)} placeholder="z.B. 10" className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        <span className="flex items-center pr-3 text-sm text-gray-400 flex-shrink-0 whitespace-nowrap">Tage</span>
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notiz</Label>
-                      <Input value={milestoneNotes} onChange={(e) => setMilestoneNotes(e.target.value)} placeholder="Anmerkung..." className="h-9 rounded-lg bg-white" />
-                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800 text-white h-9 px-3.5" onClick={handleAddMilestone} disabled={addingMilestone || !milestoneTitle || !milestoneAmount}>
-                      {addingMilestone ? "Speichert..." : "Speichern"}
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notiz</Label>
+                    <Input value={milestoneNotes} onChange={(e) => setMilestoneNotes(e.target.value)} placeholder="Optionale Anmerkung zur Zahlung..." className="h-10 rounded-lg border-gray-200 bg-white" />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white h-10 px-4" onClick={handleAddMilestone} disabled={addingMilestone || !milestoneTitle || !milestoneAmount}>
+                      {addingMilestone ? "Speichert..." : "Meilenstein speichern"}
                     </Button>
-                    <Button size="sm" variant="outline" className="rounded-lg h-9 px-3.5" onClick={() => setShowAddMilestone(false)}>Abbrechen</Button>
+                    <Button variant="outline" className="rounded-lg h-10 px-4" onClick={() => setShowAddMilestone(false)}>Abbrechen</Button>
                   </div>
                 </div>
               )}
@@ -854,16 +848,16 @@ export function OrderDetail({
                     return (
                       <div key={m.id} className="px-6 py-4">
                         {editingMilestoneId === m.id && editMilestone ? (
-                          <div className="space-y-3">
-                            <div className="grid grid-cols-5 gap-3">
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bezeichnung</Label>
-                                <Input value={editMilestone.title} onChange={(e) => setEditMilestone({ ...editMilestone, title: e.target.value })} className="h-9 rounded-lg" />
+                                <Input value={editMilestone.title} onChange={(e) => setEditMilestone({ ...editMilestone, title: e.target.value })} className="h-10 rounded-lg border-gray-200" />
                               </div>
                               <div className="space-y-1.5">
                                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Typ</Label>
                                 <Select value={editMilestone.type} onValueChange={(v) => setEditMilestone({ ...editMilestone, type: v as typeof editMilestone.type })}>
-                                  <SelectTrigger className="h-9 rounded-lg"><SelectValue>{typeLabels[editMilestone.type]}</SelectValue></SelectTrigger>
+                                  <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full"><SelectValue>{typeLabels[editMilestone.type]}</SelectValue></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="ANZAHLUNG">Anzahlung</SelectItem>
                                     <SelectItem value="ZWISCHENRECHNUNG">Zwischenrechnung</SelectItem>
@@ -871,18 +865,22 @@ export function OrderDetail({
                                   </SelectContent>
                                 </Select>
                               </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Betrag €</Label>
-                                <Input type="number" value={editMilestone.amount} onChange={(e) => setEditMilestone({ ...editMilestone, amount: e.target.value })} className="h-9 rounded-lg" />
+                                <Input type="number" value={editMilestone.amount} onChange={(e) => setEditMilestone({ ...editMilestone, amount: e.target.value })} className="h-10 rounded-lg border-gray-200" />
                               </div>
                               <div className="space-y-1.5">
                                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fällig am</Label>
-                                <Input type="date" value={editMilestone.dueDate} onChange={(e) => setEditMilestone({ ...editMilestone, dueDate: e.target.value })} className="h-9 rounded-lg" />
+                                <Input type="date" value={editMilestone.dueDate} onChange={(e) => setEditMilestone({ ...editMilestone, dueDate: e.target.value })} className="h-10 rounded-lg border-gray-200" />
                               </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
                                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
                                 <Select value={editMilestone.assignedTo} onValueChange={(v) => setEditMilestone({ ...editMilestone, assignedTo: v === "_none" ? "" : (v ?? "") })}>
-                                  <SelectTrigger className="h-9 rounded-lg"><SelectValue placeholder="Niemand" /></SelectTrigger>
+                                  <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full"><SelectValue placeholder="Niemand" /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="_none">Niemand</SelectItem>
                                     {users.map((u) => (
@@ -891,30 +889,36 @@ export function OrderDetail({
                                   </SelectContent>
                                 </Select>
                               </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Rechnungs-Nr.</Label>
+                                <Input value={editMilestone.invoiceNumber} onChange={(e) => setEditMilestone({ ...editMilestone, invoiceNumber: e.target.value })} placeholder="z.B. RE-2024-001" className="h-10 rounded-lg border-gray-200" />
+                              </div>
                             </div>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-2 gap-4">
                               <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Rechnungsnummer</Label>
-                                <Input value={editMilestone.invoiceNumber} onChange={(e) => setEditMilestone({ ...editMilestone, invoiceNumber: e.target.value })} placeholder="z.B. RE-2024-001" className="h-9 rounded-lg" />
+                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto</Label>
+                                <div className="flex h-10 rounded-lg border border-gray-200 overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+                                  <input type="number" value={editMilestone.skontoPercent} onChange={(e) => setEditMilestone({ ...editMilestone, skontoPercent: e.target.value })} placeholder="z.B. 2" className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                  <span className="flex items-center pr-3 text-sm text-gray-400 flex-shrink-0">%</span>
+                                </div>
                               </div>
                               <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto %</Label>
-                                <Input type="number" value={editMilestone.skontoPercent} onChange={(e) => setEditMilestone({ ...editMilestone, skontoPercent: e.target.value })} placeholder="z.B. 2" className="h-9 rounded-lg" />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto Tage</Label>
-                                <Input type="number" value={editMilestone.skontoDays} onChange={(e) => setEditMilestone({ ...editMilestone, skontoDays: e.target.value })} placeholder="z.B. 10" className="h-9 rounded-lg" />
+                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto Frist</Label>
+                                <div className="flex h-10 rounded-lg border border-gray-200 overflow-hidden focus-within:ring-1 focus-within:ring-ring">
+                                  <input type="number" value={editMilestone.skontoDays} onChange={(e) => setEditMilestone({ ...editMilestone, skontoDays: e.target.value })} placeholder="z.B. 10" className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                                  <span className="flex items-center pr-3 text-sm text-gray-400 flex-shrink-0 whitespace-nowrap">Tage</span>
+                                </div>
                               </div>
                             </div>
                             <div className="space-y-1.5">
                               <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notiz</Label>
-                              <Input value={editMilestone.notes} onChange={(e) => setEditMilestone({ ...editMilestone, notes: e.target.value })} placeholder="Optionale Anmerkung..." className="h-9 rounded-lg" />
+                              <Input value={editMilestone.notes} onChange={(e) => setEditMilestone({ ...editMilestone, notes: e.target.value })} placeholder="Optionale Anmerkung..." className="h-10 rounded-lg border-gray-200" />
                             </div>
                             <div className="flex gap-2">
-                              <Button size="sm" className="rounded-lg bg-gray-900 hover:bg-gray-800 text-white h-8 px-4 text-xs" onClick={() => handleSaveMilestone(m.id)} disabled={savingMilestone}>
-                                {savingMilestone ? "..." : "Speichern"}
+                              <Button className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white h-10 px-4" onClick={() => handleSaveMilestone(m.id)} disabled={savingMilestone}>
+                                {savingMilestone ? "Speichert..." : "Änderungen speichern"}
                               </Button>
-                              <Button size="sm" variant="outline" className="rounded-lg h-8 px-4 text-xs" onClick={() => { setEditingMilestoneId(null); setEditMilestone(null); }}>Abbrechen</Button>
+                              <Button variant="outline" className="rounded-lg h-10 px-4" onClick={() => { setEditingMilestoneId(null); setEditMilestone(null); }}>Abbrechen</Button>
                             </div>
                           </div>
                         ) : (
