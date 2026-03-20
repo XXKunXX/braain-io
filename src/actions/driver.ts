@@ -30,8 +30,9 @@ export async function getOrdersForDriverApp(dateStr: string) {
   // Deduplicate orders (same order may be assigned to multiple resources)
   const seen = new Set<string>();
   return entries
+    .filter((e) => e.order != null)
     .map((e) => ({
-      ...e.order,
+      ...e.order!,
       startDate: e.startDate,
       endDate: e.endDate,
     }))
