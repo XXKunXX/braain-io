@@ -1,5 +1,5 @@
 import { currentUser } from "@clerk/nextjs/server";
-import { getOrdersForDriverApp } from "@/actions/driver";
+import { getOrdersForDriverApp, getOrdersForDriverByClerkId } from "@/actions/driver";
 import { DriverAppShell } from "@/components/fahrer/driver-app-shell";
 
 export default async function FahrerPage({
@@ -10,8 +10,11 @@ export default async function FahrerPage({
   const params = await searchParams;
   const user = await currentUser();
   const dateStr = params.date ?? new Date().toISOString().split("T")[0];
+  const role = (user?.publicMetadata?.role as string) ?? "Mitarbeiter";
 
-  const orders = await getOrdersForDriverApp(dateStr);
+  const orders = role === "Fahrer" && user?.id
+    ? await getOrdersForDriverByClerkId(dateStr, user.id)
+    : await getOrdersForDriverApp(dateStr);
 
   const serialized = orders.map((o) => ({
     id: o.id,
