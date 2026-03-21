@@ -148,7 +148,36 @@ export async function updateDispositionEntry(id: string, data: { startDate: stri
 }
 
 export async function deleteDispositionEntry(id: string) {
+  // Fetch the entry to find its resource and baustelle/order
+  const entry = await (prisma as any).dispositionEntry.findUnique({
+    where: { id },
+    select: {
+      baustelleId: true,
+      orderId: true,
+      startDate: true,
+      endDate: true,
+      resource: { select: { id: true, type: true, assignedDriver: { select: { id: true } } } },
+    },
+  });
+
   await prisma.dispositionEntry.delete({ where: { id } });
+
+  // Also delete the paired driver entry if this was a vehicle with a Stammfahrer
+  if (entry?.resource?.assignedDriver?.id) {
+    const driverId = entry.resource.assignedDriver.id;
+    const paired = await (prisma as any).dispositionEntry.findFirst({
+      where: {
+        resourceId: driverId,
+        ...(entry.baustelleId ? { baustelleId: entry.baustelleId } : { orderId: entry.orderId }),
+        startDate: entry.startDate,
+        endDate: entry.endDate,
+      },
+    });
+    if (paired) {
+      await prisma.dispositionEntry.delete({ where: { id: paired.id } });
+    }
+  }
+
   revalidatePath("/disposition");
   return { success: true };
 }
