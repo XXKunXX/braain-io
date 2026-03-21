@@ -246,7 +246,7 @@ export function CreateOrderForm({ contacts }: { contacts: Contact[] }) {
                         placeholder="0"
                         className="h-9 text-sm text-right"
                       />
-                      <Select value={item.unit} onValueChange={(v) => updateItem(item.id, "unit", v)}>
+                      <Select value={item.unit} onValueChange={(v) => updateItem(item.id, "unit", v ?? "t")}>
                         <SelectTrigger className="h-9 text-sm">
                           <SelectValue />
                         </SelectTrigger>
