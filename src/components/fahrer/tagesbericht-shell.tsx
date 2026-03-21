@@ -106,7 +106,7 @@ export function TagesberichtShell({
           {baustellen.length > 0 ? (
             <div className="space-y-1.5">
               <Label className="text-xs text-gray-500">Baustelle</Label>
-              <Select value={baustelleId} onValueChange={setBaustelleId}>
+              <Select value={baustelleId} onValueChange={(v) => setBaustelleId(v ?? "")}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Baustelle wählen" />
                 </SelectTrigger>
