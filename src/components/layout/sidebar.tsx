@@ -21,6 +21,7 @@ import {
   FolderOpen,
   Settings,
   Sparkles,
+  Receipt,
 } from "lucide-react";
 
 const navSections = [
@@ -39,6 +40,7 @@ const navSections = [
       { href: "/anfragen", label: "Anfragen", icon: MessageSquare, badgeKey: "" },
       { href: "/angebote", label: "Angebote", icon: FileText, badgeKey: "" },
       { href: "/auftraege", label: "Aufträge", icon: ClipboardList, badgeKey: "" },
+      { href: "/rechnungen", label: "Rechnungen", icon: Receipt, badgeKey: "" },
       { href: "/zahlungen", label: "Zahlungen", icon: Banknote, badgeKey: "" },
       { href: "/dokumente", label: "Dokumente", icon: FolderOpen, badgeKey: "" },
     ],

@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2, Activity } from "lucide-react";
+import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2, Activity, FileText } from "lucide-react";
 import { OrderActivityTab } from "./order-activity-tab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -379,11 +379,18 @@ export function OrderDetail({
               </Button>
             )}
             <Button
-              className="rounded-lg gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+              variant="outline"
+              className="rounded-lg gap-1.5"
               onClick={() => { setActiveTab("Zahlungen"); setShowAddMilestone(true); }}
             >
-              <Receipt className="h-3.5 w-3.5" />Rechnung erstellen
+              <Receipt className="h-3.5 w-3.5" />Zahlungsplan
             </Button>
+            <Link
+              href={`/rechnungen/neu?orderId=${order.id}`}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-2 h-10 transition-colors"
+            >
+              <FileText className="h-3.5 w-3.5" />Rechnung erstellen
+            </Link>
             <CreateDeliveryButton
               contacts={contacts}
               defaultContactId={order.contactId}
@@ -1022,6 +1029,11 @@ export function OrderDetail({
                                     <button onClick={() => startEditMilestone(m)} className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors" title="Bearbeiten">
                                       <Pencil className="h-3.5 w-3.5" />
                                     </button>
+                                    {!m.invoiceNumber && (
+                                      <Link href={`/rechnungen/neu?orderId=${order.id}&milestoneId=${m.id}`} className="w-7 h-7 rounded-lg hover:bg-blue-50 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors" title="Rechnung erstellen">
+                                        <FileText className="h-3.5 w-3.5" />
+                                      </Link>
+                                    )}
                                     {m.status === "OFFEN" ? (
                                       <button onClick={() => { setPayingMilestoneId(m.id); setPayingDate(format(new Date(), "yyyy-MM-dd")); }} className="w-7 h-7 rounded-lg hover:bg-green-50 flex items-center justify-center text-gray-400 hover:text-green-600 transition-colors" title="Als bezahlt markieren">
                                         <CheckCircle className="h-4 w-4" />

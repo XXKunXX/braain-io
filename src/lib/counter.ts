@@ -1,7 +1,7 @@
 import { prisma } from "./prisma";
 
 export async function getNextNumber(
-  key: "quote" | "order" | "delivery"
+  key: "quote" | "order" | "delivery" | "invoice"
 ): Promise<string> {
   const [counter, settings] = await Promise.all([
     prisma.counter.upsert({
@@ -13,7 +13,7 @@ export async function getNextNumber(
       where:  { id: "singleton" },
       update: {},
       create: { id: "singleton" },
-      select: { quotePrefix: true, orderPrefix: true, deliveryPrefix: true },
+      select: { quotePrefix: true, orderPrefix: true, deliveryPrefix: true, invoicePrefix: true },
     }),
   ]);
 
@@ -21,6 +21,7 @@ export async function getNextNumber(
     quote:    settings.quotePrefix,
     order:    settings.orderPrefix,
     delivery: settings.deliveryPrefix,
+    invoice:  settings.invoicePrefix ?? "RE",
   };
 
   return `${prefix[key]}-${String(counter.value).padStart(5, "0")}`;
