@@ -167,7 +167,7 @@ export function ZeiterfassungShell({
           {baustellenOptions.length > 0 && (
             <div className="space-y-1.5">
               <Label className="text-xs text-gray-500">Baustelle</Label>
-              <Select value={baustelleId || "_none"} onValueChange={(v) => setBaustelleId(v === "_none" ? "" : v)}>
+              <Select value={baustelleId || "_none"} onValueChange={(v) => setBaustelleId(v === "_none" ? "" : (v ?? ""))}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Keine Baustelle" />
                 </SelectTrigger>
