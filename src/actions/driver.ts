@@ -57,6 +57,88 @@ export async function getOrdersForDriverByClerkId(dateStr: string, clerkUserId: 
   return fetchOrdersForEntries(dateStr, resource.id);
 }
 
+async function fetchBaustellenForEntries(dateStr: string, resourceId?: string) {
+  const date = new Date(dateStr);
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  const entries = await prisma.dispositionEntry.findMany({
+    where: {
+      startDate: { lte: dayEnd },
+      endDate: { gte: dayStart },
+      baustelleId: { not: null },
+      ...(resourceId ? { resourceId } : {}),
+    },
+    orderBy: { startDate: "asc" },
+    include: {
+      baustelle: {
+        include: {
+          contact: { select: { companyName: true } },
+          order: {
+            select: {
+              id: true,
+              title: true,
+              notes: true,
+              quote: {
+                select: {
+                  items: { orderBy: { position: "asc" }, select: { description: true, quantity: true, unit: true } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const seen = new Set<string>();
+  return entries
+    .filter((e) => e.baustelle != null)
+    .map((e) => ({ ...e.baustelle!, entryStart: e.startDate, entryEnd: e.endDate }))
+    .filter((b) => {
+      if (seen.has(b.id)) return false;
+      seen.add(b.id);
+      return true;
+    });
+}
+
+export async function getBaustellenForDriverApp(dateStr: string) {
+  return fetchBaustellenForEntries(dateStr);
+}
+
+export async function getBaustellenForDriverByClerkId(dateStr: string, clerkUserId: string) {
+  const resource = await prisma.resource.findUnique({
+    where: { clerkUserId },
+    select: { id: true },
+  });
+  if (!resource) return [];
+  return fetchBaustellenForEntries(dateStr, resource.id);
+}
+
+export async function getBaustelleForDriverApp(id: string) {
+  return prisma.baustelle.findUnique({
+    where: { id },
+    include: {
+      contact: { select: { companyName: true, address: true, postalCode: true, city: true } },
+      order: {
+        select: {
+          id: true,
+          title: true,
+          notes: true,
+          quote: {
+            select: {
+              items: { orderBy: { position: "asc" }, select: { description: true, quantity: true, unit: true } },
+            },
+          },
+          deliveryNotes: { orderBy: { createdAt: "desc" }, select: { id: true, deliveryNumber: true } },
+        },
+      },
+    },
+  });
+}
+
 export async function getOrderForDriverApp(id: string) {
   return prisma.order.findUnique({
     where: { id },
