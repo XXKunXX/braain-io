@@ -5,21 +5,19 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO, addDays } from "date-fns";
 import { de } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, MapPin, Calendar, ClipboardList } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Calendar, HardHat } from "lucide-react";
 
-type OrderItem = {
+type BaustelleItem = {
   id: string;
-  title: string;
+  name: string;
   status: "PLANNED" | "ACTIVE" | "COMPLETED";
   startDate: string;
   endDate: string;
-  contact: {
-    companyName: string;
-    address: string;
-    postalCode: string;
-    city: string;
-  };
-  siteAddress: string | null;
+  address: string | null;
+  postalCode: string | null;
+  city: string | null;
+  contactName: string | null;
+  orderId: string | null;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -37,11 +35,11 @@ const STATUS_STYLE: Record<string, string> = {
 type Tab = "active" | "completed" | "all";
 
 export function DriverAppShell({
-  orders,
+  baustellen,
   userName,
   selectedDate,
 }: {
-  orders: OrderItem[];
+  baustellen: BaustelleItem[];
   userName: string;
   selectedDate: string;
 }) {
@@ -55,14 +53,14 @@ export function DriverAppShell({
     router.push(`/fahrer?date=${format(newDate, "yyyy-MM-dd")}`);
   }
 
-  const filtered = orders.filter((o) => {
-    if (tab === "active") return o.status === "PLANNED" || o.status === "ACTIVE";
-    if (tab === "completed") return o.status === "COMPLETED";
+  const filtered = baustellen.filter((b) => {
+    if (tab === "active") return b.status === "PLANNED" || b.status === "ACTIVE";
+    if (tab === "completed") return b.status === "COMPLETED";
     return true;
   });
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: "active", label: "Aktive Aufträge" },
+    { key: "active", label: "Aktive Baustellen" },
     { key: "completed", label: "Abgeschlossen" },
     { key: "all", label: "Alle" },
   ];
@@ -79,7 +77,7 @@ export function DriverAppShell({
           </p>
         </div>
         <DateNav date={date} onNavigate={navigate} />
-        <div className="flex gap-2 mb-5 mt-4">
+        <div className="flex gap-2 mb-5 mt-4 flex-wrap">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -92,7 +90,7 @@ export function DriverAppShell({
             </button>
           ))}
         </div>
-        <MobileOrderList orders={filtered} />
+        <MobileBaustellenList baustellen={filtered} />
       </div>
 
       {/* ── Tablet / Desktop (≥ md) ── */}
@@ -113,7 +111,6 @@ export function DriverAppShell({
 
               <DateNav date={date} onNavigate={navigate} />
 
-              {/* Vertical tab list */}
               <div className="bg-white rounded-2xl overflow-hidden divide-y divide-gray-100">
                 {tabs.map((t) => (
                   <button
@@ -128,44 +125,44 @@ export function DriverAppShell({
                 ))}
               </div>
 
-              {/* Count card */}
               <div className="bg-white rounded-2xl p-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                  <ClipboardList className="h-5 w-5 text-indigo-500" />
+                  <HardHat className="h-5 w-5 text-indigo-500" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{filtered.length}</p>
                   <p className="text-xs text-gray-400">
-                    {filtered.length === 1 ? "Auftrag" : "Aufträge"} heute
+                    {filtered.length === 1 ? "Baustelle" : "Baustellen"} heute
                   </p>
                 </div>
               </div>
             </div>
 
-            {/* Right: order list */}
+            {/* Right: baustellen list */}
             <div>
               <h2 className="text-sm font-semibold text-gray-500 mb-4">
                 {format(date, "EEEE, dd. MMMM yyyy", { locale: de })}
               </h2>
               {filtered.length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-2xl">
-                  <p className="text-gray-400 text-sm">Keine Aufträge für diesen Tag</p>
+                  <p className="text-gray-400 text-sm">Keine Baustellen für diesen Tag</p>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {filtered.map((order) => {
-                    const address = order.siteAddress
-                      ?? [order.contact.address, order.contact.postalCode, order.contact.city].filter(Boolean).join(" ");
+                  {filtered.map((b) => {
+                    const address = [b.address, b.postalCode, b.city].filter(Boolean).join(" ");
                     return (
                       <Link
-                        key={order.id}
-                        href={`/fahrer/${order.id}`}
+                        key={b.id}
+                        href={`/fahrer/baustelle/${b.id}`}
                         className="flex items-center bg-white rounded-2xl px-5 py-4 hover:shadow-sm transition-all group border border-transparent hover:border-gray-200"
                       >
                         <div className="flex-1 min-w-0 grid grid-cols-[1fr_1fr_auto] gap-4 items-center">
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{order.contact.companyName}</p>
-                            <p className="text-xs text-gray-400 truncate mt-0.5">{order.title}</p>
+                            <p className="text-sm font-semibold text-gray-900 truncate">{b.name}</p>
+                            {b.contactName && (
+                              <p className="text-xs text-gray-400 truncate mt-0.5">{b.contactName}</p>
+                            )}
                           </div>
                           <p className="text-xs text-gray-500 truncate flex items-center gap-1">
                             {address ? (
@@ -175,10 +172,10 @@ export function DriverAppShell({
                           <div className="flex items-center gap-3">
                             <p className="text-xs text-gray-400 whitespace-nowrap flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
-                              {format(parseISO(order.startDate), "dd. MMM", { locale: de })}
+                              {format(parseISO(b.startDate), "dd. MMM", { locale: de })}
                             </p>
-                            <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${STATUS_STYLE[order.status]}`}>
-                              {STATUS_LABEL[order.status]}
+                            <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${STATUS_STYLE[b.status]}`}>
+                              {STATUS_LABEL[b.status]}
                             </span>
                             <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
                           </div>
@@ -212,27 +209,29 @@ function DateNav({ date, onNavigate }: { date: Date; onNavigate: (d: number) => 
   );
 }
 
-function MobileOrderList({ orders }: { orders: OrderItem[] }) {
-  if (orders.length === 0) {
+function MobileBaustellenList({ baustellen }: { baustellen: BaustelleItem[] }) {
+  if (baustellen.length === 0) {
     return (
       <div className="text-center py-16">
-        <p className="text-gray-400 text-sm">Keine Aufträge für diesen Tag</p>
+        <p className="text-gray-400 text-sm">Keine Baustellen für diesen Tag</p>
       </div>
     );
   }
   return (
     <div className="bg-white rounded-2xl overflow-hidden divide-y divide-gray-100">
-      {orders.map((order) => {
-        const address = order.siteAddress
-          ?? [order.contact.address, order.contact.postalCode, order.contact.city].filter(Boolean).join(" ");
+      {baustellen.map((b) => {
+        const address = [b.address, b.postalCode, b.city].filter(Boolean).join(" ");
         return (
           <Link
-            key={order.id}
-            href={`/fahrer/${order.id}`}
+            key={b.id}
+            href={`/fahrer/baustelle/${b.id}`}
             className="flex items-center px-4 py-4 hover:bg-gray-50 transition-colors"
           >
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">{order.contact.companyName}</p>
+              <p className="text-sm font-semibold text-gray-900 truncate">{b.name}</p>
+              {b.contactName && (
+                <p className="text-xs text-gray-400 truncate mt-0.5">{b.contactName}</p>
+              )}
               {address && (
                 <p className="text-xs text-gray-400 mt-0.5 truncate flex items-center gap-1">
                   <MapPin className="h-3 w-3 flex-shrink-0" />{address}
@@ -240,12 +239,12 @@ function MobileOrderList({ orders }: { orders: OrderItem[] }) {
               )}
               <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
                 <Calendar className="h-3 w-3 flex-shrink-0" />
-                {format(parseISO(order.startDate), "dd. MMM yyyy", { locale: de })}
+                {format(parseISO(b.startDate), "dd. MMM yyyy", { locale: de })}
               </p>
             </div>
             <div className="flex items-center gap-2 ml-3">
-              <span className={`text-xs font-medium px-3 py-1 rounded-full ${STATUS_STYLE[order.status]}`}>
-                {STATUS_LABEL[order.status]}
+              <span className={`text-xs font-medium px-3 py-1 rounded-full ${STATUS_STYLE[b.status]}`}>
+                {STATUS_LABEL[b.status]}
               </span>
               <ChevronRight className="h-4 w-4 text-gray-300" />
             </div>

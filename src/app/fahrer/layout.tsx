@@ -2,11 +2,14 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { Brain } from "lucide-react";
 import Link from "next/link";
+import { BottomNav } from "@/components/fahrer/bottom-nav";
 
 export default async function FahrerLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
   const user = await currentUser();
+  const role = (user?.publicMetadata?.role as string) ?? "Mitarbeiter";
+  const isFahrer = role === "Fahrer";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -24,12 +27,14 @@ export default async function FahrerLayout({ children }: { children: React.React
           <span className="text-sm font-medium text-gray-500">Fahrer App</span>
         </div>
         <div className="ml-auto flex items-center gap-4">
-          <Link
-            href="/dashboard"
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            ← Zurück zum Dashboard
-          </Link>
+          {!isFahrer && (
+            <Link
+              href="/dashboard"
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              ← Zurück zum Dashboard
+            </Link>
+          )}
           {user && (
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-indigo-100 flex items-center justify-center">
@@ -44,7 +49,8 @@ export default async function FahrerLayout({ children }: { children: React.React
           )}
         </div>
       </header>
-      {children}
+      <div className="pb-20 md:pb-0">{children}</div>
+      <BottomNav />
     </div>
   );
 }

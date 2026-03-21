@@ -431,6 +431,33 @@ export function DispositionCalendar({
         resourceId: resourceId !== entry.resourceId ? resourceId : undefined,
       });
       if ("error" in result && result.error) { setLocalEntries(snapshot); toast.error("Fehler beim Verschieben"); return; }
+
+      // Update paired Stammfahrer entry if vehicle changed
+      if (resourceId !== entry.resourceId) {
+        const oldResource = resources.find(r => r.id === entry.resourceId);
+        const newResource = resources.find(r => r.id === resourceId);
+        const oldDriverId = oldResource?.assignedDriver?.id;
+        const newDriverId = newResource?.assignedDriver?.id;
+        if (oldDriverId && newDriverId && oldDriverId !== newDriverId) {
+          const pairedEntry = localEntries.find(e =>
+            e.id !== entry.id &&
+            e.resourceId === oldDriverId &&
+            (entry.baustelleId ? e.baustelleId === entry.baustelleId : e.orderId === entry.orderId)
+          );
+          if (pairedEntry) {
+            setLocalEntries(prev => prev.map(e =>
+              e.id === pairedEntry.id ? { ...e, startDate: newStart, endDate: newEnd, resourceId: newDriverId } : e
+            ));
+            await updateDispositionEntry(pairedEntry.id, {
+              startDate: newStart.toISOString(),
+              endDate: newEnd.toISOString(),
+              notes: pairedEntry.notes ?? undefined,
+              resourceId: newDriverId,
+            });
+          }
+        }
+      }
+
       router.refresh();
       return;
     }

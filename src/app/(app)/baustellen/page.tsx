@@ -15,6 +15,7 @@ export default async function BaustellenPage() {
   ]);
 
   const userNames = users
+    .filter((u) => u.role !== "Fahrer")
     .map((u) => `${u.firstName} ${u.lastName}`.trim())
     .filter(Boolean);
 

@@ -445,6 +445,7 @@ model Baustelle {
   machineUsages      MachineUsage[]
   rapporte           Tagesrapport[]
   deliveryNotes      DeliveryNote[]
+  zeiterfassungen    Zeiterfassung[]
 }
 
 model Tagesrapport {
@@ -460,6 +461,23 @@ model Tagesrapport {
   updatedAt   DateTime  @updatedAt
 
   baustelle   Baustelle @relation(fields: [baustelleId], references: [id], onDelete: Cascade)
+}
+
+model Zeiterfassung {
+  id           String     @id @default(cuid())
+  clerkUserId  String
+  date         String     // YYYY-MM-DD
+  startTime    String?    // HH:MM
+  endTime      String?    // HH:MM
+  pauseMinutes Int        @default(0)
+  baustelleId  String?
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  baustelle    Baustelle? @relation(fields: [baustelleId], references: [id], onDelete: SetNull)
+
+  @@index([clerkUserId, date])
 }
 
 model Notification {

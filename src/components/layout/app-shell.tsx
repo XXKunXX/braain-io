@@ -11,9 +11,10 @@ import { cn } from "@/lib/utils";
 interface AppShellProps {
   children: React.ReactNode;
   openTaskCount: number;
+  userRole?: string;
 }
 
-export function AppShell({ children, openTaskCount }: AppShellProps) {
+export function AppShell({ children, openTaskCount, userRole }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
 
@@ -38,6 +39,7 @@ export function AppShell({ children, openTaskCount }: AppShellProps) {
           openTaskCount={openTaskCount}
           onClose={() => setSidebarOpen(false)}
           onSearchOpen={() => setSearchOpen(true)}
+          userRole={userRole}
         />
       </div>
 
