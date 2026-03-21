@@ -114,6 +114,14 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
     },
   });
 
+  // Set Baustelle status to ACTIVE when a disposition entry is created
+  if (parsed.data.baustelleId) {
+    await (prisma as any).baustelle.update({
+      where: { id: parsed.data.baustelleId },
+      data: { status: "ACTIVE" },
+    });
+  }
+
   revalidatePath("/disposition");
   revalidatePath("/baustellen");
   if (parsed.data.baustelleId) revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
