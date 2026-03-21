@@ -9,5 +9,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (role === "Fahrer") redirect("/fahrer");
 
   const openTaskCount = await getOpenTaskCount();
-  return <AppShell openTaskCount={openTaskCount}>{children}</AppShell>;
+  return <AppShell openTaskCount={openTaskCount} userRole={role}>{children}</AppShell>;
 }
