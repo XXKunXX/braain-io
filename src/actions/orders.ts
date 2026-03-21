@@ -121,6 +121,94 @@ export async function getOrder(id: string) {
   });
 }
 
+export async function createOrderWithDetails(data: {
+  // Order
+  title: string;
+  contactId: string;
+  startDate: string;
+  endDate: string;
+  notes?: string;
+  // Optional Baustelle
+  baustelle?: {
+    address?: string;
+    postalCode?: string;
+    city?: string;
+  };
+  // Optional Leistungen (creates a Quote)
+  items?: {
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+  }[];
+}) {
+  const orderNumber = await getNextNumber("order");
+
+  const order = await prisma.order.create({
+    data: {
+      orderNumber,
+      title: data.title,
+      contactId: data.contactId,
+      startDate: new Date(data.startDate),
+      endDate: new Date(data.endDate),
+      notes: data.notes || null,
+    },
+  });
+
+  // Create Baustelle if address provided
+  if (data.baustelle && (data.baustelle.address || data.baustelle.city)) {
+    await prisma.baustelle.create({
+      data: {
+        name: data.title,
+        orderId: order.id,
+        contactId: data.contactId,
+        address: data.baustelle.address || null,
+        postalCode: data.baustelle.postalCode || null,
+        city: data.baustelle.city || null,
+        startDate: new Date(data.startDate),
+        endDate: new Date(data.endDate),
+        status: "PLANNED",
+      },
+    });
+  }
+
+  // Create Quote with items if provided
+  if (data.items && data.items.length > 0) {
+    const totalPrice = data.items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+    const quoteNumber = await getNextNumber("quote");
+
+    const quote = await prisma.quote.create({
+      data: {
+        quoteNumber,
+        title: data.title,
+        contactId: data.contactId,
+        status: "ACCEPTED",
+        totalPrice,
+        items: {
+          create: data.items.map((item, idx) => ({
+            position: idx + 1,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+            total: item.quantity * item.unitPrice,
+          })),
+        },
+      },
+    });
+
+    await prisma.order.update({
+      where: { id: order.id },
+      data: { quoteId: quote.id },
+    });
+  }
+
+  revalidatePath("/auftraege");
+  revalidatePath("/disposition");
+  revalidatePath("/baustellen");
+  return { order };
+}
+
 export async function getOrdersForCalendar(weekStart: Date, weekEnd: Date) {
   return prisma.order.findMany({
     where: {
