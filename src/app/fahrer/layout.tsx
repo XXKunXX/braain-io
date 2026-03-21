@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { Brain } from "lucide-react";
 import Link from "next/link";
+import { BottomNav } from "@/components/fahrer/bottom-nav";
 
 export default async function FahrerLayout({ children }: { children: React.ReactNode }) {
   const { userId } = await auth();
@@ -48,7 +49,8 @@ export default async function FahrerLayout({ children }: { children: React.React
           )}
         </div>
       </header>
-      {children}
+      <div className="pb-20 md:pb-0">{children}</div>
+      <BottomNav />
     </div>
   );
 }
