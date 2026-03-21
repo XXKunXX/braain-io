@@ -4,6 +4,7 @@ import nodemailer from "nodemailer";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/prisma";
 import { QuotePDF } from "@/lib/pdf/quote-pdf";
+import { getSettings } from "@/actions/settings";
 import { createElement, type ReactElement } from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
 import path from "path";
@@ -11,13 +12,16 @@ import fs from "fs";
 
 export async function sendQuoteEmail(quoteId: string, toEmail: string) {
   try {
-    const quote = await prisma.quote.findUnique({
-      where: { id: quoteId },
-      include: {
-        contact: true,
-        items: { orderBy: { position: "asc" } },
-      },
-    });
+    const [quote, rawSettings] = await Promise.all([
+      prisma.quote.findUnique({
+        where: { id: quoteId },
+        include: {
+          contact: true,
+          items: { orderBy: { position: "asc" } },
+        },
+      }),
+      getSettings(),
+    ]);
 
     if (!quote) return { error: "Angebot nicht gefunden" };
 
@@ -30,7 +34,8 @@ export async function sendQuoteEmail(quoteId: string, toEmail: string) {
     }
 
     // Generate PDF
-    const element = createElement(QuotePDF, { quote, logoPath }) as ReactElement<DocumentProps>;
+    const company = { ...rawSettings, vatRate: Number(rawSettings.vatRate) };
+    const element = createElement(QuotePDF, { quote, logoPath, company }) as ReactElement<DocumentProps>;
     const buffer = await renderToBuffer(element);
 
     // Send email

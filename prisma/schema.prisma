@@ -475,3 +475,43 @@ model Notification {
   @@index([clerkUserId, read])
 }
 
+// ─── App Settings (Singleton) ─────────────────────────────────────────────────
+
+model AppSettings {
+  id String @id @default("singleton")
+
+  // Firmenstammdaten
+  companyName   String @default("")
+  companySlogan String @default("")
+  street        String @default("")
+  postalCode    String @default("")
+  city          String @default("")
+  country       String @default("Österreich")
+  phone         String @default("")
+  fax           String @default("")
+  email         String @default("")
+  website       String @default("")
+  uid           String @default("")
+  gln           String @default("")
+  fn            String @default("")
+  court         String @default("")
+
+  // Bankverbindung
+  bankName String @default("")
+  iban     String @default("")
+  bic      String @default("")
+  blz      String @default("")
+  kto      String @default("")
+
+  // Dokument-Einstellungen
+  vatRate             Decimal @default(0.2000) @db.Decimal(5, 4)
+  quotePrefix         String  @default("ANG")
+  orderPrefix         String  @default("AUF")
+  deliveryPrefix      String  @default("LS")
+  defaultPaymentTerms String  @default("Zahlbar netto nach Auftragserteilung.")
+  defaultQuoteNotes   String  @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+

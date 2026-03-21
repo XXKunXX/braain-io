@@ -3,16 +3,24 @@ import { prisma } from "./prisma";
 export async function getNextNumber(
   key: "quote" | "order" | "delivery"
 ): Promise<string> {
-  const counter = await prisma.counter.upsert({
-    where: { key },
-    update: { value: { increment: 1 } },
-    create: { key, value: 1 },
-  });
+  const [counter, settings] = await Promise.all([
+    prisma.counter.upsert({
+      where:  { key },
+      update: { value: { increment: 1 } },
+      create: { key, value: 1 },
+    }),
+    prisma.appSettings.upsert({
+      where:  { id: "singleton" },
+      update: {},
+      create: { id: "singleton" },
+      select: { quotePrefix: true, orderPrefix: true, deliveryPrefix: true },
+    }),
+  ]);
 
   const prefix: Record<string, string> = {
-    quote: "ANG",
-    order: "AUF",
-    delivery: "LS",
+    quote:    settings.quotePrefix,
+    order:    settings.orderPrefix,
+    delivery: settings.deliveryPrefix,
   };
 
   return `${prefix[key]}-${String(counter.value).padStart(5, "0")}`;

@@ -15,27 +15,27 @@ type QuoteWithRelations = Quote & {
   items: QuoteItem[];
 };
 
-const COMPANY = {
-  name: "Eigner-Rothbauer Transportunternehmen GmbH",
-  slogan: "Ihr Partner für Transport, Erdbau, Sand & Schotter, Recycling und Abbruch",
-  street: "Am Stiergraben 5",
-  city: "3434 Tulbing/Tulln",
-  tel: "02273 / 7206",
-  fax: "DW 22",
-  email: "office@eigner-rothbauer.at",
-  website: "www.eigner-rothbauer.at",
-  uid: "ATU 20217806",
-  gln: "9008390182888",
-  fn: "FN 86092g",
-  court: "Landesgericht St. Pölten",
-  iban: "AT24 3200 0366 0040 0200",
-  bic: "RLNWATWWXXX",
-  bank: "Raika",
-  blz: "32000",
-  kto: "36600400200",
+export type CompanySettings = {
+  companyName:         string;
+  companySlogan:       string;
+  street:              string;
+  postalCode:          string;
+  city:                string;
+  phone:               string;
+  email:               string;
+  website:             string;
+  uid:                 string;
+  gln:                 string;
+  fn:                  string;
+  court:               string;
+  bankName:            string;
+  iban:                string;
+  bic:                 string;
+  blz:                 string;
+  kto:                 string;
+  vatRate:             number;
+  defaultPaymentTerms: string;
 };
-
-const VAT_RATE = 0.2;
 
 const s = StyleSheet.create({
   page: {
@@ -249,10 +249,18 @@ function fmt(n: number | string | { toString(): string }, decimals = 2) {
   });
 }
 
-export function QuotePDF({ quote, logoPath }: { quote: QuoteWithRelations; logoPath?: string }) {
+export function QuotePDF({
+  quote,
+  logoPath,
+  company,
+}: {
+  quote: QuoteWithRelations;
+  logoPath?: string;
+  company: CompanySettings;
+}) {
   const { contact, items } = quote;
   const net = Number(quote.totalPrice);
-  const vat = net * VAT_RATE;
+  const vat = net * company.vatRate;
   const gross = net + vat;
 
   const dateStr = format(new Date(quote.createdAt), "dd.MM.yyyy", { locale: de });
@@ -267,10 +275,10 @@ export function QuotePDF({ quote, logoPath }: { quote: QuoteWithRelations; logoP
         ) : (
           <>
             <View style={s.headerBand}>
-              <Text style={s.companyBig}>{COMPANY.name}</Text>
+              <Text style={s.companyBig}>{company.companyName}</Text>
             </View>
             <View style={s.sloganBar}>
-              <Text style={s.sloganText}>{COMPANY.slogan}</Text>
+              <Text style={s.sloganText}>{company.companySlogan}</Text>
             </View>
           </>
         )}
@@ -289,8 +297,8 @@ export function QuotePDF({ quote, logoPath }: { quote: QuoteWithRelations; logoP
 
           {/* Company meta right */}
           <View style={s.metaRight}>
-            <Text><Text style={s.metaLabel}>UID-Nr.: </Text>{COMPANY.uid}</Text>
-            <Text><Text style={s.metaLabel}>GLN-Nr.: </Text>{COMPANY.gln}</Text>
+            <Text><Text style={s.metaLabel}>UID-Nr.: </Text>{company.uid}</Text>
+            <Text><Text style={s.metaLabel}>GLN-Nr.: </Text>{company.gln}</Text>
             <Text style={{ marginTop: 4 }}><Text style={s.metaLabel}>Seite </Text>1 von 1</Text>
             <Text><Text style={s.metaLabel}>Datum: </Text>{dateStr}</Text>
             {quote.validUntil && (
@@ -347,7 +355,7 @@ export function QuotePDF({ quote, logoPath }: { quote: QuoteWithRelations; logoP
               <Text style={s.totalsValue}>{fmt(net)} €</Text>
             </View>
             <View style={s.totalsRow}>
-              <Text style={s.totalsLabel}>+ 20 % MwSt.</Text>
+              <Text style={s.totalsLabel}>+ {Math.round(company.vatRate * 100)} % MwSt.</Text>
               <Text style={s.totalsValue}>{fmt(vat)} €</Text>
             </View>
             <View style={s.totalsRowFinal}>
@@ -368,8 +376,8 @@ export function QuotePDF({ quote, logoPath }: { quote: QuoteWithRelations; logoP
         {/* ── Payment note ── */}
         <View style={s.paymentNote}>
           <Text style={s.paymentText}>
-            Zahlbar netto nach Auftragserteilung.{"\n"}
-            {COMPANY.bank}: IBAN: {COMPANY.iban}, BIC: {COMPANY.bic}
+            {company.defaultPaymentTerms}{"\n"}
+            {company.bankName}: IBAN: {company.iban}, BIC: {company.bic}
           </Text>
           <Text style={[s.paymentText, { marginTop: 5 }]}>
             Wir danken für Ihr Vertrauen und freuen uns auf eine gute Zusammenarbeit!
@@ -379,9 +387,9 @@ export function QuotePDF({ quote, logoPath }: { quote: QuoteWithRelations; logoP
         {/* ── Bottom strip ── */}
         <View style={s.footerStrip} fixed>
           <Text style={s.footerText}>
-            {COMPANY.name} | {COMPANY.street} | {COMPANY.city} | Tel.: {COMPANY.tel} | {COMPANY.email} | {COMPANY.website}
+            {company.companyName} | {company.street} | {company.postalCode} {company.city} | Tel.: {company.phone} | {company.email} | {company.website}
             {"\n"}
-            {COMPANY.court} | {COMPANY.fn} | {COMPANY.bank}: IBAN: {COMPANY.iban}, BIC: {COMPANY.bic}, BLZ: {COMPANY.blz}, Kto.Nr.: {COMPANY.kto}
+            {company.court} | {company.fn} | {company.bankName}: IBAN: {company.iban}, BIC: {company.bic}, BLZ: {company.blz}, Kto.Nr.: {company.kto}
           </Text>
         </View>
 
