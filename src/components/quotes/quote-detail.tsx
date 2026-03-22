@@ -437,86 +437,76 @@ export function QuoteDetail({
                     <div key={idx} className="space-y-1.5">
                       <div className="grid grid-cols-12 gap-2">
                         <div className="col-span-1 flex items-center text-xs font-mono text-gray-400 h-9">{idx + 1}.</div>
-                        <div className="col-span-3 space-y-1">
-                          {/* Type toggle */}
-                          <div className="flex gap-1">
+                        <div
+                          className="col-span-3 relative"
+                          ref={(el) => { machineRefs.current[idx] = el; }}
+                        >
+                          <button
+                            type="button"
+                            title={isProdukt ? "Zu Maschine wechseln" : "Zu Produkt wechseln"}
+                            className={`absolute left-2.5 top-1/2 -translate-y-1/2 transition-colors z-10 ${isProdukt ? "text-blue-400 hover:text-blue-600" : "text-orange-400 hover:text-orange-600"}`}
+                            onClick={() => switchItemType(idx, isProdukt ? "maschine" : "produkt")}
+                          >
+                            {isProdukt ? <Package className="h-3.5 w-3.5" /> : <Wrench className="h-3.5 w-3.5" />}
+                          </button>
+                          <input
+                            type="text"
+                            className={`w-full h-9 rounded-md border border-gray-200 pl-8 pr-8 text-sm focus:outline-none focus:ring-2 ${isProdukt ? "focus:ring-blue-500" : "focus:ring-orange-400"} min-w-0`}
+                            placeholder={isProdukt ? "Beschreibung..." : "Maschine suchen..."}
+                            value={item.description}
+                            onChange={(e) => {
+                              updateItem(idx, "description", e.target.value);
+                              if (isMaschine) setOpenMachineIdx(idx);
+                            }}
+                            onFocus={() => {
+                              if (isMaschine) setOpenMachineIdx(idx);
+                            }}
+                          />
+                          {item.description && (
                             <button
                               type="button"
-                              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${isProdukt ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
-                              onClick={() => switchItemType(idx, "produkt")}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                              onClick={() => {
+                                updateItem(idx, "description", "");
+                                if (isMaschine) setOpenMachineIdx(idx);
+                              }}
                             >
-                              <Package className="h-3 w-3" />Produkt
+                              <X className="h-3.5 w-3.5" />
                             </button>
-                            <button
-                              type="button"
-                              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${isMaschine ? "bg-orange-100 text-orange-700" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
-                              onClick={() => switchItemType(idx, "maschine")}
-                            >
-                              <Wrench className="h-3 w-3" />Maschine
-                            </button>
-                          </div>
-                          {isProdukt ? (
-                            <Input className="text-sm h-9" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beschreibung" />
-                          ) : (
-                            <div
-                              className="relative"
-                              ref={(el) => { machineRefs.current[idx] = el; }}
-                            >
-                              <div className="flex gap-1">
-                                <input
-                                  type="text"
-                                  className="flex-1 h-9 rounded-md border border-orange-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 min-w-0"
-                                  placeholder="Maschine suchen..."
-                                  value={item.description}
-                                  onChange={(e) => {
-                                    updateItem(idx, "description", e.target.value);
-                                    setOpenMachineIdx(idx);
-                                  }}
-                                  onFocus={() => setOpenMachineIdx(idx)}
-                                />
-                                <button
-                                  type="button"
-                                  className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-md border border-orange-200 text-orange-400 hover:text-orange-600 hover:border-orange-400 transition-colors"
-                                  onClick={() => setOpenMachineIdx(openMachineIdx === idx ? null : idx)}
-                                >
-                                  <Wrench className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                              {showMachineDrop && (
-                                <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                                  {fm.length === 0 && (
-                                    <div className="px-3 py-2 text-sm text-gray-400">Keine Maschine gefunden</div>
-                                  )}
-                                  {fm.map((m) => (
-                                    <button
-                                      key={m.id}
-                                      type="button"
-                                      className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 flex items-center gap-2"
-                                      onMouseDown={() => selectMachine(idx, m)}
-                                    >
-                                      <Wrench className="h-3.5 w-3.5 text-orange-300 flex-shrink-0" />
-                                      <div className="flex-1 min-w-0">
-                                        <span className="font-medium text-gray-900">{m.name}</span>
-                                        <span className="text-xs text-gray-400 ml-1.5">· {m.machineType}</span>
-                                      </div>
-                                      {m.hourlyRate != null && (
-                                        <span className="text-xs text-orange-600 font-mono flex-shrink-0">
-                                          {m.hourlyRate.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}/Std
-                                        </span>
-                                      )}
-                                    </button>
-                                  ))}
-                                </div>
+                          )}
+                          {showMachineDrop && (
+                            <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                              {fm.length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-400">Keine Maschine gefunden</div>
                               )}
+                              {fm.map((m) => (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 flex items-center gap-2"
+                                  onMouseDown={() => selectMachine(idx, m)}
+                                >
+                                  <Wrench className="h-3.5 w-3.5 text-orange-300 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-medium text-gray-900">{m.name}</span>
+                                    <span className="text-xs text-gray-400 ml-1.5">· {m.machineType}</span>
+                                  </div>
+                                  {m.hourlyRate != null && (
+                                    <span className="text-xs text-orange-600 font-mono flex-shrink-0">
+                                      {m.hourlyRate.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}/Std
+                                    </span>
+                                  )}
+                                </button>
+                              ))}
                             </div>
                           )}
                         </div>
-                        <Input className="col-span-2 text-sm h-9" type="number" min="0" step="0.001" value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
+                        <Input className="col-span-2 text-sm h-9" type="number" min="0" step={["Std", "Stk", "Psch"].includes(item.unit) ? "1" : "0.001"} value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
                         <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
                           <SelectTrigger className="col-span-2 text-sm h-9"><SelectValue /></SelectTrigger>
                           <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
                         </Select>
-                        <Input className="col-span-2 text-sm h-9" type="number" min="0" step="0.01" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))} />
+                        <Input className="col-span-2 text-sm h-9" type="number" min="0" step="1" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))} />
                         <div className="col-span-1 flex items-center justify-end text-sm font-mono text-gray-600">
                           {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
