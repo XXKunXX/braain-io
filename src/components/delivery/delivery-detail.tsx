@@ -4,7 +4,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { FileText, PenLine } from "lucide-react";
+import { ArrowLeft, FileText, PenLine } from "lucide-react";
 import type { Contact, DeliveryNote, Order } from "@prisma/client";
 
 type DeliveryWithRelations = DeliveryNote & {
@@ -17,8 +17,15 @@ export function DeliveryDetail({
 }: {
   deliveryNote: DeliveryWithRelations;
 }) {
+  const backHref = dn.order ? `/auftraege/${dn.order.id}?tab=Lieferscheine` : "/lieferscheine";
+  const backLabel = dn.order ? `Zurück zu ${dn.order.orderNumber}` : "Zurück zu Lieferscheine";
+
   return (
     <div className="max-w-2xl space-y-5">
+      <Link href={backHref} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+        <ArrowLeft className="h-3.5 w-3.5" />
+        {backLabel}
+      </Link>
       <div className="bg-white border rounded-lg p-5">
         <div className="flex items-start justify-between">
           <div>

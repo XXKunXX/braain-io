@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateOrderStatus, updateOrder } from "@/actions/orders";
+import { deleteDeliveryNote } from "@/actions/delivery-notes";
 import { createPaymentMilestone, updatePaymentMilestone, markPaymentMilestonePaid, markPaymentMilestoneUnpaid, deletePaymentMilestone } from "@/actions/payment-milestones";
 import { CreateDeliveryButton } from "@/components/delivery/create-delivery-button";
 import type { Contact, DeliveryNote, Order, Quote, QuoteItem } from "@prisma/client";
@@ -334,6 +335,10 @@ export function OrderDetail({
   });
   const overdueCount = order.paymentMilestones.filter(m => m.status === "OFFEN" && m.dueDate && new Date(m.dueDate) < new Date()).length;
 
+  const quoteItems = order.quote?.items ?? [];
+  const coveredMaterials = new Set(order.deliveryNotes.map((dn) => dn.material));
+  const allItemsCovered = quoteItems.length > 0 && quoteItems.every((item) => coveredMaterials.has(item.description));
+
   return (
     <div className="flex flex-col min-h-full">
       {/* ── Header ── */}
@@ -357,17 +362,13 @@ export function OrderDetail({
           </div>
 
           <div className="flex items-center gap-2">
-            {editing ? (
+            {editing && (
               <>
                 <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
                 <Button className="rounded-lg bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={saving}>
                   {saving ? "Speichert..." : "Speichern"}
                 </Button>
               </>
-            ) : (
-              <Button variant="outline" className="rounded-lg gap-1.5" onClick={() => setEditing(true)}>
-                <Pencil className="h-3.5 w-3.5" />Bearbeiten
-              </Button>
             )}
             {order.quote && (
               <Button
@@ -385,12 +386,12 @@ export function OrderDetail({
             >
               <Receipt className="h-3.5 w-3.5" />Zahlungsplan
             </Button>
-            <Link
-              href={`/rechnungen/neu?orderId=${order.id}`}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-3 py-2 h-10 transition-colors"
+            <Button
+              className="rounded-lg gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => router.push(`/rechnungen/neu?orderId=${order.id}`)}
             >
               <FileText className="h-3.5 w-3.5" />Rechnung erstellen
-            </Link>
+            </Button>
             <CreateDeliveryButton
               contacts={contacts}
               defaultContactId={order.contactId}
@@ -403,6 +404,7 @@ export function OrderDetail({
                 unit: i.unit,
               }))}
               orderTitle={order.title}
+              allItemsCovered={allItemsCovered}
             />
           </div>
         </div>
@@ -454,7 +456,14 @@ export function OrderDetail({
           <div className="grid grid-cols-2 gap-6 max-w-4xl">
             {/* Auftragsinformationen */}
             <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-4">Auftragsinformationen</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-base font-semibold text-gray-900">Auftragsinformationen</h3>
+                {!editing && (
+                  <button onClick={() => setEditing(true)} className="text-gray-300 hover:text-gray-600 transition-colors" title="Bearbeiten">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
               {editing ? (
                 <div className="space-y-4">
                   <div className="space-y-1.5">
@@ -574,6 +583,7 @@ export function OrderDetail({
                   unit: i.unit,
                 }))}
                 orderTitle={order.title}
+                allItemsCovered={allItemsCovered}
               />
             </div>
             {order.deliveryNotes.length === 0 ? (
@@ -583,19 +593,34 @@ export function OrderDetail({
               </div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_80px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_100px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                   {["Nr.", "Datum", "Material", "Menge", "Fahrer", ""].map((h) => (
                     <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
                   ))}
                 </div>
                 {order.deliveryNotes.map((dn, i) => (
-                  <div key={dn.id} className={`grid grid-cols-[1fr_1fr_1fr_1fr_1fr_80px] gap-4 px-5 py-3 items-center ${i !== order.deliveryNotes.length - 1 ? "border-b border-gray-100" : ""}`}>
+                  <div key={dn.id} className={`grid grid-cols-[1fr_1fr_1fr_1fr_1fr_100px] gap-4 px-5 py-3 items-center ${i !== order.deliveryNotes.length - 1 ? "border-b border-gray-100" : ""}`}>
                     <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
                     <span className="text-sm text-gray-700">{format(new Date(dn.date), "dd.MM.yyyy", { locale: de })}</span>
                     <span className="text-sm font-medium text-gray-900">{dn.material}</span>
                     <span className="text-sm font-mono text-gray-700">{Number(dn.quantity).toLocaleString("de-DE")} {dn.unit}</span>
                     <span className="text-sm text-gray-500">{dn.driver ?? "–"}</span>
-                    <Link href={`/lieferscheine/${dn.id}`} className="text-xs text-blue-600 hover:underline text-right">Öffnen</Link>
+                    <div className="flex items-center justify-end gap-2">
+                      <Link href={`/lieferscheine/${dn.id}`} className="text-gray-300 hover:text-blue-600 transition-colors" title="Öffnen">
+                        <Pencil className="h-4 w-4" />
+                      </Link>
+                      <button
+                        onClick={async () => {
+                          if (!window.confirm("Lieferschein wirklich löschen?")) return;
+                          await deleteDeliveryNote(dn.id);
+                          router.refresh();
+                        }}
+                        className="text-gray-300 hover:text-red-500 transition-colors"
+                        title="Löschen"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -652,7 +677,11 @@ export function OrderDetail({
                       </span>
                       <span className="text-sm text-gray-500">{format(new Date(b.startDate), "dd.MM.yyyy", { locale: de })}</span>
                       <span className="text-sm text-gray-500">{b.endDate ? format(new Date(b.endDate), "dd.MM.yyyy", { locale: de }) : "–"}</span>
-                      <Link href={`/baustellen/${b.id}`} className="text-xs text-blue-600 hover:underline text-right">Öffnen</Link>
+                      <div className="flex justify-end">
+                        <Link href={`/baustellen/${b.id}`} className="text-gray-300 hover:text-blue-600 transition-colors" title="Bearbeiten">
+                          <Pencil className="h-4 w-4" />
+                        </Link>
+                      </div>
                     </div>
                   );
                 })}

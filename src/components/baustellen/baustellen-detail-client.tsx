@@ -203,10 +203,18 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
     <div className="flex flex-col min-h-full">
       {/* Header */}
       <div className="px-6 py-5 border-b border-gray-200 bg-white">
-        <Link href="/baustellen" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Baustellen
-        </Link>
+        <div className="flex items-center gap-4 mb-2">
+          <Link href="/baustellen" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Baustellen
+          </Link>
+          {b.orderId && b.order && (
+            <Link href={`/auftraege/${b.orderId}?tab=Baustellen`} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              {b.order.orderNumber} {b.order.title}
+            </Link>
+          )}
+        </div>
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3">
@@ -255,9 +263,9 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold text-gray-900">Stammdaten</h2>
                 {!editMode ? (
-                  <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5">
-                    <Pencil className="h-3.5 w-3.5" />Bearbeiten
-                  </Button>
+                  <button onClick={() => setEditMode(true)} className="text-gray-300 hover:text-gray-600 transition-colors" title="Bearbeiten">
+                    <Pencil className="h-4 w-4" />
+                  </button>
                 ) : (
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" onClick={() => setEditMode(false)}>Abbrechen</Button>

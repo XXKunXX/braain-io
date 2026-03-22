@@ -242,7 +242,10 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles }: Props
       return;
     }
 
-    if (results.length === 1) {
+    if (order) {
+      toast.success(results.length === 1 ? "Lieferschein erstellt" : `${results.length} Lieferscheine erstellt`);
+      router.push(`/auftraege/${order.id}?tab=Lieferscheine`);
+    } else if (results.length === 1) {
       toast.success("Lieferschein erstellt");
       router.push(`/lieferscheine/${results[0]}`);
     } else {
