@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Mail, Pencil, Trash2, CheckCircle, Activity, Plus, Package, Wrench } from "lucide-react";
+import { ArrowLeft, FileText, Mail, Pencil, Trash2, CheckCircle, Activity, Plus, Package, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

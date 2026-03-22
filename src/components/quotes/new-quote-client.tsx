@@ -472,10 +472,11 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                           className="relative"
                           ref={(el) => { machineRefs.current[idx] = el; }}
                         >
-                          <div className="flex gap-1">
+                          <div className="relative">
+                            <Wrench className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-orange-400 pointer-events-none" />
                             <input
                               type="text"
-                              className="flex-1 h-9 rounded-md border border-orange-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 min-w-0"
+                              className="w-full h-9 rounded-md border border-gray-200 pl-8 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 min-w-0"
                               placeholder="Maschine suchen..."
                               value={item.description}
                               required
@@ -485,14 +486,18 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                               }}
                               onFocus={() => setOpenMachineIdx(idx)}
                             />
-                            <button
-                              type="button"
-                              title="Maschine aus Maschinenpark wählen"
-                              className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-md border border-orange-200 text-orange-400 hover:text-orange-600 hover:border-orange-400 transition-colors"
-                              onClick={() => setOpenMachineIdx(openMachineIdx === idx ? null : idx)}
-                            >
-                              <Wrench className="h-3.5 w-3.5" />
-                            </button>
+                            {item.description && (
+                              <button
+                                type="button"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                                onClick={() => {
+                                  updateItem(idx, "description", "");
+                                  setOpenMachineIdx(idx);
+                                }}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
                           {showMachineDrop && (
                             <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
