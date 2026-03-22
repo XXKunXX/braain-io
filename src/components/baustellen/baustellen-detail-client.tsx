@@ -366,7 +366,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-base font-semibold text-gray-900">Ressourcen</h2>
                 <a
-                  href={`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`}
+                  href={`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}&week=${new Date(b.startDate).toISOString().split('T')[0]}`}
                   className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
                 >
                   <CalendarDays className="h-3.5 w-3.5" />
