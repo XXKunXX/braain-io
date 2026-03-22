@@ -18,7 +18,7 @@ import {
 import { createQuote } from "@/actions/quotes";
 import { createContact } from "@/actions/contacts";
 import { toast } from "sonner";
-import type { Contact, Request } from "@prisma/client";
+import type { Contact, Request, ContactNote } from "@prisma/client";
 import type { MachineRow } from "@/actions/machines";
 
 const UNITS = ["t", "m³", "m²", "m", "Stk", "Std", "Psch"];
@@ -40,7 +40,7 @@ interface Props {
   products: Product[];
   machines: MachineRow[];
   prefillContactId?: string;
-  prefillRequest?: (Request & { contact: Contact }) | null;
+  prefillRequest?: (Request & { contact: Contact; contactNotes?: (Omit<ContactNote, "createdAt"> & { createdAt: string })[] }) | null;
   defaultValidUntil?: string;
 }
 
@@ -121,7 +121,15 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
   const [siteAddress, setSiteAddress] = useState(prefillRequest?.siteAddress ?? "");
   const [assignedTo, setAssignedTo] = useState(prefillRequest?.assignedTo ?? "");
   const [validUntil, setValidUntil] = useState(defaultValidUntil ?? "");
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(() => {
+    if (!prefillRequest) return "";
+    const parts: string[] = [];
+    if (prefillRequest.description) parts.push(prefillRequest.description);
+    if (prefillRequest.contactNotes && prefillRequest.contactNotes.length > 0) {
+      parts.push(prefillRequest.contactNotes.map((n) => n.content).join("\n\n"));
+    }
+    return parts.join("\n\n");
+  });
   const [items, setItems] = useState<EditItem[]>([
     { itemType: "produkt", description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 },
   ]);
@@ -545,11 +553,16 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
 
           {/* Notizen */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-2">
-            <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notizen</Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notizen</Label>
+              {prefillRequest && ((prefillRequest.description ?? "") || (prefillRequest.contactNotes?.length ?? 0) > 0) && (
+                <span className="text-[11px] text-blue-500 font-medium">Aus Anfrage übernommen</span>
+              )}
+            </div>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              rows={3}
+              rows={4}
               className="rounded-lg border-gray-200 resize-none"
               placeholder="Hinweise zum Angebot..."
             />
