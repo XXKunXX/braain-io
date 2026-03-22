@@ -221,8 +221,8 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
                   {selectedContact.email && (
                     <p className="text-gray-700"><span className="text-gray-400">E-Mail:</span> {selectedContact.email}</p>
                   )}
-                  {(selectedContact.address || selectedContact.city) && (
-                    <p className="text-gray-700"><span className="text-gray-400">Adresse:</span> {[selectedContact.address, selectedContact.city].filter(Boolean).join(", ")}</p>
+                  {(selectedContact.address || selectedContact.postalCode || selectedContact.city) && (
+                    <p className="text-gray-700"><span className="text-gray-400">Adresse:</span> {[selectedContact.address, [selectedContact.postalCode, selectedContact.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")}</p>
                   )}
                 </div>
               )}

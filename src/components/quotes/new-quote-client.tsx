@@ -306,7 +306,7 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                             onMouseDown={() => selectContact(c)}
                           >
                             <span className="font-medium text-gray-900">{c.companyName}</span>
-                            {c.city && <span className="text-xs text-gray-400">{c.city}</span>}
+                            {(c.postalCode || c.city) && <span className="text-xs text-gray-400">{[c.postalCode, c.city].filter(Boolean).join(" ")}</span>}
                           </button>
                         ))}
                         <button

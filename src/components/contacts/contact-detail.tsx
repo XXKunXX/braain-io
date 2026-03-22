@@ -267,16 +267,17 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
                     </div>
                   </div>
                 )}
-                {(contact.address || contact.city) && (
+                {(contact.address || contact.postalCode || contact.city) && (
                   <div className="flex items-start gap-3">
                     <MapPin className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-[11px] text-gray-400 uppercase tracking-wider font-semibold mb-0.5">Adresse</p>
-                      <p className="text-sm text-gray-900">
-                        {[contact.address, contact.postalCode && contact.city
-                          ? `${contact.postalCode} ${contact.city}`
-                          : contact.city].filter(Boolean).join(", ")}
-                      </p>
+                      {contact.address && <p className="text-sm text-gray-900">{contact.address}</p>}
+                      {(contact.postalCode || contact.city) && (
+                        <p className="text-sm text-gray-900">
+                          {[contact.postalCode, contact.city].filter(Boolean).join(" ")}
+                        </p>
+                      )}
                       {contact.country && <p className="text-xs text-gray-400 mt-0.5">{contact.country}</p>}
                     </div>
                   </div>
