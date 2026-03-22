@@ -122,6 +122,16 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
     });
   }
 
+  // Set Order status to ACTIVE when a disposition entry is created for it
+  if (orderId) {
+    await (prisma as any).order.update({
+      where: { id: orderId },
+      data: { status: "ACTIVE" },
+    });
+    revalidatePath("/auftraege");
+    revalidatePath(`/auftraege/${orderId}`);
+  }
+
   revalidatePath("/disposition");
   revalidatePath("/baustellen");
   if (parsed.data.baustelleId) revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
@@ -175,6 +185,22 @@ export async function deleteDispositionEntry(id: string) {
     });
     if (paired) {
       await prisma.dispositionEntry.delete({ where: { id: paired.id } });
+    }
+  }
+
+  // If this entry was linked to an Order, check if there are remaining entries
+  // and set the Order status back to PLANNED if none remain
+  if (entry?.orderId) {
+    const remainingEntries = await (prisma as any).dispositionEntry.count({
+      where: { orderId: entry.orderId },
+    });
+    if (remainingEntries === 0) {
+      await (prisma as any).order.update({
+        where: { id: entry.orderId },
+        data: { status: "PLANNED" },
+      });
+      revalidatePath("/auftraege");
+      revalidatePath(`/auftraege/${entry.orderId}`);
     }
   }
 
