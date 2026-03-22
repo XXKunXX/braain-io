@@ -4,20 +4,30 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-const contactSchema = z.object({
-  companyName: z.string().min(1, "Name ist erforderlich"),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  postalCode: z.string().optional(),
-  city: z.string().optional(),
-  country: z.string().optional(),
-  type: z.enum(["COMPANY", "PRIVATE", "SUPPLIER"]),
-  owner: z.string().optional().or(z.literal("")),
-  notes: z.string().optional(),
-});
+const contactSchema = z
+  .object({
+    companyName: z.string().optional().or(z.literal("")),
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
+    phone: z.string().optional(),
+    address: z.string().optional(),
+    postalCode: z.string().optional(),
+    city: z.string().optional(),
+    country: z.string().optional(),
+    type: z.enum(["COMPANY", "PRIVATE", "SUPPLIER"]),
+    owner: z.string().optional().or(z.literal("")),
+    notes: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.type !== "PRIVATE" && !data.companyName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Name ist erforderlich",
+        path: ["companyName"],
+      });
+    }
+  });
 
 export type ContactFormData = z.infer<typeof contactSchema>;
 
