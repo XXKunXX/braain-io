@@ -39,5 +39,6 @@ export default async function AuftragDetailPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
-  return <OrderDetail order={serializedOrder} contacts={contacts} users={users} activity={activity} />;
+  const filteredUsers = users.filter((u) => u.role !== "Fahrer");
+  return <OrderDetail order={serializedOrder} contacts={contacts} users={filteredUsers} activity={activity} />;
 }

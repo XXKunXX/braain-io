@@ -9,7 +9,7 @@ export default async function NeueAnfragePage({
 }) {
   const { contactId } = await searchParams;
   const [contacts, users] = await Promise.all([getContacts(), getUsers()]);
-  const userNames = users.map((u) => `${u.firstName} ${u.lastName}`.trim()).filter(Boolean);
+  const userNames = users.filter((u) => u.role !== "Fahrer").map((u) => `${u.firstName} ${u.lastName}`.trim()).filter(Boolean);
 
   return <NewRequestClient contacts={contacts} userNames={userNames} preselectedContactId={contactId} />;
 }

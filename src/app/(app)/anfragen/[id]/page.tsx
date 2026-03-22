@@ -13,7 +13,7 @@ export default async function AnfrageDetailPage({
   const [request, users, clerkUser] = await Promise.all([getRequest(id), getUsers(), currentUser()]);
   if (!request) notFound();
 
-  const userNames = users.map((u) => `${u.firstName} ${u.lastName}`.trim()).filter(Boolean);
+  const userNames = users.filter((u) => u.role !== "Fahrer").map((u) => `${u.firstName} ${u.lastName}`.trim()).filter(Boolean);
   const currentUserName = clerkUser ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() : undefined;
 
   const serializedRequest = {
