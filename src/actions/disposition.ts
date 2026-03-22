@@ -7,6 +7,24 @@ import { startOfDay, endOfDay, format } from "date-fns";
 import { de } from "date-fns/locale";
 
 export async function getResources() {
+  // Ensure all machines have a corresponding Resource record (sync missing ones)
+  const machines = await (prisma as any).machine.findMany({
+    where: { resource: null },
+    select: { id: true, name: true, machineType: true, licensePlate: true },
+  });
+  if (machines.length > 0) {
+    await (prisma as any).resource.createMany({
+      data: machines.map((m: { id: string; name: string; machineType: string; licensePlate: string | null }) => ({
+        name: m.name,
+        type: "MASCHINE",
+        licensePlate: m.licensePlate ?? null,
+        description: m.machineType,
+        machineId: m.id,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
   return (prisma as any).resource.findMany({
     where: { active: true },
     orderBy: [{ type: "asc" }, { name: "asc" }],
@@ -24,6 +42,7 @@ export async function getResources() {
     clerkUserId: string | null;
     licensePlate: string | null;
     driverResourceId: string | null;
+    machineId: string | null;
     assignedDriver: { id: string; name: string } | null;
     createdAt: Date;
     updatedAt: Date;

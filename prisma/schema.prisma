@@ -12,7 +12,8 @@ datasource db {
 model Contact {
   id                     String      @id @default(cuid())
   companyName            String
-  contactPerson          String?
+  firstName              String?
+  lastName               String?
   email                  String?
   phone                  String?
   address                String?
@@ -213,12 +214,14 @@ model Resource {
   unit                String?
   price               Decimal?     @db.Decimal(10, 2)
   quoteDescription    String?
+  machineId           String?      @unique
   createdAt           DateTime     @default(now())
   updatedAt           DateTime     @updatedAt
 
   entries        DispositionEntry[]
   assignedDriver Resource?          @relation("FahrzeugFahrer", fields: [driverResourceId], references: [id])
   drivenVehicles Resource[]         @relation("FahrzeugFahrer")
+  machine        Machine?           @relation(fields: [machineId], references: [id], onDelete: SetNull)
 }
 
 model DispositionEntry {
@@ -371,6 +374,7 @@ model Machine {
 
   usages       MachineUsage[]
   maintenances MachineMaintenance[]
+  resource     Resource?
 }
 
 model MachineUsage {

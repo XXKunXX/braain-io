@@ -176,7 +176,20 @@ export async function createMachine(data: z.infer<typeof machineSchema>) {
       notes: parsed.data.notes || null,
     },
   });
+
+  // Auto-create a Resource so the machine appears in disposition planning
+  await db.resource.create({
+    data: {
+      name: parsed.data.name,
+      type: "MASCHINE",
+      licensePlate: parsed.data.licensePlate || null,
+      description: parsed.data.machineType,
+      machineId: machine.id,
+    },
+  });
+
   revalidatePath("/ressourcen");
+  revalidatePath("/disposition");
   return { machine: mapMachine(machine) };
 }
 
@@ -199,14 +212,29 @@ export async function updateMachine(id: string, data: z.infer<typeof machineSche
       notes: parsed.data.notes || null,
     },
   });
+
+  // Sync the linked Resource so disposition stays up-to-date
+  await db.resource.updateMany({
+    where: { machineId: id },
+    data: {
+      name: parsed.data.name,
+      licensePlate: parsed.data.licensePlate || null,
+      description: parsed.data.machineType,
+    },
+  });
+
   revalidatePath("/ressourcen");
   revalidatePath(`/ressourcen/maschinen/${id}`);
+  revalidatePath("/disposition");
   return { machine: mapMachine(machine) };
 }
 
 export async function deleteMachine(id: string) {
+  // Delete the linked Resource first (cascades to DispositionEntries)
+  await db.resource.deleteMany({ where: { machineId: id } });
   await db.machine.delete({ where: { id } });
   revalidatePath("/ressourcen");
+  revalidatePath("/disposition");
   return { success: true };
 }
 
