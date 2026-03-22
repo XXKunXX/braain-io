@@ -38,9 +38,10 @@ interface Props {
   products: Product[];
   prefillContactId?: string;
   prefillRequest?: (Request & { contact: Contact }) | null;
+  defaultValidUntil?: string;
 }
 
-export function NewQuoteClient({ contacts, userNames, products, prefillContactId, prefillRequest }: Props) {
+export function NewQuoteClient({ contacts, userNames, products, prefillContactId, prefillRequest, defaultValidUntil }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -118,7 +119,7 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
   const [title, setTitle] = useState(prefillRequest?.title ?? "");
   const [siteAddress, setSiteAddress] = useState(prefillRequest?.siteAddress ?? "");
   const [assignedTo, setAssignedTo] = useState(prefillRequest?.assignedTo ?? "");
-  const [validUntil, setValidUntil] = useState("");
+  const [validUntil, setValidUntil] = useState(defaultValidUntil ?? "");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<EditItem[]>([
     { description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 },

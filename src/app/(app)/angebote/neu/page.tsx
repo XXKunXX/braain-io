@@ -36,6 +36,10 @@ export default async function NeuesAngebotPage({
       }
     : null;
 
+  const defaultValidUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+
   return (
     <NewQuoteClient
       contacts={contacts}
@@ -43,6 +47,7 @@ export default async function NeuesAngebotPage({
       products={products}
       prefillContactId={contactId}
       prefillRequest={request as any}
+      defaultValidUntil={defaultValidUntil}
     />
   );
 }
