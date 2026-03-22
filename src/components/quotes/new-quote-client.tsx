@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, ChevronDown, X, Package } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, ChevronDown, X, Package, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,10 +19,12 @@ import { createQuote } from "@/actions/quotes";
 import { createContact } from "@/actions/contacts";
 import { toast } from "sonner";
 import type { Contact, Request } from "@prisma/client";
+import type { MachineRow } from "@/actions/machines";
 
 const UNITS = ["t", "m³", "m²", "m", "Stk", "Std", "Psch"];
 
 interface EditItem {
+  itemType: "produkt" | "maschine";
   description: string;
   note: string;
   quantity: number;
@@ -36,12 +38,13 @@ interface Props {
   contacts: Contact[];
   userNames: string[];
   products: Product[];
+  machines: MachineRow[];
   prefillContactId?: string;
   prefillRequest?: (Request & { contact: Contact }) | null;
   defaultValidUntil?: string;
 }
 
-export function NewQuoteClient({ contacts, userNames, products, prefillContactId, prefillRequest, defaultValidUntil }: Props) {
+export function NewQuoteClient({ contacts, userNames, products, machines, prefillContactId, prefillRequest, defaultValidUntil }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -73,7 +76,6 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
     setContactId(c.id);
     setContactSearch(c.companyName);
     setContactOpen(false);
-    // Auto-fill siteAddress if not already set by prefill
     if (!prefillRequest?.siteAddress && !siteAddress) {
       const addr = [
         c.address,
@@ -83,7 +85,6 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
         .join(", ");
       if (addr) setSiteAddress(addr);
     }
-    // Auto-fill owner if not already set
     if (!prefillRequest?.assignedTo && !assignedTo && c.owner) {
       setAssignedTo(c.owner);
     }
@@ -122,19 +123,31 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
   const [validUntil, setValidUntil] = useState(defaultValidUntil ?? "");
   const [notes, setNotes] = useState("");
   const [items, setItems] = useState<EditItem[]>([
-    { description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 },
+    { itemType: "produkt", description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 },
   ]);
 
   const total = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 
   function addItem() {
-    setItems([...items, { description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 }]);
+    setItems([...items, { itemType: "produkt", description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 }]);
   }
   function removeItem(idx: number) {
     setItems(items.filter((_, i) => i !== idx));
   }
   function updateItem(idx: number, field: keyof EditItem, value: string | number) {
     setItems(items.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
+  }
+
+  function switchItemType(idx: number, type: "produkt" | "maschine") {
+    setItems(items.map((item, i) => {
+      if (i !== idx) return item;
+      if (type === "maschine") {
+        return { ...item, itemType: type, description: "", unit: "Std", unitPrice: 0 };
+      }
+      return { ...item, itemType: type, description: "", unit: "t", unitPrice: 0 };
+    }));
+    setOpenProductIdx(null);
+    setOpenMachineIdx(null);
   }
 
   // ── Product combobox per position ─────────────────────────────────────────
@@ -158,11 +171,49 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
     );
   }
 
+  // ── Machine combobox per position ─────────────────────────────────────────
+  const [openMachineIdx, setOpenMachineIdx] = useState<number | null>(null);
+  const machineRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (openMachineIdx === null) return;
+      const ref = machineRefs.current[openMachineIdx];
+      if (ref && !ref.contains(e.target as Node)) setOpenMachineIdx(null);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [openMachineIdx]);
+
+  function getFilteredMachines(search: string) {
+    if (!search) return machines;
+    const q = search.toLowerCase();
+    return machines.filter((m) =>
+      m.name.toLowerCase().includes(q) || m.machineType.toLowerCase().includes(q)
+    );
+  }
+
+  function selectMachine(idx: number, machine: MachineRow) {
+    const description = `${machine.name} (${machine.machineType})`;
+    setItems(items.map((item, i) => {
+      if (i !== idx) return item;
+      return {
+        ...item,
+        description,
+        unit: "Std",
+        unitPrice: machine.hourlyRate ?? 0,
+      };
+    }));
+    setOpenMachineIdx(null);
+  }
+
   // ── Submit ────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!contactId) { toast.error("Bitte Kontakt auswählen"); return; }
     setLoading(true);
+    // Strip itemType before sending to action
+    const submitItems = items.map(({ itemType: _itemType, ...rest }) => rest);
     const result = await createQuote({
       title,
       contactId,
@@ -171,7 +222,7 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
       assignedTo: assignedTo || undefined,
       validUntil: validUntil || undefined,
       notes: notes || undefined,
-      items,
+      items: submitItems,
     });
     setLoading(false);
     if (result.error) { toast.error("Fehler beim Erstellen"); return; }
@@ -331,64 +382,144 @@ export function NewQuoteClient({ contacts, userNames, products, prefillContactId
                 </div>
               )}
               {items.map((item, idx) => {
+                const isProdukt = item.itemType === "produkt";
+                const isMaschine = item.itemType === "maschine";
                 const fp = getFilteredProducts(item.description);
-                const showProductDrop = openProductIdx === idx && fp.length > 0;
+                const fm = getFilteredMachines(item.description);
+                const showProductDrop = isProdukt && openProductIdx === idx && fp.length > 0;
+                const showMachineDrop = isMaschine && openMachineIdx === idx;
                 return (
                   <div key={idx} className="space-y-1.5">
                   <div className="grid grid-cols-[24px_1fr_80px_90px_90px_80px_28px] gap-2 items-start">
                     {/* Position number */}
                     <div className="h-9 flex items-center text-xs font-mono text-gray-400">{idx + 1}.</div>
-                    {/* Description with product combobox */}
-                    <div
-                      className="relative"
-                      ref={(el) => { productRefs.current[idx] = el; }}
-                    >
+                    {/* Description with type toggle + combobox */}
+                    <div className="space-y-1">
+                      {/* Type toggle */}
                       <div className="flex gap-1">
-                        <input
-                          type="text"
-                          className="flex-1 h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
-                          placeholder="Freitext oder Produkt wählen..."
-                          value={item.description}
-                          required
-                          onChange={(e) => {
-                            updateItem(idx, "description", e.target.value);
-                            setOpenProductIdx(idx);
-                          }}
-                          onFocus={() => {
-                            if (products.length > 0) setOpenProductIdx(idx);
-                          }}
-                        />
-                        {products.length > 0 && (
-                          <button
-                            type="button"
-                            title="Produkt aus Ressourcen wählen"
-                            className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-md border border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-colors"
-                            onClick={() => setOpenProductIdx(openProductIdx === idx ? null : idx)}
-                          >
-                            <Package className="h-3.5 w-3.5" />
-                          </button>
-                        )}
+                        <button
+                          type="button"
+                          className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${isProdukt ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+                          onClick={() => switchItemType(idx, "produkt")}
+                        >
+                          <Package className="h-3 w-3" />Produkt
+                        </button>
+                        <button
+                          type="button"
+                          className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${isMaschine ? "bg-orange-100 text-orange-700" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+                          onClick={() => switchItemType(idx, "maschine")}
+                        >
+                          <Wrench className="h-3 w-3" />Maschine
+                        </button>
                       </div>
-                      {(showProductDrop || (openProductIdx === idx && products.length > 0 && !item.description)) && (
-                        <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                          {fp.length === 0 && (
-                            <div className="px-3 py-2 text-sm text-gray-400">Kein Produkt gefunden</div>
-                          )}
-                          {fp.map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
-                              onMouseDown={() => {
-                                updateItem(idx, "description", p.name);
-                                setOpenProductIdx(null);
+                      {/* Description input + combobox */}
+                      {isProdukt ? (
+                        <div
+                          className="relative"
+                          ref={(el) => { productRefs.current[idx] = el; }}
+                        >
+                          <div className="flex gap-1">
+                            <input
+                              type="text"
+                              className="flex-1 h-9 rounded-md border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-0"
+                              placeholder="Freitext oder Produkt wählen..."
+                              value={item.description}
+                              required
+                              onChange={(e) => {
+                                updateItem(idx, "description", e.target.value);
+                                setOpenProductIdx(idx);
                               }}
+                              onFocus={() => {
+                                if (products.length > 0) setOpenProductIdx(idx);
+                              }}
+                            />
+                            {products.length > 0 && (
+                              <button
+                                type="button"
+                                title="Produkt aus Ressourcen wählen"
+                                className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-md border border-gray-200 text-gray-400 hover:text-blue-600 hover:border-blue-300 transition-colors"
+                                onClick={() => setOpenProductIdx(openProductIdx === idx ? null : idx)}
+                              >
+                                <Package className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                          {(showProductDrop || (openProductIdx === idx && products.length > 0 && !item.description)) && (
+                            <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                              {fp.length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-400">Kein Produkt gefunden</div>
+                              )}
+                              {fp.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                                  onMouseDown={() => {
+                                    updateItem(idx, "description", p.name);
+                                    setOpenProductIdx(null);
+                                  }}
+                                >
+                                  <Package className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
+                                  <span className="font-medium text-gray-900">{p.name}</span>
+                                  {p.description && <span className="text-xs text-gray-400 truncate">· {p.description}</span>}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div
+                          className="relative"
+                          ref={(el) => { machineRefs.current[idx] = el; }}
+                        >
+                          <div className="flex gap-1">
+                            <input
+                              type="text"
+                              className="flex-1 h-9 rounded-md border border-orange-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 min-w-0"
+                              placeholder="Maschine suchen..."
+                              value={item.description}
+                              required
+                              onChange={(e) => {
+                                updateItem(idx, "description", e.target.value);
+                                setOpenMachineIdx(idx);
+                              }}
+                              onFocus={() => setOpenMachineIdx(idx)}
+                            />
+                            <button
+                              type="button"
+                              title="Maschine aus Maschinenpark wählen"
+                              className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-md border border-orange-200 text-orange-400 hover:text-orange-600 hover:border-orange-400 transition-colors"
+                              onClick={() => setOpenMachineIdx(openMachineIdx === idx ? null : idx)}
                             >
-                              <Package className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
-                              <span className="font-medium text-gray-900">{p.name}</span>
-                              {p.description && <span className="text-xs text-gray-400 truncate">· {p.description}</span>}
+                              <Wrench className="h-3.5 w-3.5" />
                             </button>
-                          ))}
+                          </div>
+                          {showMachineDrop && (
+                            <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                              {fm.length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-400">Keine Maschine gefunden</div>
+                              )}
+                              {fm.map((m) => (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 flex items-center gap-2"
+                                  onMouseDown={() => selectMachine(idx, m)}
+                                >
+                                  <Wrench className="h-3.5 w-3.5 text-orange-300 flex-shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <span className="font-medium text-gray-900">{m.name}</span>
+                                    <span className="text-xs text-gray-400 ml-1.5">· {m.machineType}</span>
+                                  </div>
+                                  {m.hourlyRate != null && (
+                                    <span className="text-xs text-orange-600 font-mono flex-shrink-0">
+                                      {m.hourlyRate.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}/Std
+                                    </span>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

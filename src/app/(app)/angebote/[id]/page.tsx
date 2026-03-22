@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getQuote } from "@/actions/quotes";
 import { getUsers } from "@/actions/users";
+import { getMachines } from "@/actions/machines";
 import { QuoteDetail } from "@/components/quotes/quote-detail";
 
 export default async function AngebotDetailPage({
@@ -9,7 +10,7 @@ export default async function AngebotDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [quote, users] = await Promise.all([getQuote(id), getUsers()]);
+  const [quote, users, machines] = await Promise.all([getQuote(id), getUsers(), getMachines()]);
 
   if (!quote) notFound();
 
@@ -29,5 +30,5 @@ export default async function AngebotDetailPage({
 
   const userNames = users.map((u) => `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim());
 
-  return <QuoteDetail quote={serialized as any} userNames={userNames} />;
+  return <QuoteDetail quote={serialized as any} userNames={userNames} machines={machines} />;
 }

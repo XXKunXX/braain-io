@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, FileText, Mail, Pencil, Trash2, CheckCircle, Activity, Plus } from "lucide-react";
+import { ArrowLeft, FileText, Mail, Pencil, Trash2, CheckCircle, Activity, Plus, Package, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,7 @@ import {
 import { updateQuote, updateQuoteStatus, deleteQuote, acceptQuoteAndCreateOrder } from "@/actions/quotes";
 import { sendQuoteEmail } from "@/actions/send-quote-email";
 import type { Contact, Quote, QuoteItem, Request } from "@prisma/client";
+import type { MachineRow } from "@/actions/machines";
 
 type QuoteWithRelations = Quote & {
   contact: Contact;
@@ -51,6 +52,7 @@ const statusColors: Record<string, string> = {
 const UNITS = ["t", "m³", "m²", "m", "Stk", "Std", "Psch"];
 
 interface EditItem {
+  itemType: "produkt" | "maschine";
   description: string;
   note: string;
   quantity: number;
@@ -70,9 +72,11 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 export function QuoteDetail({
   quote,
   userNames = [],
+  machines = [],
 }: {
   quote: QuoteWithRelations;
   userNames?: string[];
+  machines?: MachineRow[];
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -91,6 +95,7 @@ export function QuoteDetail({
   const [notes, setNotes] = useState(quote.notes ?? "");
   const [items, setItems] = useState<EditItem[]>(
     quote.items.map((i) => ({
+      itemType: "produkt" as const,
       description: i.description,
       note: i.note ?? "",
       quantity: Number(i.quantity),
@@ -102,7 +107,7 @@ export function QuoteDetail({
   const editTotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
 
   function addItem() {
-    setItems([...items, { description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 }]);
+    setItems([...items, { itemType: "produkt", description: "", note: "", quantity: 1, unit: "t", unitPrice: 0 }]);
   }
   function removeItem(idx: number) {
     if (items.length > 1) setItems(items.filter((_, i) => i !== idx));
@@ -111,8 +116,51 @@ export function QuoteDetail({
     setItems(items.map((item, i) => (i === idx ? { ...item, [field]: value } : item)));
   }
 
+  function switchItemType(idx: number, type: "produkt" | "maschine") {
+    setItems(items.map((item, i) => {
+      if (i !== idx) return item;
+      if (type === "maschine") {
+        return { ...item, itemType: type, description: "", unit: "Std", unitPrice: 0 };
+      }
+      return { ...item, itemType: type, description: "", unit: "t", unitPrice: 0 };
+    }));
+    setOpenMachineIdx(null);
+  }
+
+  // ── Machine combobox per position ─────────────────────────────────────────
+  const [openMachineIdx, setOpenMachineIdx] = useState<number | null>(null);
+  const machineRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (openMachineIdx === null) return;
+      const ref = machineRefs.current[openMachineIdx];
+      if (ref && !ref.contains(e.target as Node)) setOpenMachineIdx(null);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [openMachineIdx]);
+
+  function getFilteredMachines(search: string) {
+    if (!search) return machines;
+    const q = search.toLowerCase();
+    return machines.filter((m) =>
+      m.name.toLowerCase().includes(q) || m.machineType.toLowerCase().includes(q)
+    );
+  }
+
+  function selectMachine(idx: number, machine: MachineRow) {
+    const description = `${machine.name} (${machine.machineType})`;
+    setItems(items.map((item, i) => {
+      if (i !== idx) return item;
+      return { ...item, description, unit: "Std", unitPrice: machine.hourlyRate ?? 0 };
+    }));
+    setOpenMachineIdx(null);
+  }
+
   async function handleSave() {
     setSaving(true);
+    const submitItems = items.map(({ itemType: _itemType, ...rest }) => rest);
     await updateQuote(quote.id, {
       title,
       contactId: quote.contactId,
@@ -121,7 +169,7 @@ export function QuoteDetail({
       assignedTo: assignedTo || undefined,
       validUntil: validUntil || undefined,
       notes: notes || undefined,
-      items,
+      items: submitItems,
     });
     toast.success("Gespeichert");
     setSaving(false);
@@ -380,11 +428,89 @@ export function QuoteDetail({
                     <div className="col-span-1 text-right">GP (€)</div>
                     <div className="col-span-1" />
                   </div>
-                  {items.map((item, idx) => (
+                  {items.map((item, idx) => {
+                    const isProdukt = item.itemType === "produkt";
+                    const isMaschine = item.itemType === "maschine";
+                    const fm = getFilteredMachines(item.description);
+                    const showMachineDrop = isMaschine && openMachineIdx === idx;
+                    return (
                     <div key={idx} className="space-y-1.5">
                       <div className="grid grid-cols-12 gap-2">
                         <div className="col-span-1 flex items-center text-xs font-mono text-gray-400 h-9">{idx + 1}.</div>
-                        <Input className="col-span-3 text-sm h-9" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beschreibung" />
+                        <div className="col-span-3 space-y-1">
+                          {/* Type toggle */}
+                          <div className="flex gap-1">
+                            <button
+                              type="button"
+                              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${isProdukt ? "bg-blue-100 text-blue-700" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+                              onClick={() => switchItemType(idx, "produkt")}
+                            >
+                              <Package className="h-3 w-3" />Produkt
+                            </button>
+                            <button
+                              type="button"
+                              className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md font-medium transition-colors ${isMaschine ? "bg-orange-100 text-orange-700" : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"}`}
+                              onClick={() => switchItemType(idx, "maschine")}
+                            >
+                              <Wrench className="h-3 w-3" />Maschine
+                            </button>
+                          </div>
+                          {isProdukt ? (
+                            <Input className="text-sm h-9" value={item.description} onChange={(e) => updateItem(idx, "description", e.target.value)} placeholder="Beschreibung" />
+                          ) : (
+                            <div
+                              className="relative"
+                              ref={(el) => { machineRefs.current[idx] = el; }}
+                            >
+                              <div className="flex gap-1">
+                                <input
+                                  type="text"
+                                  className="flex-1 h-9 rounded-md border border-orange-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 min-w-0"
+                                  placeholder="Maschine suchen..."
+                                  value={item.description}
+                                  onChange={(e) => {
+                                    updateItem(idx, "description", e.target.value);
+                                    setOpenMachineIdx(idx);
+                                  }}
+                                  onFocus={() => setOpenMachineIdx(idx)}
+                                />
+                                <button
+                                  type="button"
+                                  className="h-9 w-9 flex-shrink-0 flex items-center justify-center rounded-md border border-orange-200 text-orange-400 hover:text-orange-600 hover:border-orange-400 transition-colors"
+                                  onClick={() => setOpenMachineIdx(openMachineIdx === idx ? null : idx)}
+                                >
+                                  <Wrench className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              {showMachineDrop && (
+                                <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                                  {fm.length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-400">Keine Maschine gefunden</div>
+                                  )}
+                                  {fm.map((m) => (
+                                    <button
+                                      key={m.id}
+                                      type="button"
+                                      className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 flex items-center gap-2"
+                                      onMouseDown={() => selectMachine(idx, m)}
+                                    >
+                                      <Wrench className="h-3.5 w-3.5 text-orange-300 flex-shrink-0" />
+                                      <div className="flex-1 min-w-0">
+                                        <span className="font-medium text-gray-900">{m.name}</span>
+                                        <span className="text-xs text-gray-400 ml-1.5">· {m.machineType}</span>
+                                      </div>
+                                      {m.hourlyRate != null && (
+                                        <span className="text-xs text-orange-600 font-mono flex-shrink-0">
+                                          {m.hourlyRate.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}/Std
+                                        </span>
+                                      )}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                         <Input className="col-span-2 text-sm h-9" type="number" min="0" step="0.001" value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
                         <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
                           <SelectTrigger className="col-span-2 text-sm h-9"><SelectValue /></SelectTrigger>
@@ -412,7 +538,8 @@ export function QuoteDetail({
                         />
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   <div className="flex flex-col items-end gap-1 pt-2 border-t border-gray-100">
                     <div className="flex items-center gap-8 text-sm text-gray-500">
                       <span>Netto</span>
