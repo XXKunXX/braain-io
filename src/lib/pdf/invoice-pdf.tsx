@@ -24,7 +24,8 @@ type InvoiceItemData = {
 
 type ContactData = {
   companyName: string;
-  contactPerson?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   address?: string | null;
   postalCode?: string | null;
   city?: string | null;
@@ -310,7 +311,7 @@ export function InvoicePDF({
         <View style={s.addressMeta}>
           <View style={s.recipient}>
             <Text style={s.recipientName}>{contact.companyName}</Text>
-            {contact.contactPerson ? <Text>{contact.contactPerson}</Text> : null}
+            {(contact.firstName || contact.lastName) ? <Text>{[contact.firstName, contact.lastName].filter(Boolean).join(" ")}</Text> : null}
             {contact.address ? <Text>{contact.address}</Text> : null}
             {(contact.postalCode || contact.city) ? (
               <Text>{contact.postalCode} {contact.city}</Text>

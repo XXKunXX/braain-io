@@ -30,8 +30,8 @@ export type BaustelleRow = {
   notes: string | null;
   createdAt: Date;
   updatedAt: Date;
-  order: { id: string; orderNumber: string; title: string; contact: { id: string; companyName: string; contactPerson: string | null } | null };
-  contact: { id: string; companyName: string; contactPerson: string | null } | null;
+  order: { id: string; orderNumber: string; title: string; contact: { id: string; companyName: string; firstName: string | null; lastName: string | null } | null };
+  contact: { id: string; companyName: string; firstName: string | null; lastName: string | null } | null;
 };
 
 export type DispositionEntryRow = {
@@ -124,8 +124,8 @@ export async function getBaustellen(): Promise<BaustelleRow[]> {
   return db.baustelle.findMany({
     orderBy: { startDate: "desc" },
     include: {
-      order: { select: { id: true, orderNumber: true, title: true, contact: { select: { id: true, companyName: true, contactPerson: true } } } },
-      contact: { select: { id: true, companyName: true, contactPerson: true } },
+      order: { select: { id: true, orderNumber: true, title: true, contact: { select: { id: true, companyName: true, firstName: true, lastName: true } } } },
+      contact: { select: { id: true, companyName: true, firstName: true, lastName: true } },
     },
   });
 }
@@ -134,8 +134,8 @@ export async function getBaustelle(id: string) {
   const b = await db.baustelle.findUnique({
     where: { id },
     include: {
-      order: { select: { id: true, orderNumber: true, title: true, contact: { select: { id: true, companyName: true, contactPerson: true } } } },
-      contact: { select: { id: true, companyName: true, contactPerson: true } },
+      order: { select: { id: true, orderNumber: true, title: true, contact: { select: { id: true, companyName: true, firstName: true, lastName: true } } } },
+      contact: { select: { id: true, companyName: true, firstName: true, lastName: true } },
       dispositionEntries: {
         orderBy: { startDate: "desc" },
         include: { resource: { select: { id: true, name: true, type: true } } },
@@ -199,7 +199,7 @@ export async function createBaustelle(data: z.infer<typeof baustelleSchema>) {
     },
     include: {
       order: { select: { id: true, orderNumber: true, title: true } },
-      contact: { select: { id: true, companyName: true, contactPerson: true } },
+      contact: { select: { id: true, companyName: true, firstName: true, lastName: true } },
     },
   });
   revalidatePath("/baustellen");
@@ -234,7 +234,7 @@ export async function updateBaustelle(id: string, data: z.infer<typeof baustelle
     },
     include: {
       order: { select: { id: true, orderNumber: true, title: true } },
-      contact: { select: { id: true, companyName: true, contactPerson: true } },
+      contact: { select: { id: true, companyName: true, firstName: true, lastName: true } },
     },
   });
   revalidatePath("/baustellen");

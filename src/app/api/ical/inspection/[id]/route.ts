@@ -25,7 +25,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const summary = `Besichtigung – ${request.contact.companyName}`;
   const location = request.siteAddress ?? "";
-  const description = `Anfrage: ${request.title}${request.contact.contactPerson ? `\\nAnsprechpartner: ${request.contact.contactPerson}` : ""}${request.assignedTo ? `\\nZugewiesen an: ${request.assignedTo}` : ""}`;
+  const contactPersonName = [request.contact.firstName, request.contact.lastName].filter(Boolean).join(" ");
+  const description = `Anfrage: ${request.title}${contactPersonName ? `\\nAnsprechpartner: ${contactPersonName}` : ""}${request.assignedTo ? `\\nZugewiesen an: ${request.assignedTo}` : ""}`;
 
   const ics = [
     "BEGIN:VCALENDAR",

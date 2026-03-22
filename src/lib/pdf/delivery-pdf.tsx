@@ -119,8 +119,8 @@ export function DeliveryPDF({ dn }: { dn: DeliveryWithRelations }) {
           <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 12 }}>
             {dn.contact.companyName}
           </Text>
-          {dn.contact.contactPerson && (
-            <Text style={{ marginTop: 2 }}>{dn.contact.contactPerson}</Text>
+          {(dn.contact.firstName || dn.contact.lastName) && (
+            <Text style={{ marginTop: 2 }}>{[dn.contact.firstName, dn.contact.lastName].filter(Boolean).join(" ")}</Text>
           )}
           {dn.contact.address && (
             <Text style={{ color: "#555", marginTop: 2 }}>{dn.contact.address}</Text>

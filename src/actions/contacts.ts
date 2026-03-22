@@ -6,6 +6,8 @@ import { z } from "zod";
 
 const contactSchema = z.object({
   companyName: z.string().min(1, "Name ist erforderlich"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -55,7 +57,8 @@ export async function getContacts(search?: string) {
       ? {
           OR: [
             { companyName: { contains: search, mode: "insensitive" } },
-            { contactPerson: { contains: search, mode: "insensitive" } },
+            { firstName: { contains: search, mode: "insensitive" } },
+            { lastName: { contains: search, mode: "insensitive" } },
             { city: { contains: search, mode: "insensitive" } },
           ],
         }

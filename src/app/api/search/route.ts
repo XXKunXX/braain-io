@@ -13,27 +13,27 @@ export async function GET(req: NextRequest) {
 
   const [contacts, requests, quotes, orders, deliveryNotes, tasks, resources, attachments, baustellen] = await Promise.all([
     prisma.contact.findMany({
-      where: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }, { email: { contains: q, mode } }] },
+      where: { OR: [{ companyName: { contains: q, mode } }, { firstName: { contains: q, mode } }, { lastName: { contains: q, mode } }, { email: { contains: q, mode } }] },
       take: 5,
-      select: { id: true, companyName: true, contactPerson: true, type: true },
+      select: { id: true, companyName: true, firstName: true, lastName: true, type: true },
     }),
     prisma.request.findMany({
-      where: { OR: [{ title: { contains: q, mode } }, { description: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }] } }] },
+      where: { OR: [{ title: { contains: q, mode } }, { description: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { firstName: { contains: q, mode } }, { lastName: { contains: q, mode } }] } }] },
       take: 8,
       select: { id: true, title: true, status: true, contact: { select: { companyName: true } } },
     }),
     prisma.quote.findMany({
-      where: { OR: [{ title: { contains: q, mode } }, { quoteNumber: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }] } }] },
+      where: { OR: [{ title: { contains: q, mode } }, { quoteNumber: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { firstName: { contains: q, mode } }, { lastName: { contains: q, mode } }] } }] },
       take: 8,
       select: { id: true, title: true, quoteNumber: true, status: true, contact: { select: { companyName: true } } },
     }),
     prisma.order.findMany({
-      where: { OR: [{ title: { contains: q, mode } }, { orderNumber: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }] } }] },
+      where: { OR: [{ title: { contains: q, mode } }, { orderNumber: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { firstName: { contains: q, mode } }, { lastName: { contains: q, mode } }] } }] },
       take: 8,
       select: { id: true, title: true, orderNumber: true, status: true, contact: { select: { companyName: true } } },
     }),
     prisma.deliveryNote.findMany({
-      where: { OR: [{ deliveryNumber: { contains: q, mode } }, { material: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { contactPerson: { contains: q, mode } }] } }] },
+      where: { OR: [{ deliveryNumber: { contains: q, mode } }, { material: { contains: q, mode } }, { contact: { OR: [{ companyName: { contains: q, mode } }, { firstName: { contains: q, mode } }, { lastName: { contains: q, mode } }] } }] },
       take: 8,
       select: { id: true, deliveryNumber: true, material: true, contact: { select: { companyName: true } } },
     }),

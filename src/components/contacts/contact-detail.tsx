@@ -196,8 +196,8 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
                   {typeLabels[contact.type]}
                 </span>
               </div>
-              {contact.contactPerson && (
-                <p className="text-sm text-gray-500 mt-0.5">{contact.contactPerson}</p>
+              {(contact.firstName || contact.lastName) && (
+                <p className="text-sm text-gray-500 mt-0.5">{[contact.firstName, contact.lastName].filter(Boolean).join(" ")}</p>
               )}
             </div>
           </div>

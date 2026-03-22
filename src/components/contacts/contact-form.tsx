@@ -18,6 +18,8 @@ import type { ContactFormData } from "@/actions/contacts";
 
 const schema = z.object({
   companyName: z.string().min(1, "Name ist erforderlich"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
   email: z.string().email("Ungültige E-Mail").optional().or(z.literal("")),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -86,12 +88,28 @@ export function ContactForm({
       {/* Name / Firmenname */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium text-gray-700">
-          {watch("type") === "PRIVATE" ? "Name *" : "Firmenname *"}
+          {watch("type") === "PRIVATE" ? "Firma / Organisation (optional)" : "Firmenname *"}
         </Label>
         <Input {...register("companyName")} className="h-11 rounded-xl border-gray-200" />
         {errors.companyName && (
           <p className="text-xs text-red-500">{errors.companyName.message}</p>
         )}
+      </div>
+
+      {/* Vorname + Nachname */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium text-gray-700">
+            {watch("type") === "PRIVATE" ? "Vorname *" : "Vorname (Ansprechpartner)"}
+          </Label>
+          <Input {...register("firstName")} className="h-11 rounded-xl border-gray-200" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium text-gray-700">
+            {watch("type") === "PRIVATE" ? "Nachname *" : "Nachname (Ansprechpartner)"}
+          </Label>
+          <Input {...register("lastName")} className="h-11 rounded-xl border-gray-200" />
+        </div>
       </div>
 
       {/* Owner */}

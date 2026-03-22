@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { Plus, FileText, Euro, Clock, CheckCircle, XCircle } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { getInvoices } from "@/actions/invoices";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -39,7 +37,7 @@ export default async function RechnungenPage() {
           <h1 className="text-xl font-semibold text-gray-900">Rechnungen</h1>
           <p className="text-sm text-gray-400 mt-0.5">{invoices.length} Rechnung{invoices.length !== 1 ? "en" : ""}</p>
         </div>
-        <Link href="/rechnungen/neu" className={cn(buttonVariants(), "bg-blue-600 hover:bg-blue-700 text-white h-9 px-4 text-sm gap-1.5")}>
+        <Link href="/rechnungen/neu" className="inline-flex items-center justify-center rounded-md font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white h-9 px-4 text-sm gap-1.5">
           <Plus className="h-4 w-4" />
           Neue Rechnung
         </Link>
@@ -72,7 +70,7 @@ export default async function RechnungenPage() {
             <Euro className="h-10 w-10 text-gray-200 mx-auto mb-3" />
             <p className="text-sm font-medium text-gray-500">Noch keine Rechnungen</p>
             <p className="text-xs text-gray-400 mt-1">Erstellen Sie Ihre erste Rechnung</p>
-            <Link href="/rechnungen/neu" className={cn(buttonVariants(), "mt-4 bg-blue-600 hover:bg-blue-700 text-white h-9 px-4 text-sm gap-1.5")}>
+            <Link href="/rechnungen/neu" className="inline-flex items-center justify-center rounded-md font-medium transition-colors mt-4 bg-blue-600 hover:bg-blue-700 text-white h-9 px-4 text-sm gap-1.5">
               <Plus className="h-4 w-4" />
               Neue Rechnung
             </Link>

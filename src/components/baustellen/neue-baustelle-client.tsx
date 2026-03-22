@@ -23,7 +23,8 @@ type OrderOption = {
     address: string | null;
     postalCode: string | null;
     city: string | null;
-    contactPerson: string | null;
+    firstName: string | null;
+    lastName: string | null;
     phone: string | null;
   };
 };
@@ -31,7 +32,8 @@ type OrderOption = {
 type ContactOption = {
   id: string;
   companyName: string;
-  contactPerson: string | null;
+  firstName: string | null;
+  lastName: string | null;
   phone: string | null;
   address: string | null;
   postalCode: string | null;
@@ -76,7 +78,7 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
   const filteredContacts = contacts.filter(
     (c) =>
       c.companyName.toLowerCase().includes(contactSearch.toLowerCase()) ||
-      (c.contactPerson ?? "").toLowerCase().includes(contactSearch.toLowerCase()) ||
+      ([c.firstName, c.lastName].filter(Boolean).join(" ")).toLowerCase().includes(contactSearch.toLowerCase()) ||
       (c.city ?? "").toLowerCase().includes(contactSearch.toLowerCase())
   );
 
@@ -84,7 +86,8 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
     setContactId(c.id);
     setContactSearch(c.companyName);
     setContactOpen(false);
-    if (c.contactPerson) setContactPerson(c.contactPerson);
+    const fullName = [c.firstName, c.lastName].filter(Boolean).join(" ");
+    if (fullName) setContactPerson(fullName);
     if (c.phone) setPhone(c.phone);
     if (c.address) setAddress(c.address);
     if (c.postalCode) setPostalCode(c.postalCode);
@@ -112,7 +115,8 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
     const c = result.contact!;
     const newOpt: ContactOption = {
       id: c.id, companyName: c.companyName,
-      contactPerson: newContactForm.contactPerson || null,
+      firstName: null,
+      lastName: null,
       phone: c.phone ?? null,
       address: c.address ?? null,
       postalCode: c.postalCode ?? null,
@@ -159,7 +163,7 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
   const [endDate, setEndDate] = useState(toDateInput(prefillOrder?.endDate));
   const [status, setStatus] = useState<BaustelleStatusType>("PLANNED");
   const [bauleiter, setBauleiter] = useState("");
-  const [contactPerson, setContactPerson] = useState(prefillOrder?.contact.contactPerson ?? "");
+  const [contactPerson, setContactPerson] = useState([prefillOrder?.contact.firstName, prefillOrder?.contact.lastName].filter(Boolean).join(" "));
   const [phone, setPhone] = useState(prefillOrder?.contact.phone ?? "");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
@@ -175,7 +179,8 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
     if (o.contact.address) setAddress(o.contact.address);
     if (o.contact.postalCode) setPostalCode(o.contact.postalCode);
     if (o.contact.city) setCity(o.contact.city);
-    if (o.contact.contactPerson) setContactPerson(o.contact.contactPerson);
+    const orderContactName = [o.contact.firstName, o.contact.lastName].filter(Boolean).join(" ");
+    if (orderContactName) setContactPerson(orderContactName);
     if (o.contact.phone) setPhone(o.contact.phone);
   }
 
@@ -308,9 +313,9 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
                           className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col border-b border-gray-50 last:border-0"
                           onMouseDown={() => selectContact(c)}>
                           <span className="font-medium text-gray-900">{c.companyName}</span>
-                          {(c.contactPerson || c.city) && (
+                          {([c.firstName, c.lastName].filter(Boolean).join(" ") || c.city) && (
                             <span className="text-xs text-gray-400">
-                              {[c.contactPerson, c.city].filter(Boolean).join(" · ")}
+                              {[[c.firstName, c.lastName].filter(Boolean).join(" "), c.city].filter(Boolean).join(" · ")}
                             </span>
                           )}
                         </button>

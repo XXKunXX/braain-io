@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, Users, MessageSquare, FileText, ClipboardList, Truck, CheckSquare, HardHat, FolderOpen, X, Construction } from "lucide-react";
 
 interface SearchResults {
-  contacts?: { id: string; companyName: string; contactPerson?: string | null; type: string }[];
+  contacts?: { id: string; companyName: string; firstName?: string | null; lastName?: string | null; type: string }[];
   requests?: { id: string; title: string; status: string; contact: { companyName: string } }[];
   quotes?: { id: string; title: string; quoteNumber: string; status: string; contact: { companyName: string } }[];
   orders?: { id: string; title: string; orderNumber: string; status: string; contact: { companyName: string } }[];
@@ -22,7 +22,7 @@ interface GlobalSearchProps {
 }
 
 const SECTIONS = [
-  { key: "contacts", label: "Kontakte", icon: Users, href: (id: string) => `/kontakte/${id}`, display: (r: { companyName: string; contactPerson?: string | null }) => ({ title: r.companyName, sub: r.contactPerson ?? undefined }) },
+  { key: "contacts", label: "Kontakte", icon: Users, href: (id: string) => `/kontakte/${id}`, display: (r: { companyName: string; firstName?: string | null; lastName?: string | null }) => ({ title: r.companyName, sub: [r.firstName, r.lastName].filter(Boolean).join(" ") || undefined }) },
   { key: "requests", label: "Anfragen", icon: MessageSquare, href: (id: string) => `/anfragen/${id}`, display: (r: { title: string; contact: { companyName: string } }) => ({ title: r.title, sub: r.contact.companyName }) },
   { key: "quotes", label: "Angebote", icon: FileText, href: (id: string) => `/angebote/${id}`, display: (r: { quoteNumber: string; title: string; contact: { companyName: string } }) => ({ title: `${r.quoteNumber} – ${r.title}`, sub: r.contact.companyName }) },
   { key: "orders", label: "Aufträge", icon: ClipboardList, href: (id: string) => `/auftraege/${id}`, display: (r: { orderNumber: string; title: string; contact: { companyName: string } }) => ({ title: `${r.orderNumber} – ${r.title}`, sub: r.contact.companyName }) },

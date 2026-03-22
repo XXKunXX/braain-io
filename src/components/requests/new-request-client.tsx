@@ -209,11 +209,11 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
               </div>
 
               {/* Kontakt-Info wenn ausgewählt */}
-              {selectedContact && (selectedContact.phone || selectedContact.email || selectedContact.contactPerson) && (
+              {selectedContact && (selectedContact.phone || selectedContact.email || selectedContact.firstName || selectedContact.lastName) && (
                 <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-sm space-y-1">
                   <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Kontaktdaten</p>
-                  {selectedContact.contactPerson && (
-                    <p className="text-gray-700"><span className="text-gray-400">Ansprechpartner:</span> {selectedContact.contactPerson}</p>
+                  {(selectedContact.firstName || selectedContact.lastName) && (
+                    <p className="text-gray-700"><span className="text-gray-400">Ansprechpartner:</span> {[selectedContact.firstName, selectedContact.lastName].filter(Boolean).join(" ")}</p>
                   )}
                   {selectedContact.phone && (
                     <p className="text-gray-700"><span className="text-gray-400">Telefon:</span> {selectedContact.phone}</p>

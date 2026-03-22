@@ -88,7 +88,7 @@ type Baustelle = {
   phone: string | null;
   notes: string | null;
   order: OrderOption;
-  contact: { id: string; companyName: string; contactPerson: string | null } | null;
+  contact: { id: string; companyName: string; firstName: string | null; lastName: string | null } | null;
   dispositionEntries: DispositionEntry[];
   rapporte: Array<{
     id: string; date: Date; driverName: string | null; machineName: string | null;
@@ -295,7 +295,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                           <Link href={`/kontakte/${c.id}`} className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
                             <User className="h-3.5 w-3.5" />
                             {c.companyName}
-                            {c.contactPerson && <span className="text-gray-400">· {c.contactPerson}</span>}
+                            {(c.firstName || c.lastName) && <span className="text-gray-400">· {[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>}
                           </Link>
                         ) : (
                           <span className="text-gray-400">–</span>

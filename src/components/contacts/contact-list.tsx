@@ -64,7 +64,7 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
       (ownerFilter === "ALL" || c.owner === ownerFilter)
     );
     return sortItems(base, sortKey, sortDir, (item, key) => {
-      if (key === "name") return item.companyName ?? `${(item as any).firstName ?? ""} ${(item as any).lastName ?? ""}`;
+      if (key === "name") return item.companyName ?? `${item.lastName ?? ""} ${item.firstName ?? ""}`.trim();
       if (key === "type") return item.type;
       if (key === "city") return item.city;
       if (key === "owner") return (item as Contact & { owner?: string }).owner ?? "";
@@ -149,8 +149,8 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
                 {/* Name + person — single line */}
                 <div className="min-w-0 flex-1 md:flex-none flex items-center gap-2 overflow-hidden">
                   <span className="text-sm font-medium text-gray-900 truncate">{contact.companyName}</span>
-                  {contact.contactPerson && (
-                    <span className="text-xs text-gray-400 truncate hidden lg:inline">· {contact.contactPerson}</span>
+                  {(contact.firstName || contact.lastName) && (
+                    <span className="text-xs text-gray-400 truncate hidden lg:inline">· {[contact.firstName, contact.lastName].filter(Boolean).join(" ")}</span>
                   )}
                   <span className={`md:hidden text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0 ${typeBadgeColors[contact.type]}`}>
                     {typeLabels[contact.type]}

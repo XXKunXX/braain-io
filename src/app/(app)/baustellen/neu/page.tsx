@@ -20,7 +20,7 @@ export default async function NeueBaustellePage({
         startDate: true,
         endDate: true,
         contact: {
-          select: { address: true, postalCode: true, city: true, contactPerson: true, phone: true },
+          select: { address: true, postalCode: true, city: true, firstName: true, lastName: true, phone: true },
         },
       },
       orderBy: { startDate: "asc" },

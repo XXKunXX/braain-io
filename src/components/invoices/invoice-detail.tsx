@@ -74,7 +74,8 @@ type Invoice = {
     id: string;
     companyName: string;
     email?: string | null;
-    contactPerson?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
     address?: string | null;
     postalCode?: string | null;
     city?: string | null;
@@ -593,7 +594,7 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Empfänger</h2>
         <div className="space-y-1 text-sm text-gray-700">
           <p className="font-medium">{invoice.contact.companyName}</p>
-          {invoice.contact.contactPerson && <p>{invoice.contact.contactPerson}</p>}
+          {(invoice.contact.firstName || invoice.contact.lastName) && <p>{[invoice.contact.firstName, invoice.contact.lastName].filter(Boolean).join(" ")}</p>}
           {invoice.contact.address && <p>{invoice.contact.address}</p>}
           {(invoice.contact.postalCode || invoice.contact.city) && (
             <p>{invoice.contact.postalCode} {invoice.contact.city}</p>
