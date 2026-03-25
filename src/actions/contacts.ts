@@ -36,7 +36,7 @@ export async function createContact(data: ContactFormData) {
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
   const { owner, ...rest } = parsed.data;
-  const contact = await prisma.contact.create({ data: { ...rest, owner: owner || null } });
+  const contact = await (prisma as any).contact.create({ data: { ...rest, owner: owner || null } });
   revalidatePath("/kontakte");
   return { contact };
 }
@@ -46,7 +46,7 @@ export async function updateContact(id: string, data: ContactFormData) {
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
   const { owner, ...rest } = parsed.data;
-  const contact = await prisma.contact.update({
+  const contact = await (prisma as any).contact.update({
     where: { id },
     data: { ...rest, owner: owner || null },
   });
