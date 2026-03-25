@@ -48,6 +48,9 @@ export function EditContactButton({ contact, userNames = [] }: { contact: Contac
           <ContactForm
             defaultValues={{
               ...contact,
+              firstName: contact.firstName ?? undefined,
+              lastName: contact.lastName ?? undefined,
+              companyName: contact.companyName ?? undefined,
               email: contact.email ?? "",
               phone: contact.phone ?? "",
               address: contact.address ?? "",
