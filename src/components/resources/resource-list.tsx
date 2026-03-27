@@ -218,7 +218,59 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
           <p className="text-sm">Keine Einträge gefunden</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <>
+        {/* Mobile Card Layout */}
+        <div className="md:hidden space-y-3">
+          {filtered.map((resource) => (
+            <div key={resource.id} className="bg-white border border-gray-200 rounded-xl p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{resource.name}</p>
+                  {activeTab === "FAHRZEUG" && (
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      {resource.licensePlate && (
+                        <span className="text-xs text-gray-500 font-mono">{resource.licensePlate}</span>
+                      )}
+                      {resource.assignedDriver && (
+                        <span className="text-xs text-gray-400">{resource.assignedDriver.name}</span>
+                      )}
+                    </div>
+                  )}
+                  {activeTab === "PRODUKT" && (
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      {(resource as any).unit && <span className="text-xs text-gray-500">{(resource as any).unit}</span>}
+                      {(resource as any).price && <span className="text-xs text-gray-500">€ {Number((resource as any).price).toFixed(2)}</span>}
+                    </div>
+                  )}
+                  {activeTab !== "FAHRZEUG" && activeTab !== "PRODUKT" && (
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      {resource.email && <span className="text-xs text-gray-400">{resource.email}</span>}
+                      {resource.phone && <span className="text-xs text-gray-400">{resource.phone}</span>}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {activeTab !== "PRODUKT" && (
+                    resource.isDeployed ? (
+                      <span className="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border border-blue-300 text-blue-700 bg-blue-50">Im Einsatz</span>
+                    ) : (
+                      <span className="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border border-green-300 text-green-700 bg-green-50">Verfügbar</span>
+                    )
+                  )}
+                  <button onClick={() => openEdit(resource)} className="p-2 text-gray-400 hover:text-gray-700 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button onClick={() => handleDelete(resource.id, resource.name)} className="p-2 text-gray-400 hover:text-red-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop Table Layout */}
+        <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
           {/* Header */}
           {activeTab === "FAHRZEUG" ? (
             <div className="grid grid-cols-[2fr_1.5fr_2fr_1fr_64px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
@@ -314,6 +366,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
             </div>
           ))}
         </div>
+        </>
       ))}
 
       {/* Edit Modal */}
@@ -327,7 +380,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
               </button>
             </div>
             <div className="px-6 py-4 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
                   <input
@@ -357,7 +410,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
               </div>
               {form.type === "PRODUKT" ? (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">Einheit</label>
                       <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={(form as any).unit ?? ""} onChange={(e) => setForm((d) => ({ ...d, unit: e.target.value }))}>
@@ -444,7 +497,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                       ))}
                     </select>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-1">Hersteller</label>
                       <input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="z.B. Mercedes" value={(form as any).vehicleManufacturer ?? ""} onChange={(e) => setForm((d) => ({ ...d, vehicleManufacturer: e.target.value }))} />

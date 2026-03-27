@@ -315,7 +315,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
               <button onClick={closeForm} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
             </div>
             <div className="px-6 py-4 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Name *">
                   <input type="text" className={IC} value={form.name} onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Baustelle Hauptstraße" />
                 </Field>
@@ -329,7 +329,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
               <Field label="Adresse">
                 <input type="text" className={IC} value={form.address} onChange={(e) => setForm(f => ({ ...f, address: e.target.value }))} placeholder="Musterstraße 1" />
               </Field>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="PLZ">
                   <input type="text" className={IC} value={form.postalCode} onChange={(e) => setForm(f => ({ ...f, postalCode: e.target.value }))} placeholder="1010" />
                 </Field>
@@ -337,7 +337,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
                   <input type="text" className={IC} value={form.city} onChange={(e) => setForm(f => ({ ...f, city: e.target.value }))} placeholder="Wien" />
                 </Field>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Startdatum *">
                   <input type="date" className={IC} value={form.startDate} onChange={(e) => setForm(f => ({ ...f, startDate: e.target.value }))} />
                 </Field>
@@ -345,7 +345,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
                   <input type="date" className={IC} value={form.endDate} onChange={(e) => setForm(f => ({ ...f, endDate: e.target.value }))} />
                 </Field>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Bauleiter">
                   <select className={IC} value={form.bauleiter} onChange={(e) => setForm(f => ({ ...f, bauleiter: e.target.value }))}>
                     <option value="">– Kein Bauleiter –</option>
@@ -360,7 +360,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
                   </select>
                 </Field>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Kontaktperson">
                   <input type="text" className={IC} value={form.contactPerson} onChange={(e) => setForm(f => ({ ...f, contactPerson: e.target.value }))} />
                 </Field>

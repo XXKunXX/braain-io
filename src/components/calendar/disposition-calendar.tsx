@@ -779,8 +779,75 @@ export function DispositionCalendar({
         <span className="text-xs font-medium text-gray-500 capitalize whitespace-nowrap flex-shrink-0">{rangeLabel}</span>
       </div>
 
-      {/* ── Main content ───────────────────────────────────────────────────── */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* ── Mobile List View (< md) ────────────────────────────────────────── */}
+      <div className="md:hidden flex-1 overflow-y-auto bg-gray-50 p-4 space-y-3">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+          {format(rangeStart, "EEEE, d. MMMM yyyy", { locale: de })}
+        </p>
+        {visibleResources.length === 0 ? (
+          <div className="text-center py-12 text-gray-400">
+            <p className="text-sm">Keine Ressourcen vorhanden</p>
+          </div>
+        ) : (
+          visibleResources.map((resource) => {
+            const resourceEntries = localEntries.filter(e =>
+              e.resourceId === resource.id &&
+              isSameDay(new Date(e.startDate), rangeStart)
+            ).sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+            if (resourceEntries.length === 0) return null;
+            return (
+              <div key={resource.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
+                  <p className="text-xs font-semibold text-gray-900">{resource.name}</p>
+                  {resource.licensePlate && (
+                    <span className="text-[10px] text-gray-400 font-mono bg-gray-100 px-1.5 py-0.5 rounded">{resource.licensePlate}</span>
+                  )}
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {resourceEntries.map((entry) => {
+                    const colorClass = entry.blockType
+                      ? (BLOCK_TYPE_COLOR[entry.blockType] ?? "bg-gray-400")
+                      : (entry.baustelleId ? (baustelleColorMap[entry.baustelleId] ?? "bg-violet-500") : "bg-gray-400");
+                    const label = entry.blockType
+                      ? (BLOCK_TYPE_LABEL[entry.blockType] ?? entry.blockType)
+                      : (entry.baustelle?.name ?? "Eintrag");
+                    const timeLabel = `${format(new Date(entry.startDate), "HH:mm")} – ${format(new Date(entry.endDate), "HH:mm")}`;
+                    return (
+                      <div key={entry.id} className="px-4 py-3 flex items-center gap-3">
+                        <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${colorClass}`} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{label}</p>
+                          {entry.baustelle?.city && (
+                            <p className="text-xs text-gray-400">{entry.baustelle.city}</p>
+                          )}
+                          {entry.notes && (
+                            <p className="text-xs text-gray-400 mt-0.5">{entry.notes}</p>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">{timeLabel}</span>
+                        <button
+                          onClick={() => handleDeleteEntry(entry.id)}
+                          className="text-gray-300 hover:text-red-400 transition-colors p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }).filter(Boolean)
+        )}
+        {localEntries.filter(e => isSameDay(new Date(e.startDate), rangeStart)).length === 0 && visibleResources.length > 0 && (
+          <div className="text-center py-12 text-gray-400">
+            <p className="text-sm">Keine Einträge für diesen Tag</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Main content (Desktop only) ─────────────────────────────────────── */}
+      <div className="hidden md:flex flex-1 overflow-hidden">
 
         {/* Left panel: baustellen */}
         <div className="w-60 bg-white border-r border-gray-200 flex flex-col flex-shrink-0">

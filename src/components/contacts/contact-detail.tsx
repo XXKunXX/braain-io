@@ -214,9 +214,9 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
       </div>
 
       {/* Tab bar – full content width, above the sidebar grid */}
-      <div className="px-6 pt-4 pb-0">
-        <div className="overflow-hidden">
-          <div ref={tabContainerRef} className="flex items-center gap-1">
+      <div className="px-4 md:px-6 pt-4 pb-0">
+        <div className="overflow-x-auto">
+          <div ref={tabContainerRef} className="flex items-center gap-1 min-w-max md:min-w-0">
             {TABS.map((tab) => {
               const count = tabCounts[tab.id];
               const isActive = activeTab === tab.id;
@@ -242,8 +242,8 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
       </div>
 
       {/* Body */}
-      <div className="flex-1 p-6">
-        <div className="grid grid-cols-[260px_1fr] gap-6 max-w-6xl">
+      <div className="flex-1 p-4 md:p-6">
+        <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 md:gap-6 max-w-6xl">
           {/* Sidebar */}
           <div className="space-y-4">
             <div className="bg-white border border-gray-200 rounded-xl p-5">
@@ -326,7 +326,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
               <TabContent empty={contact.requests.length === 0} emptyText="Noch keine Anfragen vorhanden"
                 action={<Link href={`/anfragen/neu?contactId=${contact.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors"><Plus className="h-3.5 w-3.5" />Neue Anfrage</Link>}
               >
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
                   <div className="grid grid-cols-[1fr_180px_120px_36px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                     <ColHead>Titel</ColHead><ColHead>Status</ColHead><ColHead>Erstellt</ColHead><span />
                   </div>
@@ -351,7 +351,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
               <TabContent empty={contact.quotes.length === 0} emptyText="Noch keine Angebote vorhanden"
                 action={<Link href={`/angebote/neu?contactId=${contact.id}`} className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 transition-colors"><Plus className="h-3.5 w-3.5" />Neues Angebot</Link>}
               >
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
                   <div className="grid grid-cols-[80px_1fr_130px_90px_36px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                     <ColHead>Nr.</ColHead><ColHead>Titel</ColHead><ColHead>Betrag</ColHead><ColHead>Status</ColHead><span />
                   </div>
@@ -373,7 +373,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
             {/* Aufträge */}
             {activeTab === "auftraege" && (
               <TabContent empty={contact.orders.length === 0} emptyText="Noch keine Aufträge vorhanden">
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
                   <div className="grid grid-cols-[80px_1fr_160px_90px_36px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                     <ColHead>Nr.</ColHead><ColHead>Titel</ColHead><ColHead>Zeitraum</ColHead><ColHead>Status</ColHead><span />
                   </div>
@@ -395,7 +395,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
             {/* Lieferscheine */}
             {activeTab === "lieferscheine" && (
               <TabContent empty={contact.deliveryNotes.length === 0} emptyText="Noch keine Lieferscheine vorhanden">
-                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
                   <div className="grid grid-cols-[80px_1fr_110px_100px_36px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                     <ColHead>Nr.</ColHead><ColHead>Material</ColHead><ColHead>Datum</ColHead><ColHead>Menge</ColHead><span />
                   </div>

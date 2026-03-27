@@ -427,8 +427,8 @@ export function OrderDetail({
       </div>
 
       {/* ── Tabs ── */}
-      <div className="overflow-hidden border-b border-gray-200 bg-white">
-      <div ref={tabContainerRef} className="px-6 flex gap-1">
+      <div className="overflow-x-auto border-b border-gray-200 bg-white">
+      <div ref={tabContainerRef} className="px-4 md:px-6 flex gap-1 min-w-max md:min-w-0">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
