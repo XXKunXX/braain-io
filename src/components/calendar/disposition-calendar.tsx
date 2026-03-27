@@ -701,12 +701,12 @@ export function DispositionCalendar({
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="px-6 py-3.5 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-        <div>
+      <div className="px-4 md:px-6 py-3 md:py-3.5 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0 gap-2">
+        <div className="min-w-0">
           <h1 className="text-lg font-semibold text-gray-900">Disposition</h1>
-          <p className="text-xs text-gray-400 mt-0.5">Ressourcenplanung</p>
+          <p className="text-xs text-gray-400 mt-0.5 hidden sm:block">Ressourcenplanung</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 md:gap-2 flex-shrink-0">
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
             <button onClick={() => navigate("prev")} className="px-2.5 py-1.5 hover:bg-gray-50 border-r border-gray-200 transition-colors">
               <ChevronLeft className="h-4 w-4 text-gray-500" />
@@ -719,16 +719,16 @@ export function DispositionCalendar({
             </button>
           </div>
           {view === "tag" && (
-            <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handleSendTagesplan} disabled={sendingTagesplan}>
+            <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden sm:flex" onClick={handleSendTagesplan} disabled={sendingTagesplan}>
               <Send className="h-3.5 w-3.5" />{sendingTagesplan ? "Sendet..." : "Tagesplan senden"}
             </Button>
           )}
           {view === "tag" && (
-            <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={handlePrintTagesplan}>
+            <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden sm:flex" onClick={handlePrintTagesplan}>
               <Printer className="h-3.5 w-3.5" />Drucken
             </Button>
           )}
-          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs" onClick={() => {
+          <Button size="sm" variant="outline" className="h-8 gap-1.5 text-xs hidden sm:flex" onClick={() => {
             const dateStr = format(rangeStart, "yyyy-MM-dd");
             setSperrForm({ blockType: "URLAUB", startDate: `${dateStr}T00:00`, endDate: `${dateStr}T23:59`, notes: "" });
             setSperrModal({ resourceId: "" });
@@ -755,18 +755,18 @@ export function DispositionCalendar({
       )}
 
       {/* ── View tabs + type filter + range label ──────────────────────────── */}
-      <div className="px-6 py-2 bg-white border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
-        <div className="flex items-center gap-0.5">
+      <div className="px-4 md:px-6 py-2 bg-white border-b border-gray-100 flex items-center justify-between gap-2 md:gap-4 flex-shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           {(["tag", "woche", "monat", "timeline", "6wochen"] as ViewType[]).map((v) => (
             <button key={v} onClick={() => switchView(v)}
-              className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+              className={`text-xs px-2.5 md:px-3 py-1.5 rounded-md font-medium transition-colors whitespace-nowrap ${
                 view === v ? "bg-gray-100 text-gray-900" : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"
               }`}>
-              {v === "tag" ? "Tag" : v === "woche" ? "Woche" : v === "monat" ? "Monat" : v === "timeline" ? "Timeline" : "6 Wochen"}
+              {v === "tag" ? "Tag" : v === "woche" ? "Woche" : v === "monat" ? "Monat" : v === "timeline" ? "Timeline" : "6W"}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
           {TYPE_FILTERS.map(({ key, label }) => (
             <button key={key} onClick={() => setTypeFilter(key)}
               className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors border ${
@@ -776,7 +776,7 @@ export function DispositionCalendar({
             </button>
           ))}
         </div>
-        <span className="text-xs font-medium text-gray-500 capitalize whitespace-nowrap">{rangeLabel}</span>
+        <span className="text-xs font-medium text-gray-500 capitalize whitespace-nowrap flex-shrink-0">{rangeLabel}</span>
       </div>
 
       {/* ── Main content ───────────────────────────────────────────────────── */}

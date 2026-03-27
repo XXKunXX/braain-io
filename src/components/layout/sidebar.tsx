@@ -22,6 +22,7 @@ import {
   Settings,
   Sparkles,
   Receipt,
+  CalendarCog,
 } from "lucide-react";
 
 const navSections = [
@@ -29,7 +30,6 @@ const navSections = [
     label: "Übersicht",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, badgeKey: "" },
-      { href: "/dashboard-neu", label: "Dashboard Neu", icon: Sparkles, badgeKey: "" },
       { href: "/aufgaben", label: "Aufgaben", icon: CheckSquare, badgeKey: "tasks" },
     ],
   },
@@ -59,6 +59,7 @@ const navSections = [
       { href: "/benutzer", label: "Benutzer", icon: UserCog, badgeKey: "" },
       { href: "/ressourcen", label: "Ressourcen", icon: HardHat, badgeKey: "" },
       { href: "/programmeinstellungen", label: "Programmeinstellungen", icon: Settings, badgeKey: "" },
+      { href: "/kalender-integration", label: "Kalender", icon: CalendarCog, badgeKey: "" },
     ],
   },
 ];

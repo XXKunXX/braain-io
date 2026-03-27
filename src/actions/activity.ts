@@ -7,6 +7,7 @@ export type ActivityEvent = {
   title: string;
   description?: string;
   actor?: string;
+  actorImage?: string;
   date: Date;
   link?: string;
 };
@@ -27,39 +28,39 @@ export async function getOrderActivity(orderId: string): Promise<ActivityEvent[]
   const events: ActivityEvent[] = [];
 
   // Order created
-  events.push({ id: `order-created`, type: "created", title: "Auftrag erstellt", description: order.title, date: order.createdAt, link: `/auftraege/${order.id}` });
+  events.push({ id: `order-created`, type: "created", title: "Auftrag erstellt", description: order.title, actor: "System", date: order.createdAt, link: `/auftraege/${order.id}` });
 
   // Quote linked
   if (order.quote) {
-    events.push({ id: `quote-${order.quote.id}`, type: "quote", title: `Angebot ${order.quote.quoteNumber} verknüpft`, description: order.quote.title, date: order.quote.createdAt, link: `/angebote/${order.quote.id}` });
+    events.push({ id: `quote-${order.quote.id}`, type: "quote", title: `Angebot ${order.quote.quoteNumber} verknüpft`, description: order.quote.title, actor: "System", date: order.quote.createdAt, link: `/angebote/${order.quote.id}` });
     if (order.quote.status === "ACCEPTED") {
-      events.push({ id: `quote-accepted-${order.quote.id}`, type: "status", title: `Angebot ${order.quote.quoteNumber} angenommen`, date: order.quote.updatedAt });
+      events.push({ id: `quote-accepted-${order.quote.id}`, type: "status", title: `Angebot ${order.quote.quoteNumber} angenommen`, actor: "System", date: order.quote.updatedAt });
     }
   }
 
   // Status changes (approximate)
   if (order.status === "ACTIVE" || order.status === "COMPLETED") {
-    events.push({ id: `order-active`, type: "status", title: "Auftrag gestartet", date: order.updatedAt });
+    events.push({ id: `order-active`, type: "status", title: "Auftrag gestartet", actor: "System", date: order.updatedAt });
   }
   if (order.status === "COMPLETED") {
-    events.push({ id: `order-completed`, type: "status", title: "Auftrag abgeschlossen", date: order.updatedAt });
+    events.push({ id: `order-completed`, type: "status", title: "Auftrag abgeschlossen", actor: "System", date: order.updatedAt });
   }
 
   // Baustellen
   for (const b of order.baustellen) {
-    events.push({ id: `baustelle-${b.id}`, type: "baustelle", title: `Baustelle „${b.name}" hinzugefügt`, description: b.city ?? undefined, date: b.createdAt, link: `/baustellen/${b.id}` });
+    events.push({ id: `baustelle-${b.id}`, type: "baustelle", title: `Baustelle „${b.name}" hinzugefügt`, description: b.city ?? undefined, actor: "System", date: b.createdAt, link: `/baustellen/${b.id}` });
   }
 
   // Delivery notes
   for (const d of order.deliveryNotes) {
-    events.push({ id: `delivery-${d.id}`, type: "delivery", title: `Lieferschein ${d.deliveryNumber} erstellt`, description: d.material ?? undefined, date: d.createdAt });
+    events.push({ id: `delivery-${d.id}`, type: "delivery", title: `Lieferschein ${d.deliveryNumber} erstellt`, description: d.material ?? undefined, actor: "System", date: d.createdAt });
   }
 
   // Payment milestones
   for (const m of order.paymentMilestones) {
-    events.push({ id: `milestone-created-${m.id}`, type: "payment", title: `Zahlungsmeilenstein angelegt`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, date: m.createdAt });
+    events.push({ id: `milestone-created-${m.id}`, type: "payment", title: `Zahlungsmeilenstein angelegt`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, actor: "System", date: m.createdAt });
     if (m.paidAt) {
-      events.push({ id: `milestone-paid-${m.id}`, type: "payment", title: `Zahlung eingegangen`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, date: m.paidAt });
+      events.push({ id: `milestone-paid-${m.id}`, type: "payment", title: `Zahlung eingegangen`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, actor: "System", date: m.paidAt });
     }
   }
 
@@ -69,7 +70,7 @@ export async function getOrderActivity(orderId: string): Promise<ActivityEvent[]
     const dateKey = e.createdAt.toISOString().slice(0, 10);
     if (!dispDates.has(dateKey)) {
       dispDates.add(dateKey);
-      events.push({ id: `disp-${e.id}`, type: "disposition", title: `Disposition eingetragen`, description: e.resource.name, date: e.createdAt });
+      events.push({ id: `disp-${e.id}`, type: "disposition", title: `Disposition eingetragen`, description: e.resource.name, actor: "System", date: e.createdAt });
     }
   }
 
@@ -93,39 +94,39 @@ export async function getContactActivity(contactId: string): Promise<ActivityEve
   const events: ActivityEvent[] = [];
 
   // Contact created
-  events.push({ id: `contact-created`, type: "created", title: "Kontakt angelegt", description: contact.companyName, date: contact.createdAt });
+  events.push({ id: `contact-created`, type: "created", title: "Kontakt angelegt", description: contact.companyName, actor: "System", date: contact.createdAt });
 
   // Requests
   for (const r of contact.requests) {
-    events.push({ id: `request-${r.id}`, type: "request", title: `Anfrage erstellt`, description: r.title, date: r.createdAt, link: `/anfragen/${r.id}` });
+    events.push({ id: `request-${r.id}`, type: "request", title: `Anfrage erstellt`, description: r.title, actor: "System", date: r.createdAt, link: `/anfragen/${r.id}` });
   }
 
   // Quotes
   for (const q of contact.quotes) {
-    events.push({ id: `quote-${q.id}`, type: "quote", title: `Angebot ${q.quoteNumber} erstellt`, description: q.title, date: q.createdAt, link: `/angebote/${q.id}` });
-    if (q.status === "SENT") events.push({ id: `quote-sent-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} versendet`, date: q.updatedAt });
-    if (q.status === "ACCEPTED") events.push({ id: `quote-accepted-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} angenommen`, date: q.updatedAt });
-    if (q.status === "REJECTED") events.push({ id: `quote-rejected-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} abgelehnt`, date: q.updatedAt });
+    events.push({ id: `quote-${q.id}`, type: "quote", title: `Angebot ${q.quoteNumber} erstellt`, description: q.title, actor: "System", date: q.createdAt, link: `/angebote/${q.id}` });
+    if (q.status === "SENT") events.push({ id: `quote-sent-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} versendet`, actor: "System", date: q.updatedAt });
+    if (q.status === "ACCEPTED") events.push({ id: `quote-accepted-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} angenommen`, actor: "System", date: q.updatedAt });
+    if (q.status === "REJECTED") events.push({ id: `quote-rejected-${q.id}`, type: "status", title: `Angebot ${q.quoteNumber} abgelehnt`, actor: "System", date: q.updatedAt });
   }
 
   // Orders
   for (const o of contact.orders) {
-    events.push({ id: `order-${o.id}`, type: "created", title: `Auftrag ${o.orderNumber} erstellt`, description: o.title, date: o.createdAt, link: `/auftraege/${o.id}` });
+    events.push({ id: `order-${o.id}`, type: "created", title: `Auftrag ${o.orderNumber} erstellt`, description: o.title, actor: "System", date: o.createdAt, link: `/auftraege/${o.id}` });
   }
 
   // Delivery notes
   for (const d of contact.deliveryNotes) {
-    events.push({ id: `delivery-${d.id}`, type: "delivery", title: `Lieferschein ${d.deliveryNumber} erstellt`, description: d.material ?? undefined, date: d.createdAt });
+    events.push({ id: `delivery-${d.id}`, type: "delivery", title: `Lieferschein ${d.deliveryNumber} erstellt`, description: d.material ?? undefined, actor: "System", date: d.createdAt });
   }
 
   // Contact notes
   for (const n of contact.contactNotes) {
-    events.push({ id: `note-${n.id}`, type: "note", title: "Notiz hinzugefügt", description: n.content.slice(0, 80) + (n.content.length > 80 ? "…" : ""), actor: n.createdBy ?? undefined, date: n.createdAt });
+    events.push({ id: `note-${n.id}`, type: "note", title: "Notiz hinzugefügt", description: n.content.slice(0, 80) + (n.content.length > 80 ? "…" : ""), actor: n.createdBy ?? "System", date: n.createdAt });
   }
 
   // Attachments
   for (const a of contact.attachments) {
-    events.push({ id: `attachment-${a.id}`, type: "document", title: "Dokument hochgeladen", description: a.fileName, date: a.createdAt });
+    events.push({ id: `attachment-${a.id}`, type: "document", title: "Dokument hochgeladen", description: a.fileName, actor: "System", date: a.createdAt });
   }
 
   return events.sort((a, b) => b.date.getTime() - a.date.getTime());

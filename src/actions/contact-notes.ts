@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { currentUser } from "@clerk/nextjs/server";
 
 export async function createContactNote({
   content,
@@ -16,8 +17,14 @@ export async function createContactNote({
 }) {
   if (!content.trim()) return { error: "Inhalt ist erforderlich" };
 
+  // Use Clerk session to get the current user name; fall back to provided value
+  const clerkUser = await currentUser();
+  const resolvedCreatedBy = clerkUser
+    ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || clerkUser.emailAddresses?.[0]?.emailAddress
+    : (createdBy ?? null);
+
   const note = await prisma.contactNote.create({
-    data: { content: content.trim(), contactId, requestId: requestId ?? null, createdBy: createdBy ?? null },
+    data: { content: content.trim(), contactId, requestId: requestId ?? null, createdBy: resolvedCreatedBy ?? null },
   });
 
   revalidatePath(`/kontakte/${contactId}`);

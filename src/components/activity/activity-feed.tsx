@@ -7,7 +7,51 @@ import {
   PlusCircle, FileText, Truck, Banknote, MapPin, StickyNote,
   FolderOpen, CheckCircle, MessageSquare, Calendar, ArrowRight,
 } from "lucide-react";
+import Image from "next/image";
 import type { ActivityEvent } from "@/actions/activity";
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function stringToColor(name: string): string {
+  const colors = [
+    "bg-blue-500", "bg-purple-500", "bg-green-500", "bg-amber-500",
+    "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-teal-500",
+  ];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function ActorAvatar({ actor, actorImage }: { actor: string; actorImage?: string }) {
+  const isSystem = actor === "System";
+  if (actorImage) {
+    return (
+      <Image
+        src={actorImage}
+        alt={actor}
+        width={20}
+        height={20}
+        className="h-5 w-5 rounded-full object-cover flex-shrink-0"
+      />
+    );
+  }
+  if (isSystem) {
+    return (
+      <span className="inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500 text-[9px] font-semibold">
+        SY
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${stringToColor(actor)} text-white text-[9px] font-semibold`}>
+      {getInitials(actor)}
+    </span>
+  );
+}
 
 const TYPE_CONFIG: Record<ActivityEvent["type"], { icon: React.ElementType; color: string; dot: string }> = {
   created:     { icon: PlusCircle,    color: "text-blue-500",   dot: "bg-blue-500" },
@@ -62,14 +106,15 @@ export function ActivityFeed({ events }: Props) {
                   <div className="min-w-0 flex-1 pt-1">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900">
-                          {event.title}
-                          {event.actor && (
-                            <span className="font-normal text-gray-400"> · {event.actor}</span>
-                          )}
-                        </p>
+                        <p className="text-sm font-medium text-gray-900">{event.title}</p>
                         {event.description && (
                           <p className="text-xs text-gray-500 mt-0.5 truncate">{event.description}</p>
+                        )}
+                        {event.actor && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <ActorAvatar actor={event.actor} actorImage={event.actorImage} />
+                            <span className="text-xs text-gray-400">{event.actor}</span>
+                          </div>
                         )}
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">

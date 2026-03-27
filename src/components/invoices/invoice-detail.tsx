@@ -369,7 +369,7 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
 
         {editingDetails ? (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-gray-700">Rechnungsdatum</Label>
                 <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="h-9" />
@@ -546,26 +546,49 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
           </div>
         ) : (
           <>
-            {/* View items */}
-            <div className="grid grid-cols-[40px_1fr_80px_70px_110px_110px] gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100">
-              {["Pos", "Beschreibung", "Menge", "Einh.", "Einzelpreis", "Gesamt"].map((h) => (
-                <span key={h} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-              ))}
-            </div>
-            <div className="divide-y divide-gray-50">
+            {/* Mobile: Stacked card layout */}
+            <div className="md:hidden divide-y divide-gray-100">
               {invoice.items.map((item) => (
-                <div key={item.id} className="grid grid-cols-[40px_1fr_80px_70px_110px_110px] gap-2 px-5 py-3 items-start">
-                  <span className="text-xs text-gray-400 pt-0.5">{item.position}</span>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{item.description}</p>
-                    {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
+                <div key={item.id} className="px-5 py-4 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <span className="text-xs text-gray-400 mr-2">Pos. {item.position}</span>
+                      <span className="text-sm font-medium text-gray-900">{item.description}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">{fmt(item.total)} €</span>
                   </div>
-                  <span className="text-sm text-gray-700 text-right">{fmt(item.quantity, 3).replace(/\.?0+$/, "")}</span>
-                  <span className="text-sm text-gray-500 text-center">{item.unit}</span>
-                  <span className="text-sm text-gray-700 text-right">{fmt(item.unitPrice)} €</span>
-                  <span className="text-sm font-semibold text-gray-900 text-right">{fmt(item.total)} €</span>
+                  {item.note && <p className="text-xs text-gray-400">{item.note}</p>}
+                  <div className="flex items-center gap-3 text-xs text-gray-500">
+                    <span>{fmt(item.quantity, 3).replace(/\.?0+$/, "")} {item.unit}</span>
+                    <span>×</span>
+                    <span>{fmt(item.unitPrice)} € / {item.unit}</span>
+                  </div>
                 </div>
               ))}
+            </div>
+
+            {/* Desktop: Table layout */}
+            <div className="hidden md:block">
+              <div className="grid grid-cols-[40px_1fr_80px_70px_110px_110px] gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100">
+                {["Pos", "Beschreibung", "Menge", "Einh.", "Einzelpreis", "Gesamt"].map((h) => (
+                  <span key={h} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+                ))}
+              </div>
+              <div className="divide-y divide-gray-50">
+                {invoice.items.map((item) => (
+                  <div key={item.id} className="grid grid-cols-[40px_1fr_80px_70px_110px_110px] gap-2 px-5 py-3 items-start">
+                    <span className="text-xs text-gray-400 pt-0.5">{item.position}</span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{item.description}</p>
+                      {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
+                    </div>
+                    <span className="text-sm text-gray-700 text-right">{fmt(item.quantity, 3).replace(/\.?0+$/, "")}</span>
+                    <span className="text-sm text-gray-500 text-center">{item.unit}</span>
+                    <span className="text-sm text-gray-700 text-right">{fmt(item.unitPrice)} €</span>
+                    <span className="text-sm font-semibold text-gray-900 text-right">{fmt(item.total)} €</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Totals */}

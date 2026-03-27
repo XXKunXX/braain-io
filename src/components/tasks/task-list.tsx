@@ -140,7 +140,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <Input
@@ -150,32 +150,34 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
             className="pl-9 bg-white"
           />
         </div>
-        <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-          <SelectTrigger className="w-44 bg-white">
-            <SelectValue>
-              {statusFilter === "OPEN_AND_IN_PROGRESS" ? "Offen" : statusFilter === "ALL" ? "Alle Status" : statusLabels[statusFilter]}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="OPEN_AND_IN_PROGRESS">Offen</SelectItem>
-            <SelectItem value="ALL">Alle Status</SelectItem>
-            <SelectItem value="OPEN">Nur Offen</SelectItem>
-            <SelectItem value="IN_PROGRESS">In Bearbeitung</SelectItem>
-            <SelectItem value="DONE">Erledigt</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={priorityFilter} onValueChange={(v) => v && setPriorityFilter(v)}>
-          <SelectTrigger className="w-44 bg-white">
-            <SelectValue>{priorityFilter === "ALL" ? "Alle Prioritäten" : priorityLabels[priorityFilter]}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Alle Prioritäten</SelectItem>
-            <SelectItem value="LOW">Niedrig</SelectItem>
-            <SelectItem value="NORMAL">Normal</SelectItem>
-            <SelectItem value="HIGH">Hoch</SelectItem>
-            <SelectItem value="URGENT">Dringend</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex gap-3">
+          <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
+            <SelectTrigger className="flex-1 sm:w-44 bg-white">
+              <SelectValue>
+                {statusFilter === "OPEN_AND_IN_PROGRESS" ? "Offen" : statusFilter === "ALL" ? "Alle Status" : statusLabels[statusFilter]}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="OPEN_AND_IN_PROGRESS">Offen</SelectItem>
+              <SelectItem value="ALL">Alle Status</SelectItem>
+              <SelectItem value="OPEN">Nur Offen</SelectItem>
+              <SelectItem value="IN_PROGRESS">In Bearbeitung</SelectItem>
+              <SelectItem value="DONE">Erledigt</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={priorityFilter} onValueChange={(v) => v && setPriorityFilter(v)}>
+            <SelectTrigger className="flex-1 sm:w-44 bg-white">
+              <SelectValue>{priorityFilter === "ALL" ? "Alle Prioritäten" : priorityLabels[priorityFilter]}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">Alle Prioritäten</SelectItem>
+              <SelectItem value="LOW">Niedrig</SelectItem>
+              <SelectItem value="NORMAL">Normal</SelectItem>
+              <SelectItem value="HIGH">Hoch</SelectItem>
+              <SelectItem value="URGENT">Dringend</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Table */}
@@ -185,102 +187,165 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
           <p className="text-sm">Keine Aufgaben gefunden</p>
         </div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_60px] gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
-            <span />
-            <SortHeader label="Titel" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
-            <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
-            <SortHeader label="Zugewiesen an" sortKey="assignedTo" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
-            <SortHeader label="Fälligkeit" sortKey="dueDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
-            <SortHeader label="Priorität" sortKey="priority" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
-            <SortHeader label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+        <>
+          {/* Mobile Card Layout */}
+          <div className="md:hidden space-y-3">
+            {filtered.map((task) => {
+              const overdue = isOverdue(task);
+              const done = task.status === "DONE";
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => setSelectedTask(task)}
+                  className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-300 transition-colors"
+                >
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }}
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 mt-0.5 ${
+                        done ? "bg-green-500 border-green-500" : "border-gray-300 hover:border-blue-400"
+                      }`}
+                    >
+                      {done && <span className="text-white text-xs">✓</span>}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1">
+                        <p className={`text-sm font-medium ${done ? "line-through text-gray-400" : "text-gray-900"}`}>
+                          {task.title}
+                        </p>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}
+                          className="text-gray-300 hover:text-red-400 transition-colors p-0.5 flex-shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      {task.description && (
+                        <p className="text-xs text-gray-400 mb-2">{task.description}</p>
+                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${priorityColors[task.priority]}`}>
+                          {priorityLabels[task.priority]}
+                        </span>
+                        {task.dueDate && (
+                          <span className={`text-xs ${overdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
+                            {format(new Date(task.dueDate), "dd.MM.yyyy")}
+                            {overdue && " · Überfällig"}
+                          </span>
+                        )}
+                        {task.contact?.companyName && (
+                          <span className="text-xs text-gray-400">{task.contact.companyName}</span>
+                        )}
+                        {task.assignedTo && (
+                          <span className="text-xs text-gray-400">→ {task.assignedTo}</span>
+                        )}
+                      </div>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0 mt-1" />
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Rows */}
-          {filtered.map((task, i) => {
-            const overdue = isOverdue(task);
-            const done = task.status === "DONE";
-            return (
-              <div
-                key={task.id}
-                onClick={() => setSelectedTask(task)}
-                className={`grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_60px] gap-3 px-4 py-3 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
-                  i !== filtered.length - 1 ? "border-b border-gray-100" : ""
-                }`}
-              >
-                {/* Checkbox */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
-                    done
-                      ? "bg-green-500 border-green-500"
-                      : "border-gray-300 hover:border-blue-400"
+          {/* Desktop Table Layout */}
+          <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_60px] gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              <span />
+              <SortHeader label="Titel" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <SortHeader label="Zugewiesen an" sortKey="assignedTo" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <SortHeader label="Fälligkeit" sortKey="dueDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <SortHeader label="Priorität" sortKey="priority" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <SortHeader label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+            </div>
+
+            {/* Rows */}
+            {filtered.map((task, i) => {
+              const overdue = isOverdue(task);
+              const done = task.status === "DONE";
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => setSelectedTask(task)}
+                  className={`grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_60px] gap-3 px-4 py-3 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
+                    i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                   }`}
                 >
-                  {done && <span className="text-white text-xs">✓</span>}
-                </button>
-
-                {/* Title */}
-                <div className="min-w-0">
-                  <p className={`text-sm font-medium truncate ${done ? "line-through text-gray-400" : "text-gray-900"}`}>
-                    {task.title}
-                  </p>
-                  {task.description && (
-                    <p className="text-xs text-gray-400 truncate">{task.description}</p>
-                  )}
-                </div>
-
-                {/* Contact */}
-                <span className="text-sm text-gray-500 truncate">
-                  {task.contact?.companyName ?? "—"}
-                </span>
-
-                {/* Assigned to */}
-                <span className="text-sm text-gray-500 truncate">
-                  {task.assignedTo ?? "—"}
-                </span>
-
-                {/* Due date */}
-                <div className="flex items-center gap-1.5">
-                  {task.dueDate ? (
-                    <>
-                      <span className={`text-sm ${overdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
-                        {format(new Date(task.dueDate), "dd.MM.yyyy")}
-                      </span>
-                      {overdue && (
-                        <span className="text-xs font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
-                          Überfällig
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    <span className="text-sm text-gray-300">—</span>
-                  )}
-                </div>
-
-                {/* Priority */}
-                <div>
-                  <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${priorityColors[task.priority]}`}>
-                    {priorityLabels[task.priority]}
-                  </span>
-                </div>
-
-                {/* Status + actions */}
-                <div className="flex items-center gap-1.5 justify-end">
-                  <span className="text-xs text-gray-500">{statusLabels[task.status]}</span>
+                  {/* Checkbox */}
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}
-                    className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
+                    onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                      done
+                        ? "bg-green-500 border-green-500"
+                        : "border-gray-300 hover:border-blue-400"
+                    }`}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    {done && <span className="text-white text-xs">✓</span>}
                   </button>
-                  <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
+
+                  {/* Title */}
+                  <div className="min-w-0">
+                    <p className={`text-sm font-medium truncate ${done ? "line-through text-gray-400" : "text-gray-900"}`}>
+                      {task.title}
+                    </p>
+                    {task.description && (
+                      <p className="text-xs text-gray-400 truncate">{task.description}</p>
+                    )}
+                  </div>
+
+                  {/* Contact */}
+                  <span className="text-sm text-gray-500 truncate">
+                    {task.contact?.companyName ?? "—"}
+                  </span>
+
+                  {/* Assigned to */}
+                  <span className="text-sm text-gray-500 truncate">
+                    {task.assignedTo ?? "—"}
+                  </span>
+
+                  {/* Due date */}
+                  <div className="flex items-center gap-1.5">
+                    {task.dueDate ? (
+                      <>
+                        <span className={`text-sm ${overdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
+                          {format(new Date(task.dueDate), "dd.MM.yyyy")}
+                        </span>
+                        {overdue && (
+                          <span className="text-xs font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
+                            Überfällig
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-sm text-gray-300">—</span>
+                    )}
+                  </div>
+
+                  {/* Priority */}
+                  <div>
+                    <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${priorityColors[task.priority]}`}>
+                      {priorityLabels[task.priority]}
+                    </span>
+                  </div>
+
+                  {/* Status + actions */}
+                  <div className="flex items-center gap-1.5 justify-end">
+                    <span className="text-xs text-gray-500">{statusLabels[task.status]}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}
+                      className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                    <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
     </>

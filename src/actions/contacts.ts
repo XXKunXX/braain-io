@@ -35,8 +35,8 @@ export async function createContact(data: ContactFormData) {
   const parsed = contactSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const { owner, ...rest } = parsed.data;
-  const contact = await (prisma as any).contact.create({ data: { ...rest, owner: owner || null } });
+  const { owner, companyName, ...rest } = parsed.data;
+  const contact = await prisma.contact.create({ data: { ...rest, companyName: companyName ?? "", owner: owner || null } });
   revalidatePath("/kontakte");
   return { contact };
 }
@@ -45,10 +45,10 @@ export async function updateContact(id: string, data: ContactFormData) {
   const parsed = contactSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const { owner, ...rest } = parsed.data;
-  const contact = await (prisma as any).contact.update({
+  const { owner, companyName, ...rest } = parsed.data;
+  const contact = await prisma.contact.update({
     where: { id },
-    data: { ...rest, owner: owner || null },
+    data: { ...rest, companyName: companyName ?? "", owner: owner || null },
   });
   revalidatePath("/kontakte");
   revalidatePath(`/kontakte/${id}`);

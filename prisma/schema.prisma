@@ -551,6 +551,38 @@ model Notification {
   @@index([clerkUserId, read])
 }
 
+// ─── Calendar Integrations ────────────────────────────────────────────────────
+
+enum CalendarProvider {
+  GOOGLE
+  OUTLOOK
+  ICLOUD
+}
+
+enum CalendarSyncStatus {
+  ACTIVE
+  ERROR
+  DISCONNECTED
+}
+
+model CalendarIntegration {
+  id             String             @id @default(cuid())
+  clerkUserId    String
+  provider       CalendarProvider
+  accountEmail   String
+  calendarUrl    String?            // CalDAV URL or webcal link
+  syncEnabled    Boolean            @default(true)
+  syncOrders     Boolean            @default(true)
+  syncBaustellen Boolean            @default(true)
+  syncTasks      Boolean            @default(false)
+  lastSyncAt     DateTime?
+  status         CalendarSyncStatus @default(ACTIVE)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([clerkUserId, provider])
+}
+
 // ─── App Settings (Singleton) ─────────────────────────────────────────────────
 
 model AppSettings {

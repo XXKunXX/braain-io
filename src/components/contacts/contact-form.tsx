@@ -107,7 +107,7 @@ export function ContactForm({
       )}
 
       {/* Vorname + Nachname */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-gray-700">
             {watch("type") === "PRIVATE" ? "Vorname *" : "Vorname (Ansprechpartner)"}
@@ -146,7 +146,7 @@ export function ContactForm({
       )}
 
       {/* Telefon + E-Mail */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-gray-700">Telefon</Label>
           <Input {...register("phone")} type="tel" className="h-11 rounded-xl border-gray-200" />
@@ -167,7 +167,7 @@ export function ContactForm({
       </div>
 
       {/* PLZ + Stadt */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-gray-700">PLZ</Label>
           <Input {...register("postalCode")} className="h-11 rounded-xl border-gray-200" />
