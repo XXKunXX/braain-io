@@ -51,11 +51,6 @@ export async function getOrderActivity(orderId: string): Promise<ActivityEvent[]
     events.push({ id: `baustelle-${b.id}`, type: "baustelle", title: `Baustelle „${b.name}" hinzugefügt`, description: b.city ?? undefined, actor: "System", date: b.createdAt, link: `/baustellen/${b.id}` });
   }
 
-  // Delivery notes
-  for (const d of order.deliveryNotes) {
-    events.push({ id: `delivery-${d.id}`, type: "delivery", title: `Lieferschein ${d.deliveryNumber} erstellt`, description: d.material ?? undefined, actor: "System", date: d.createdAt });
-  }
-
   // Payment milestones
   for (const m of order.paymentMilestones) {
     events.push({ id: `milestone-created-${m.id}`, type: "payment", title: `Zahlungsmeilenstein angelegt`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, actor: "System", date: m.createdAt });

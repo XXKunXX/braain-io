@@ -6,9 +6,9 @@ import { fillDeliveryNote } from "@/actions/delivery-notes";
 import type { MaterialRow } from "@/actions/delivery-notes";
 import { toast } from "sonner";
 import { Plus, Trash2, PenLine, RotateCcw, Check, ChevronLeft } from "lucide-react";
-import type { Contact, DeliveryNote, Order } from "@prisma/client";
+import type { Contact, DeliveryNote, Baustelle, Order } from "@prisma/client";
 
-type DN = DeliveryNote & { contact: Contact; order: Order | null };
+type DN = DeliveryNote & { contact: Contact; order: Order | null; baustelle: (Baustelle & { order: Order | null }) | null };
 
 const VEHICLE_TYPES = ["2-Achs", "3-Achs", "4-Achs", "Kran", "LKW+Anhänger", "LKW+Tieflader"];
 
@@ -208,7 +208,6 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
         <Section title="Auftragsdaten">
           <ReadRow label="Datum" value={new Date(dn.date).toLocaleDateString("de-DE")} />
           <ReadRow label="Kunde" value={dn.contact.companyName} />
-          {dn.order && <ReadRow label="Auftrag" value={`${dn.order.orderNumber}`} />}
           <div>
             <label className={LBL}>Baustelle</label>
             <input className={IC} value={siteAddress} onChange={e => setSiteAddress(e.target.value)} placeholder="Baustellenadresse..." />

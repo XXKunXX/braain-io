@@ -140,6 +140,7 @@ model Order {
 
   contact            Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
   quote              Quote?             @relation(fields: [quoteId], references: [id])
+  deliveryNotes      DeliveryNote[]
   dispositionEntries DispositionEntry[]
   machineUsages      MachineUsage[]
   baustellen         Baustelle[]
@@ -246,6 +247,7 @@ model DispositionEntry {
 model DeliveryNote {
   id             String   @id @default(cuid())
   deliveryNumber String   @unique
+  orderId        String?
   baustelleId    String?
   contactId      String
   date           DateTime @default(now())
@@ -271,6 +273,7 @@ model DeliveryNote {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  order     Order?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
   contact   Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
   baustelle Baustelle? @relation(fields: [baustelleId], references: [id], onDelete: SetNull)
   tasks     Task[]

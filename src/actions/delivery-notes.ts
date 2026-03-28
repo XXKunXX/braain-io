@@ -25,12 +25,18 @@ export async function createInvoiceTaskForDeliveryNote(deliveryNoteId: string) {
     select: {
       contactId: true,
       order: { select: { title: true, quote: { select: { assignedTo: true } } } },
+      baustelle: {
+        select: {
+          name: true,
+          order: { select: { title: true, quote: { select: { assignedTo: true } } } },
+        },
+      },
     },
   });
   if (!deliveryNote) return;
 
-  const orderTitle = deliveryNote.order?.title ?? "Auftrag";
-  const assignedTo = deliveryNote.order?.quote?.assignedTo ?? null;
+  const orderTitle = deliveryNote.order?.title ?? deliveryNote.baustelle?.order?.title ?? deliveryNote.baustelle?.name ?? "Auftrag";
+  const assignedTo = deliveryNote.order?.quote?.assignedTo ?? deliveryNote.baustelle?.order?.quote?.assignedTo ?? null;
 
   await prisma.task.create({
     data: {
@@ -49,7 +55,6 @@ export async function createInvoiceTaskForDeliveryNote(deliveryNoteId: string) {
 
 const deliveryNoteSchema = z.object({
   contactId: z.string().min(1, "Kontakt ist erforderlich"),
-  orderId: z.string().optional(),
   date: z.string().min(1, "Datum ist erforderlich"),
   material: z.string().min(1, "Material ist erforderlich"),
   quantity: z.coerce.number().positive("Menge muss positiv sein"),
@@ -65,14 +70,13 @@ export async function createDeliveryNote(data: DeliveryNoteFormData) {
   const parsed = deliveryNoteSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const { date, orderId, ...noteData } = parsed.data;
+  const { date, ...noteData } = parsed.data;
   const deliveryNumber = await getNextNumber("delivery");
 
   const deliveryNote = await prisma.deliveryNote.create({
     data: {
       ...noteData,
       deliveryNumber,
-      orderId: orderId || undefined,
       date: new Date(date),
     },
   });
@@ -85,13 +89,12 @@ export async function updateDeliveryNote(id: string, data: DeliveryNoteFormData)
   const parsed = deliveryNoteSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const { date, orderId, ...noteData } = parsed.data;
+  const { date, ...noteData } = parsed.data;
 
   const deliveryNote = await prisma.deliveryNote.update({
     where: { id },
     data: {
       ...noteData,
-      orderId: orderId || undefined,
       date: new Date(date),
     },
   });
@@ -185,13 +188,13 @@ export async function getDeliveryNotes(contactId?: string) {
   return prisma.deliveryNote.findMany({
     where: contactId ? { contactId } : undefined,
     orderBy: { date: "desc" },
-    include: { contact: true, order: true },
+    include: { contact: true, baustelle: true },
   });
 }
 
 export async function getDeliveryNote(id: string) {
   return prisma.deliveryNote.findUnique({
     where: { id },
-    include: { contact: true, order: true },
+    include: { contact: true, order: true, baustelle: { include: { order: true } } },
   });
 }

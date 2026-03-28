@@ -29,7 +29,7 @@ export default async function FahrerBaustelleDetailPage({
     unit: i.unit,
   })) ?? [];
   const notes = baustelle.notes ?? baustelle.order?.notes ?? null;
-  const deliveryNotes = baustelle.order?.deliveryNotes ?? [];
+  const deliveryNotes = baustelle.deliveryNotes ?? [];
   const orderId = baustelle.order?.id ?? null;
 
   const zeitraumValue = entry

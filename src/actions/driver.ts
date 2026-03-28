@@ -199,7 +199,6 @@ export async function createSignedDeliveryNote(data: {
   const deliveryNote = await prisma.deliveryNote.create({
     data: {
       deliveryNumber,
-      orderId: data.orderId,
       contactId: data.contactId,
       date: new Date(data.date),
       material: materialText,
