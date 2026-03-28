@@ -56,9 +56,10 @@ model Request {
   priority         String?       @default("NORMAL")
   siteAddress      String?
   sitePhone        String?
-  inspectionDate   DateTime?
-  inspectionStatus String?       @default("PLANNED")
-  createdAt        DateTime      @default(now())
+  inspectionDate        DateTime?
+  inspectionStatus      String?       @default("PLANNED")
+  noInspectionRequired  Boolean       @default(false)
+  createdAt             DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
   contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -139,7 +140,6 @@ model Order {
 
   contact            Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
   quote              Quote?             @relation(fields: [quoteId], references: [id])
-  deliveryNotes      DeliveryNote[]
   dispositionEntries DispositionEntry[]
   machineUsages      MachineUsage[]
   baustellen         Baustelle[]
@@ -246,7 +246,6 @@ model DispositionEntry {
 model DeliveryNote {
   id             String   @id @default(cuid())
   deliveryNumber String   @unique
-  orderId        String?
   baustelleId    String?
   contactId      String
   date           DateTime @default(now())
@@ -272,7 +271,6 @@ model DeliveryNote {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  order     Order?     @relation(fields: [orderId], references: [id])
   contact   Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
   baustelle Baustelle? @relation(fields: [baustelleId], references: [id], onDelete: SetNull)
   tasks     Task[]
@@ -566,21 +564,42 @@ enum CalendarSyncStatus {
 }
 
 model CalendarIntegration {
-  id             String             @id @default(cuid())
-  clerkUserId    String
-  provider       CalendarProvider
-  accountEmail   String
-  calendarUrl    String?            // CalDAV URL or webcal link
-  syncEnabled    Boolean            @default(true)
-  syncOrders     Boolean            @default(true)
-  syncBaustellen Boolean            @default(true)
-  syncTasks      Boolean            @default(false)
-  lastSyncAt     DateTime?
-  status         CalendarSyncStatus @default(ACTIVE)
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id               String             @id @default(cuid())
+  clerkUserId      String
+  provider         CalendarProvider
+  accountEmail     String
+  accessToken      String?            // OAuth access token
+  refreshToken     String?            // OAuth refresh token
+  tokenExpiry      DateTime?          // access token expiry
+  calendarUrl      String?            // CalDAV URL (iCloud)
+  calendarPassword String?            // App-specific password (iCloud)
+  syncEnabled      Boolean            @default(true)
+  syncOrders       Boolean            @default(true)
+  syncBaustellen   Boolean            @default(true)
+  syncTasks        Boolean            @default(false)
+  lastSyncAt       DateTime?
+  status           CalendarSyncStatus @default(ACTIVE)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  events CalendarEvent[]
 
   @@unique([clerkUserId, provider])
+}
+
+// Speichert die externe Event-ID, damit wir Events später updaten/löschen können
+model CalendarEvent {
+  id              String   @id @default(cuid())
+  integrationId   String
+  externalEventId String   // ID von Google/Outlook
+  resourceType    String   // "ORDER" | "BAUSTELLE" | "TASK"
+  resourceId      String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  integration CalendarIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, resourceType, resourceId])
 }
 
 // ─── App Settings (Singleton) ─────────────────────────────────────────────────

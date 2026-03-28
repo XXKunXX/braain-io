@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { clerkClient } from "@clerk/nextjs/server";
 import { sendEmail } from "@/lib/email";
+import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
 
 const requestSchema = z.object({
   title: z.string().min(1, "Titel ist erforderlich"),
@@ -17,6 +18,7 @@ const requestSchema = z.object({
   sitePhone: z.string().optional(),
   inspectionDate: z.string().optional(),
   inspectionStatus: z.string().optional(),
+  noInspectionRequired: z.boolean().optional(),
 });
 
 export type RequestFormData = z.infer<typeof requestSchema>;
@@ -33,25 +35,28 @@ export async function createRequest(data: RequestFormData) {
         ...rest,
         status: rest.status ?? "NEU",
         inspectionDate: inspectionDate ? new Date(inspectionDate) : undefined,
+        noInspectionRequired: rest.noInspectionRequired ?? false,
       },
     }),
     prisma.contact.findUnique({ where: { id: rest.contactId }, select: { companyName: true } }),
   ]);
 
-  // Automatisch eine Aufgabe erstellen
-  const today = new Date();
-  today.setHours(23, 59, 0, 0);
-  await prisma.task.create({
-    data: {
-      title: `Anfrage - ${contact?.companyName ?? "Unbekannt"}`,
-      contactId: rest.contactId,
-      requestId: request.id,
-      assignedTo: rest.assignedTo ?? null,
-      dueDate: today,
-      priority: "NORMAL",
-      status: "OPEN",
-    },
-  });
+  // Automatisch eine Aufgabe erstellen (nur wenn keine Besichtigung ausgeschlossen)
+  if (!rest.noInspectionRequired) {
+    const today = new Date();
+    today.setHours(23, 59, 0, 0);
+    await prisma.task.create({
+      data: {
+        title: `Anfrage - ${contact?.companyName ?? "Unbekannt"}`,
+        contactId: rest.contactId,
+        requestId: request.id,
+        assignedTo: rest.assignedTo ?? null,
+        dueDate: today,
+        priority: "NORMAL",
+        status: "OPEN",
+      },
+    });
+  }
 
   // E-Mail-Benachrichtigung an den zugewiesenen Owner
   if (rest.assignedTo) {
@@ -87,13 +92,26 @@ export async function createRequest(data: RequestFormData) {
     }
   }
 
+  // In-app notification for all non-driver users
+  try {
+    const userIds = await getNonDriverUserIds();
+    await createNotificationsForUsers(userIds, {
+      title: `Neue Anfrage: ${request.title}`,
+      message: contact?.companyName ? `Von: ${contact.companyName}` : undefined,
+      type: "INFO",
+      link: `/anfragen/${request.id}`,
+    });
+  } catch {
+    // Notification errors must not block the main flow
+  }
+
   revalidatePath("/anfragen");
   revalidatePath("/aufgaben");
   return { request };
 }
 
 export async function updateRequest(id: string, data: Partial<RequestFormData>) {
-  const { inspectionDate, ...rest } = data;
+  const { inspectionDate, noInspectionRequired, ...rest } = data;
   const request = await prisma.request.update({
     where: { id },
     data: {
@@ -101,6 +119,7 @@ export async function updateRequest(id: string, data: Partial<RequestFormData>) 
       ...(inspectionDate !== undefined
         ? { inspectionDate: inspectionDate ? new Date(inspectionDate) : null }
         : {}),
+      ...(noInspectionRequired !== undefined ? { noInspectionRequired } : {}),
     },
   });
   revalidatePath("/anfragen");

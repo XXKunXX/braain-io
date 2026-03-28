@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
+import { ArrowLeft, Plus, Ban } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -60,6 +60,7 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
   const [siteAddress, setSiteAddress] = useState("");
   const [sitePhone, setSitePhone] = useState("");
   const [inspectionDate, setInspectionDate] = useState("");
+  const [noInspectionRequired, setNoInspectionRequired] = useState(false);
 
   // Auto-fill when contact is preselected on mount
   useEffect(() => {
@@ -101,8 +102,9 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
       priority,
       siteAddress,
       sitePhone,
-      inspectionDate: inspectionDate || undefined,
-      inspectionStatus: inspectionDate ? "PLANNED" : undefined,
+      inspectionDate: noInspectionRequired ? undefined : (inspectionDate || undefined),
+      inspectionStatus: (!noInspectionRequired && inspectionDate) ? "PLANNED" : undefined,
+      noInspectionRequired,
     });
     setLoading(false);
     if (result.error) {
@@ -292,36 +294,56 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
 
             {/* Besichtigung */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
-              <div className="flex items-center gap-2 pb-1">
-                <span className="text-gray-400">📅</span>
-                <h2 className="text-sm font-semibold text-gray-900">Besichtigung</h2>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Besichtigungstermin</Label>
-                  <Input
-                    type="datetime-local"
-                    value={inspectionDate}
-                    onFocus={() => { if (!inspectionDate) { const d = new Date(); const p = (n: number) => String(n).padStart(2, "0"); setInspectionDate(`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T07:00`); }}}
-                    onChange={(e) => setInspectionDate(e.target.value)}
-                    className="h-10 rounded-lg border-gray-200"
-                  />
+              <div className="flex items-center justify-between pb-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-400">📅</span>
+                  <h2 className="text-sm font-semibold text-gray-900">Besichtigung</h2>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
-                  <Select value={owner} onValueChange={(v) => setOwner(v == null || v === "__none__" ? "" : v)}>
-                    <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
-                      <SelectValue>{owner || <span className="text-gray-400">Niemand</span>}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">Niemand</SelectItem>
-                      {userNames.map((name) => (
-                        <SelectItem key={name} value={name}>{name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setNoInspectionRequired(!noInspectionRequired)}
+                  className={`inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                    noInspectionRequired
+                      ? "bg-red-50 border-red-200 text-red-700"
+                      : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                  }`}
+                >
+                  <Ban className="h-3.5 w-3.5" />
+                  Keine Besichtigung notwendig
+                </button>
               </div>
+              {noInspectionRequired ? (
+                <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-sm text-red-700">
+                  Es wird keine Besichtigungsaufgabe erstellt.
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Besichtigungstermin</Label>
+                    <Input
+                      type="datetime-local"
+                      value={inspectionDate}
+                      onFocus={() => { if (!inspectionDate) { const d = new Date(); const p = (n: number) => String(n).padStart(2, "0"); setInspectionDate(`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T07:00`); }}}
+                      onChange={(e) => setInspectionDate(e.target.value)}
+                      className="h-10 rounded-lg border-gray-200"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
+                    <Select value={owner} onValueChange={(v) => setOwner(v == null || v === "__none__" ? "" : v)}>
+                      <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
+                        <SelectValue>{owner || <span className="text-gray-400">Niemand</span>}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">Niemand</SelectItem>
+                        {userNames.map((name) => (
+                          <SelectItem key={name} value={name}>{name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

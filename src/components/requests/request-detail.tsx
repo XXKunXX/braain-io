@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { ArrowLeft, Pencil, FileText, User, Clock, Paperclip, Upload, Activity, CheckCircle2, MessageSquare, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, FileText, User, Clock, Paperclip, Upload, Activity, CheckCircle2, MessageSquare, Plus, Trash2, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,6 +99,7 @@ export function RequestDetail({
       : ""
   );
   const [inspectionStatus, setInspectionStatus] = useState(request.inspectionStatus ?? "PLANNED");
+  const [noInspectionRequired, setNoInspectionRequired] = useState(request.noInspectionRequired ?? false);
   const [inspectionEditing, setInspectionEditing] = useState(false);
   const [inspectionDateEdit, setInspectionDateEdit] = useState(
     request.inspectionDate ? format(new Date(request.inspectionDate), "yyyy-MM-dd'T'HH:mm") : ""
@@ -147,6 +148,7 @@ export function RequestDetail({
       sitePhone,
       inspectionDate: inspectionDate || undefined,
       inspectionStatus,
+      noInspectionRequired,
     });
     toast.success("Gespeichert");
     setSaving(false);
@@ -449,28 +451,56 @@ export function RequestDetail({
 
             {/* Besichtigung */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
-              <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                <span className="text-base">📅</span>
-                <h2 className="text-sm font-semibold text-gray-900">Besichtigung</h2>
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📅</span>
+                  <h2 className="text-sm font-semibold text-gray-900">Besichtigung</h2>
+                </div>
+                {!editing && noInspectionRequired && (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-lg bg-red-50 border border-red-200 text-red-700">
+                    <Ban className="h-3.5 w-3.5" />
+                    Keine Besichtigung notwendig
+                  </span>
+                )}
               </div>
               {editing ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Besichtigungstermin</Label>
-                    <Input type="datetime-local" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} className="h-10 rounded-lg border-gray-200" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
-                    <Select value={owner} onValueChange={(v) => setOwner(v == null || v === "__none__" ? "" : v)}>
-                      <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
-                        <SelectValue>{owner || <span className="text-gray-400">Niemand</span>}</SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">Niemand</SelectItem>
-                        {userNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    onClick={() => setNoInspectionRequired(!noInspectionRequired)}
+                    className={`inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                      noInspectionRequired
+                        ? "bg-red-50 border-red-200 text-red-700"
+                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Ban className="h-3.5 w-3.5" />
+                    Keine Besichtigung notwendig
+                  </button>
+                  {!noInspectionRequired && (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Besichtigungstermin</Label>
+                        <Input type="datetime-local" value={inspectionDate} onChange={(e) => setInspectionDate(e.target.value)} className="h-10 rounded-lg border-gray-200" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
+                        <Select value={owner} onValueChange={(v) => setOwner(v == null || v === "__none__" ? "" : v)}>
+                          <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
+                            <SelectValue>{owner || <span className="text-gray-400">Niemand</span>}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Niemand</SelectItem>
+                            {userNames.map((n) => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : noInspectionRequired ? (
+                <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-sm text-red-700">
+                  Für diese Anfrage ist keine Besichtigung notwendig.
                 </div>
               ) : (
                 <>
