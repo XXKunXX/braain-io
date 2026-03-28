@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { startOfDay, endOfDay, format } from "date-fns";
 import { de } from "date-fns/locale";
+import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
 
 export async function getResources() {
   // Ensure all machines have a corresponding Resource record (sync missing ones)
@@ -132,6 +133,27 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
       order: { include: { contact: true } },
     },
   });
+
+  // Notify the assigned driver (if resource is a Fahrer with a linked Clerk user)
+  if (entry.resource?.clerkUserId && entry.resource?.type === "FAHRER") {
+    try {
+      const baustelleName =
+        entry.baustelle?.name ??
+        entry.order?.contact?.companyName ??
+        "Baustelle";
+      await prisma.notification.create({
+        data: {
+          clerkUserId: entry.resource.clerkUserId,
+          title: `Neue Disposition: ${baustelleName}`,
+          message: "Du wurdest für einen Einsatz eingeplant.",
+          type: "INFO",
+          link: "/fahrer",
+        },
+      });
+    } catch {
+      // Notification errors must not block the main flow
+    }
+  }
 
   // Set Baustelle status to ACTIVE when a disposition entry is created
   if (parsed.data.baustelleId) {

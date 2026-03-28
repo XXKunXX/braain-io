@@ -3,6 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { getNextNumber } from "@/lib/counter";
 import { revalidatePath } from "next/cache";
+import { createInvoiceTaskForDeliveryNote } from "@/actions/delivery-notes";
+import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
 
 async function fetchOrdersForEntries(dateStr: string, resourceId?: string) {
   const date = new Date(dateStr);
@@ -139,6 +141,23 @@ export async function getBaustelleForDriverApp(id: string) {
   });
 }
 
+export async function getBaustelleEntryForDate(baustelleId: string, dateStr: string) {
+  const date = new Date(dateStr);
+  const dayStart = new Date(date);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(date);
+  dayEnd.setHours(23, 59, 59, 999);
+
+  return prisma.dispositionEntry.findFirst({
+    where: {
+      baustelleId,
+      startDate: { lte: dayEnd },
+      endDate: { gte: dayStart },
+    },
+    orderBy: { startDate: "asc" },
+  });
+}
+
 export async function getOrderForDriverApp(id: string) {
   return prisma.order.findUnique({
     where: { id },
@@ -198,23 +217,20 @@ export async function createSignedDeliveryNote(data: {
     data: { status: "COMPLETED" },
   });
 
-  // Create a task for the order owner to issue an invoice
-  const order = await prisma.order.findUnique({
-    where: { id: data.orderId },
-    select: { title: true, contactId: true, quote: { select: { assignedTo: true } } },
-  });
-  if (order) {
-    await prisma.task.create({
-      data: {
-        title: `Rechnung erstellen – ${order.title}`,
-        description: `Lieferschein ${deliveryNote.deliveryNumber} wurde abgeschlossen. Bitte Rechnung ausstellen.`,
-        contactId: order.contactId,
-        deliveryNoteId: deliveryNote.id,
-        assignedTo: order.quote?.assignedTo ?? null,
-        priority: "HIGH",
-        status: "OPEN",
-      },
+  // Create invoice task (idempotent — prevents duplicates)
+  await createInvoiceTaskForDeliveryNote(deliveryNote.id);
+
+  // Notify non-driver users about the signed delivery note
+  try {
+    const userIds = await getNonDriverUserIds();
+    await createNotificationsForUsers(userIds, {
+      title: `Lieferschein unterschrieben: #${deliveryNumber}`,
+      message: data.driver ? `Fahrer: ${data.driver}` : "Lieferschein wurde unterschrieben.",
+      type: "SUCCESS",
+      link: `/lieferscheine/${deliveryNote.id}`,
     });
+  } catch {
+    // Notification errors must not block the main flow
   }
 
   revalidatePath("/lieferscheine");

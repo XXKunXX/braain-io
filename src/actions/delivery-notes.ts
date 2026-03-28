@@ -4,6 +4,48 @@ import { prisma } from "@/lib/prisma";
 import { getNextNumber } from "@/lib/counter";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
+
+/**
+ * Creates a "Rechnung erstellen" task for a delivery note, if none exists yet.
+ * Safe to call multiple times — idempotent via deliveryNoteId check.
+ */
+export async function createInvoiceTaskForDeliveryNote(deliveryNoteId: string) {
+  // Check for existing invoice task linked to this delivery note
+  const existing = await prisma.task.findFirst({
+    where: {
+      deliveryNoteId,
+      title: { startsWith: "Rechnung erstellen" },
+    },
+  });
+  if (existing) return;
+
+  const deliveryNote = await prisma.deliveryNote.findUnique({
+    where: { id: deliveryNoteId },
+    select: {
+      contactId: true,
+      order: { select: { title: true, quote: { select: { assignedTo: true } } } },
+    },
+  });
+  if (!deliveryNote) return;
+
+  const orderTitle = deliveryNote.order?.title ?? "Auftrag";
+  const assignedTo = deliveryNote.order?.quote?.assignedTo ?? null;
+
+  await prisma.task.create({
+    data: {
+      title: `Rechnung erstellen - ${orderTitle}`,
+      description: `Lieferschein wurde abgeschlossen. Bitte Rechnung ausstellen.`,
+      contactId: deliveryNote.contactId,
+      deliveryNoteId,
+      assignedTo,
+      priority: "HIGH",
+      status: "OPEN",
+    },
+  });
+
+  revalidatePath("/aufgaben");
+}
 
 const deliveryNoteSchema = z.object({
   contactId: z.string().min(1, "Kontakt ist erforderlich"),
@@ -102,6 +144,28 @@ export async function fillDeliveryNote(id: string, data: {
       signatureUrl: data.signatureUrl || undefined,
     },
   });
+
+  if (data.signatureUrl) {
+    await createInvoiceTaskForDeliveryNote(id);
+
+    // Notify non-driver users about the signed delivery note
+    try {
+      const note = await prisma.deliveryNote.findUnique({
+        where: { id },
+        select: { deliveryNumber: true, driver: true },
+      });
+      const userIds = await getNonDriverUserIds();
+      await createNotificationsForUsers(userIds, {
+        title: `Lieferschein unterschrieben: #${note?.deliveryNumber}`,
+        message: note?.driver ? `Fahrer: ${note.driver}` : "Lieferschein wurde unterschrieben.",
+        type: "SUCCESS",
+        link: `/lieferscheine/${id}`,
+      });
+    } catch {
+      // Notification errors must not block the main flow
+    }
+  }
+
   revalidatePath(`/lieferscheine/${id}`);
   return { success: true };
 }
