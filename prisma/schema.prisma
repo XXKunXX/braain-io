@@ -151,6 +151,8 @@ model Order {
 enum OrderStatus {
   PLANNED
   ACTIVE
+  PENDING
+  INVOICED
   COMPLETED
 }
 
@@ -475,6 +477,8 @@ model Counter {
 enum BaustelleStatus {
   PLANNED
   ACTIVE
+  PENDING
+  INVOICED
   COMPLETED
 }
 

@@ -97,7 +97,7 @@ const TYPE_SECTION_LABEL: Record<string, string> = {
 };
 
 const BAUSTELLE_STATUS_DOT: Record<string, string> = {
-  ACTIVE: "bg-green-500", PLANNED: "bg-blue-400", COMPLETED: "bg-gray-300",
+  ACTIVE: "bg-green-500", PLANNED: "bg-blue-400", PENDING: "bg-red-500", INVOICED: "bg-orange-400", COMPLETED: "bg-gray-300",
 };
 
 const ENTRY_PALETTE = [
@@ -258,7 +258,8 @@ export function DispositionCalendar({
 
   // Collapsed sections
   const [activeCollapsed, setActiveCollapsed] = useState(false);
-  const [plannedCollapsed, setPlannedCollapsed] = useState(true);
+  const [pendingCollapsed, setPendingCollapsed] = useState(false);
+  const [plannedCollapsed, setPlannedCollapsed] = useState(false);
 
   const [entryForm, setEntryForm] = useState({
     resourceId: "", baustelleId: baustelleId ?? "",
@@ -362,6 +363,7 @@ export function DispositionCalendar({
     );
   }, [localBaustellen, search]);
   const activeBaustellen = filteredBaustellen.filter(b => b.status === "ACTIVE");
+  const pendingBaustellen = filteredBaustellen.filter(b => b.status === "PENDING" || b.status === "INVOICED");
   const plannedBaustellen = filteredBaustellen.filter(b => b.status === "PLANNED");
 
   const baustelleColorMap = useMemo(() => {
@@ -937,6 +939,32 @@ export function DispositionCalendar({
                     onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
                     className={`px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
                       selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
+                    }`}>
+                    <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{b.name}</p>
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                        {b.contact?.companyName ?? b.city ?? "–"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {pendingBaustellen.length > 0 && (
+              <div>
+                <button onClick={() => setPendingCollapsed(v => !v)}
+                  className="w-full flex items-center justify-between px-4 py-1.5 hover:bg-red-50 transition-colors border-b border-red-100">
+                  <span className="text-[10px] font-bold tracking-widest text-red-500 uppercase">Ausstehend ({pendingBaustellen.length})</span>
+                  {pendingCollapsed ? <ChevronRightIcon className="h-3 w-3 text-red-300" /> : <ChevronDown className="h-3 w-3 text-red-300" />}
+                </button>
+                {!pendingCollapsed && pendingBaustellen.map((b) => (
+                  <div key={b.id} draggable
+                    onDragStart={(e) => handleDragStart(e, b.id)}
+                    onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
+                    className={`px-4 py-2.5 border-b border-gray-50 hover:bg-red-50/50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
+                      selectedBaustelleId === b.id ? "bg-red-50 border-l-2 border-l-red-400" : ""
                     }`}>
                     <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
                     <div className="min-w-0">

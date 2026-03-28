@@ -13,7 +13,7 @@ export default async function NeueRechnungPage({
   const [contacts, orders, settings] = await Promise.all([
     getContacts(),
     prisma.order.findMany({
-      where: { status: { in: ["PLANNED", "ACTIVE", "COMPLETED"] } },
+      where: { status: { in: ["PLANNED", "ACTIVE", "PENDING", "INVOICED", "COMPLETED"] } },
       select: {
         id: true,
         orderNumber: true,

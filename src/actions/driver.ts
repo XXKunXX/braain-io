@@ -158,6 +158,13 @@ export async function getBaustelleEntryForDate(baustelleId: string, dateStr: str
   });
 }
 
+export async function getDeliveryNoteForFahrerApp(id: string) {
+  return prisma.deliveryNote.findUnique({
+    where: { id },
+    include: { contact: true },
+  });
+}
+
 export async function getOrderForDriverApp(id: string) {
   return prisma.order.findUnique({
     where: { id },
@@ -191,10 +198,19 @@ export async function createSignedDeliveryNote(data: {
     .map((l) => `${l.material}: ${l.quantity} ${l.unit}`)
     .join("\n");
   const firstLine = data.lines[0];
+
+  // Look up the Baustelle linked to this order so the delivery note appears there
+  const baustelle = await prisma.baustelle.findFirst({
+    where: { orderId: data.orderId },
+    select: { id: true },
+  });
+
   const deliveryNumber = await getNextNumber("delivery");
   const deliveryNote = await prisma.deliveryNote.create({
     data: {
       deliveryNumber,
+      orderId: data.orderId,
+      baustelleId: baustelle?.id ?? null,
       contactId: data.contactId,
       date: new Date(data.date),
       material: materialText,
@@ -231,5 +247,6 @@ export async function createSignedDeliveryNote(data: {
   revalidatePath("/lieferscheine");
   revalidatePath("/aufgaben");
   revalidatePath(`/fahrer/${data.orderId}`);
-  return { deliveryNote };
+  if (baustelle) revalidatePath(`/baustellen/${baustelle.id}`);
+  return { deliveryNoteId: deliveryNote.id };
 }

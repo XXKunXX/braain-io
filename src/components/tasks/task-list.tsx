@@ -19,7 +19,7 @@ import { TaskDetailDrawer } from "./task-detail-drawer";
 import { sortItems } from "@/lib/sort";
 import { SortHeader } from "@/components/ui/sort-header";
 
-type TaskWithContact = Task & { contact: Contact | null; request: Request | null; deliveryNote: DeliveryNote | null };
+type TaskWithContact = Task & { contact: Contact | null; request: Request | null; deliveryNote: (Omit<DeliveryNote, "quantity"> & { quantity: number }) | null };
 
 const priorityLabels: Record<string, string> = {
   LOW: "Niedrig",

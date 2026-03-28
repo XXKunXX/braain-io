@@ -46,6 +46,7 @@ export async function getResources() {
 
   return resources.map((r) => ({
     ...r,
+    price: r.price ? r.price.toNumber() : null,
     isDeployed: r.entries.length > 0,
   }));
 }
@@ -75,7 +76,7 @@ export async function createResource(data: ResourceFormData) {
 
   revalidatePath("/ressourcen");
   revalidatePath("/disposition");
-  return { resource };
+  return { resource: { ...resource, price: resource.price ? resource.price.toNumber() : null } };
 }
 
 export async function updateResource(id: string, data: ResourceFormData) {
@@ -104,7 +105,7 @@ export async function updateResource(id: string, data: ResourceFormData) {
 
   revalidatePath("/ressourcen");
   revalidatePath("/disposition");
-  return { resource };
+  return { resource: { ...resource, price: resource.price ? resource.price.toNumber() : null } };
 }
 
 export async function deleteResource(id: string) {

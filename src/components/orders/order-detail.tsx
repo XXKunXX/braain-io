@@ -58,12 +58,16 @@ type OrderWithRelations = Order & {
 const statusLabels: Record<string, string> = {
   PLANNED: "Geplant",
   ACTIVE: "Aktiv",
+  PENDING: "Ausstehend",
+  INVOICED: "In Abrechnung",
   COMPLETED: "Abgeschlossen",
 };
 
 const statusColors: Record<string, string> = {
   PLANNED: "border border-blue-200 text-blue-700 bg-blue-50",
   ACTIVE: "border border-green-300 text-green-700 bg-green-50",
+  PENDING: "border border-red-300 text-red-700 bg-red-50",
+  INVOICED: "border border-orange-300 text-orange-700 bg-orange-50",
   COMPLETED: "border border-gray-200 text-gray-500 bg-gray-50",
 };
 
@@ -579,10 +583,12 @@ export function OrderDetail({
                   const statusColors: Record<string, string> = {
                     PLANNED: "bg-gray-100 text-gray-600",
                     ACTIVE: "bg-blue-50 text-blue-700",
+                    PENDING: "bg-red-50 text-red-700",
+                    INVOICED: "bg-orange-50 text-orange-700",
                     COMPLETED: "bg-green-50 text-green-700",
                   };
                   const statusLabelsB: Record<string, string> = {
-                    PLANNED: "Geplant", ACTIVE: "Aktiv", COMPLETED: "Abgeschlossen",
+                    PLANNED: "Geplant", ACTIVE: "Aktiv", PENDING: "Ausstehend", INVOICED: "In Abrechnung", COMPLETED: "Abgeschlossen",
                   };
                   return (
                     <div key={b.id} className={`grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_80px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${i !== order.baustellen.length - 1 ? "border-b border-gray-100" : ""}`}>

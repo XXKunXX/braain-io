@@ -6,7 +6,7 @@ export default async function ZahlungenPage() {
   const [milestones, orders] = await Promise.all([
     getPaymentMilestones(),
     prisma.order.findMany({
-      where: { status: { in: ["PLANNED", "ACTIVE"] } },
+      where: { status: { in: ["PLANNED", "ACTIVE", "PENDING", "INVOICED"] } },
       select: { id: true, title: true, orderNumber: true },
       orderBy: { createdAt: "desc" },
     }),

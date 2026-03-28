@@ -200,15 +200,13 @@ function LieferscheinButton({
   if (deliveryNotes.length > 0) {
     const latest = deliveryNotes[0];
     return (
-      <a
-        href={`/api/pdf/delivery/${latest.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        href={`/fahrer/lieferschein/${latest.id}`}
         className={`flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 rounded-${rounded} py-4 text-sm font-semibold text-white transition-colors`}
       >
         {docIcon}
         Lieferschein ansehen ({latest.deliveryNumber})
-      </a>
+      </Link>
     );
   }
 

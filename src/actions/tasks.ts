@@ -22,7 +22,7 @@ export async function getTasks(filters?: {
   priority?: string;
   search?: string;
 }) {
-  return prisma.task.findMany({
+  const tasks = await prisma.task.findMany({
     where: {
       ...(filters?.status && filters.status !== "ALL" ? { status: filters.status as "OPEN" | "IN_PROGRESS" | "DONE" } : {}),
       ...(filters?.priority && filters.priority !== "ALL" ? { priority: filters.priority as "LOW" | "NORMAL" | "HIGH" | "URGENT" } : {}),
@@ -32,6 +32,12 @@ export async function getTasks(filters?: {
     include: { contact: true, request: true, deliveryNote: true },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
   });
+  return tasks.map((task) => ({
+    ...task,
+    deliveryNote: task.deliveryNote
+      ? { ...task.deliveryNote, quantity: task.deliveryNote.quantity.toNumber() }
+      : null,
+  }));
 }
 
 export async function getOpenTaskCount() {

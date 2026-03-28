@@ -13,7 +13,7 @@ export default async function MachineDetailPage({
   const [machine, orders, driverResources] = await Promise.all([
     getMachine(id),
     prisma.order.findMany({
-      where: { status: { in: ["PLANNED", "ACTIVE"] } },
+      where: { status: { in: ["PLANNED", "ACTIVE", "PENDING", "INVOICED"] } },
       select: { id: true, orderNumber: true, title: true },
       orderBy: { startDate: "asc" },
     }),

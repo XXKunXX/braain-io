@@ -85,12 +85,14 @@ export async function updateOrder(id: string, data: OrderFormData) {
 const STATUS_LABELS: Record<string, string> = {
   PLANNED: "Geplant",
   ACTIVE: "Aktiv",
+  PENDING: "Ausstehend",
+  INVOICED: "In Abrechnung",
   COMPLETED: "Abgeschlossen",
 };
 
 export async function updateOrderStatus(
   id: string,
-  status: "PLANNED" | "ACTIVE" | "COMPLETED"
+  status: "PLANNED" | "ACTIVE" | "PENDING" | "INVOICED" | "COMPLETED"
 ) {
   const order = await prisma.order.update({
     where: { id },

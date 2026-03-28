@@ -8,6 +8,7 @@ import {
   ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, FileText, FolderOpen, User, Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "sonner";
 import {
   updateBaustelle,
@@ -15,16 +16,19 @@ import {
   createTagesrapport,
   deleteTagesrapport,
 } from "@/actions/baustellen";
+import { deleteDeliveryNote } from "@/actions/delivery-notes";
 import type { BaustelleStatusType } from "@/actions/baustellen";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<BaustelleStatusType, string> = {
-  PLANNED: "Geplant", ACTIVE: "Aktiv", COMPLETED: "Abgeschlossen",
+  PLANNED: "Geplant", ACTIVE: "Aktiv", PENDING: "Ausstehend", INVOICED: "In Abrechnung", COMPLETED: "Abgeschlossen",
 };
 const STATUS_COLOR: Record<BaustelleStatusType, string> = {
   PLANNED: "border-gray-300 text-gray-600 bg-gray-50",
   ACTIVE: "border-blue-300 text-blue-700 bg-blue-50",
+  PENDING: "border-red-300 text-red-700 bg-red-50",
+  INVOICED: "border-orange-300 text-orange-700 bg-orange-50",
   COMPLETED: "border-green-300 text-green-700 bg-green-50",
 };
 const TYPE_LABEL: Record<string, string> = {
@@ -153,6 +157,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
   }
 
   // ── Rapport modal ──────────────────────────────────────────────────────────
+  const [deleteLieferscheinId, setDeleteLieferscheinId] = useState<string | null>(null);
   const [rapOpen, setRapOpen] = useState(false);
   const [rf, setRf] = useState({ date: "", driverName: "", machineName: "", hours: "", employees: "", description: "" });
   const [savingRap, setSavingRap] = useState(false);
@@ -180,6 +185,14 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
     await deleteTagesrapport(id, b.id);
     setB(prev => ({ ...prev, rapporte: prev.rapporte.filter(r => r.id !== id) }));
     toast.success("Gelöscht");
+  }
+
+  async function confirmDeleteLieferschein() {
+    if (!deleteLieferscheinId) return;
+    await deleteDeliveryNote(deleteLieferscheinId);
+    setB(prev => ({ ...prev, deliveryNotes: prev.deliveryNotes.filter(d => d.id !== deleteLieferscheinId) }));
+    setDeleteLieferscheinId(null);
+    toast.success("Lieferschein gelöscht");
   }
 
   // ── Resource overview (from disposition) ──────────────────────────────────
@@ -531,13 +544,21 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                   ))}
                 </div>
                 {b.deliveryNotes.map((dn, i) => (
-                  <div key={dn.id} className={`grid grid-cols-[1fr_1fr_2fr_1fr_1fr_80px] gap-3 px-5 py-3 items-center hover:bg-gray-50 ${i !== b.deliveryNotes.length - 1 ? "border-b border-gray-100" : ""}`}>
+                  <div key={dn.id} className={`group grid grid-cols-[1fr_1fr_2fr_1fr_1fr_80px] gap-3 px-5 py-3 items-center hover:bg-gray-50 ${i !== b.deliveryNotes.length - 1 ? "border-b border-gray-100" : ""}`}>
                     <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
                     <span className="text-sm text-gray-700">{fmt(dn.date)}</span>
                     <span className="text-sm font-medium text-gray-900 truncate">{dn.material}</span>
                     <span className="text-sm font-mono text-gray-700">{dn.quantity != null ? dn.quantity.toLocaleString("de-DE") : "–"} {dn.unit}</span>
                     <span className="text-sm text-gray-500">{dn.driver ?? "–"}</span>
-                    <a href={`/lieferscheine/${dn.id}`} className="text-xs text-blue-600 hover:underline text-right">Öffnen</a>
+                    <div className="flex items-center justify-end gap-2">
+                      <a href={`/lieferscheine/${dn.id}`} className="text-xs text-blue-600 hover:underline">Öffnen</a>
+                      <button
+                        onClick={() => setDeleteLieferscheinId(dn.id)}
+                        className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -559,6 +580,24 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
           </div>
         )}
       </div>
+
+      {/* ── Dialog: Lieferschein löschen ──────────────────────────────────────── */}
+      <ConfirmDialog
+        open={!!deleteLieferscheinId}
+        onOpenChange={open => { if (!open) setDeleteLieferscheinId(null); }}
+        title="Lieferschein löschen"
+        description={
+          deleteLieferscheinId && b.deliveryNotes.find(d => d.id === deleteLieferscheinId)?.signatureUrl
+            ? "Dieser Lieferschein wurde bereits unterschrieben. Soll er trotzdem gelöscht werden?"
+            : "Soll dieser Lieferschein wirklich gelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden."
+        }
+        variant={
+          deleteLieferscheinId && b.deliveryNotes.find(d => d.id === deleteLieferscheinId)?.signatureUrl
+            ? "warning"
+            : "destructive"
+        }
+        onConfirm={confirmDeleteLieferschein}
+      />
 
       {/* ── Modal: Tagesbericht erstellen ─────────────────────────────────────── */}
       {rapOpen && (

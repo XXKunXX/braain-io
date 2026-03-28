@@ -219,10 +219,21 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
       {/* Header */}
       <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 bg-white">
         <div>
-          <Link href="/baustellen" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Alle Baustellen
-          </Link>
+          <div className="flex items-center gap-3 mb-2">
+            <Link href="/baustellen" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Alle Baustellen
+            </Link>
+            {prefillOrder && (
+              <>
+                <span className="text-gray-300">|</span>
+                <Link href={`/auftraege/${prefillOrder.id}`} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  {prefillOrder.orderNumber} – {prefillOrder.title}
+                </Link>
+              </>
+            )}
+          </div>
           <h1 className="text-xl font-semibold text-gray-900">Neue Baustelle</h1>
         </div>
       </div>
@@ -385,6 +396,8 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
                     value={status} onChange={(e) => setStatus(e.target.value as BaustelleStatusType)}>
                     <option value="PLANNED">Geplant</option>
                     <option value="ACTIVE">Aktiv</option>
+                    <option value="PENDING">Ausstehend</option>
+                    <option value="INVOICED">In Abrechnung</option>
                     <option value="COMPLETED">Abgeschlossen</option>
                   </select>
                 </div>

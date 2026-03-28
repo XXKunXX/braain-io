@@ -5,12 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO, addDays } from "date-fns";
 import { de } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, MapPin, Calendar, HardHat } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Clock, HardHat } from "lucide-react";
 
 type BaustelleItem = {
   id: string;
   name: string;
-  status: "PLANNED" | "ACTIVE" | "COMPLETED";
+  status: "PLANNED" | "ACTIVE" | "PENDING" | "INVOICED" | "COMPLETED";
   startDate: string;
   endDate: string;
   address: string | null;
@@ -23,12 +23,16 @@ type BaustelleItem = {
 const STATUS_LABEL: Record<string, string> = {
   PLANNED: "Geplant",
   ACTIVE: "Aktiv",
+  PENDING: "Ausstehend",
+  INVOICED: "In Abrechnung",
   COMPLETED: "Abgeschlossen",
 };
 
 const STATUS_STYLE: Record<string, string> = {
   PLANNED: "border border-amber-300 text-amber-600 bg-amber-50",
   ACTIVE: "border border-blue-300 text-blue-600 bg-blue-50",
+  PENDING: "border border-red-300 text-red-600 bg-red-50",
+  INVOICED: "border border-orange-300 text-orange-600 bg-orange-50",
   COMPLETED: "border border-green-300 text-green-600 bg-green-50",
 };
 
@@ -176,8 +180,8 @@ export function DriverAppShell({
                           </p>
                           <div className="flex items-center gap-3">
                             <p className="text-xs text-gray-400 whitespace-nowrap flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {format(parseISO(b.startDate), "dd. MMM", { locale: de })}
+                              <Clock className="h-3 w-3" />
+                              {format(parseISO(b.startDate), "HH:mm", { locale: de })} – {format(parseISO(b.endDate), "HH:mm", { locale: de })}
                             </p>
                             <span className={`text-xs font-medium px-3 py-1 rounded-full whitespace-nowrap ${STATUS_STYLE[b.status]}`}>
                               {STATUS_LABEL[b.status]}
@@ -243,8 +247,8 @@ function MobileBaustellenList({ baustellen, selectedDate }: { baustellen: Bauste
                 </p>
               )}
               <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                <Calendar className="h-3 w-3 flex-shrink-0" />
-                {format(parseISO(b.startDate), "dd. MMM yyyy", { locale: de })}
+                <Clock className="h-3 w-3 flex-shrink-0" />
+                {format(parseISO(b.startDate), "HH:mm", { locale: de })} – {format(parseISO(b.endDate), "HH:mm", { locale: de })} Uhr
               </p>
             </div>
             <div className="flex items-center gap-2 ml-3">

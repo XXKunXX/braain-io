@@ -32,7 +32,7 @@ interface EditItem {
   unitPrice: number;
 }
 
-type Product = { id: string; name: string; description: string | null };
+type Product = { id: string; name: string; description: string | null; unit: string | null; price: number | null; quoteDescription: string | null };
 
 interface Props {
   contacts: Contact[];
@@ -461,7 +461,16 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                                 type="button"
                                 className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
                                 onMouseDown={() => {
-                                  updateItem(idx, "description", p.name);
+                                  setItems((prev) => prev.map((item, i) => {
+                                    if (i !== idx) return item;
+                                    return {
+                                      ...item,
+                                      description: p.name,
+                                      unit: p.unit || item.unit,
+                                      unitPrice: p.price ?? item.unitPrice,
+                                      note: p.quoteDescription || item.note,
+                                    };
+                                  }));
                                   setOpenProductIdx(null);
                                 }}
                               >
@@ -503,12 +512,12 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                         className="text-sm h-9 text-right"
                         type="number"
                         min="0"
-                        step={["Std", "Stk", "Psch"].includes(item.unit) ? "1" : "0.001"}
+                        step="1"
                         value={item.quantity}
                         onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))}
                       />
                       <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
-                        <SelectTrigger className="text-sm h-9 w-full"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="text-sm h-9 w-full"><SelectValue className="justify-end" /></SelectTrigger>
                         <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
                       </Select>
                       <Input

@@ -25,12 +25,16 @@ type OrderWithRelations = Order & { contact: Contact; quote: Quote | null };
 const statusLabels: Record<string, string> = {
   PLANNED: "Geplant",
   ACTIVE: "Aktiv",
+  PENDING: "Ausstehend",
+  INVOICED: "In Abrechnung",
   COMPLETED: "Abgeschlossen",
 };
 
 const statusColors: Record<string, string> = {
   PLANNED: "bg-blue-50 text-blue-700",
   ACTIVE: "bg-green-100 text-green-800",
+  PENDING: "bg-red-50 text-red-700",
+  INVOICED: "bg-orange-50 text-orange-700",
   COMPLETED: "bg-gray-100 text-gray-500",
 };
 

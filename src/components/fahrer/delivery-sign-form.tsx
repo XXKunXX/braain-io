@@ -175,9 +175,9 @@ export function DeliverySignForm({ orderId, orderTitle, contactId, contactName, 
         signatureUrl,
         signerName,
       });
-      if (result.deliveryNote) {
+      if (result.deliveryNoteId) {
         toast.success("Lieferschein erfolgreich erstellt");
-        router.push(`/fahrer/${orderId}`);
+        router.push(`/fahrer/lieferschein/${result.deliveryNoteId}`);
       } else {
         toast.error("Fehler beim Erstellen");
       }

@@ -178,9 +178,6 @@ export function DeliveryPDF({ dn }: { dn: DeliveryWithRelations }) {
           <View>
             <Text style={styles.signatureLabel}>Unterschrift Empfänger</Text>
           </View>
-          <View>
-            <Text style={styles.signatureLabel}>Unterschrift Fahrer</Text>
-          </View>
         </View>
       </Page>
     </Document>

@@ -29,7 +29,20 @@ export async function getResources() {
   return (prisma as any).resource.findMany({
     where: { active: true },
     orderBy: [{ type: "asc" }, { name: "asc" }],
-    include: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      email: true,
+      phone: true,
+      description: true,
+      active: true,
+      clerkUserId: true,
+      licensePlate: true,
+      driverResourceId: true,
+      machineId: true,
+      createdAt: true,
+      updatedAt: true,
       assignedDriver: { select: { id: true, name: true } },
     },
   }) as Promise<Array<{
@@ -52,7 +65,7 @@ export async function getResources() {
 
 export async function getBaustellenForDisposition() {
   return (prisma as any).baustelle.findMany({
-    where: { status: { in: ["PLANNED", "ACTIVE"] } },
+    where: { status: { in: ["PLANNED", "ACTIVE", "PENDING", "INVOICED"] } },
     include: {
       contact: { select: { id: true, companyName: true } },
       order: { select: { id: true, orderNumber: true, title: true } },
@@ -78,7 +91,7 @@ export async function getDispositionEntries(weekStart: Date, weekEnd: Date) {
       endDate: { gte: weekStart },
     },
     include: {
-      resource: true,
+      resource: { select: { id: true, name: true, type: true } },
       baustelle: {
         include: {
           contact: { select: { id: true, companyName: true } },
@@ -230,35 +243,46 @@ export async function deleteDispositionEntry(id: string) {
     }
   }
 
-  // If this entry was linked to a Baustelle, check if there are remaining entries
+  const now = new Date();
+
+  // If this entry was linked to a Baustelle, check if there are remaining future/current entries
   // and set the Baustelle status back to PLANNED if none remain
   let resetBaustelleId: string | null = null;
   if (entry?.baustelleId) {
     const remainingBaustelleEntries = await (prisma as any).dispositionEntry.count({
-      where: { baustelleId: entry.baustelleId },
+      where: { baustelleId: entry.baustelleId, endDate: { gte: now } },
     });
     if (remainingBaustelleEntries === 0) {
+      // PENDING if the baustelle had active work but has no delivery notes yet
+      const deliveryNoteCount = await (prisma as any).deliveryNote.count({
+        where: { baustelleId: entry.baustelleId },
+      });
+      const newBaustelleStatus = deliveryNoteCount === 0 ? "PENDING" : "PLANNED";
       await (prisma as any).baustelle.update({
         where: { id: entry.baustelleId },
-        data: { status: "PLANNED" },
+        data: { status: newBaustelleStatus },
       });
       resetBaustelleId = entry.baustelleId;
       revalidatePath("/baustellen");
       revalidatePath(`/baustellen/${entry.baustelleId}`);
 
-      // Also reset the Order if all its Baustellen have no remaining entries
+      // Also reset the Order if all its Baustellen have no remaining future/current entries
       const baustelle = await (prisma as any).baustelle.findUnique({
         where: { id: entry.baustelleId },
         select: { orderId: true },
       });
       if (baustelle?.orderId) {
         const remainingOrderEntries = await (prisma as any).dispositionEntry.count({
-          where: { orderId: baustelle.orderId },
+          where: { orderId: baustelle.orderId, endDate: { gte: now } },
         });
         if (remainingOrderEntries === 0) {
+          const orderDeliveryNoteCount = await (prisma as any).deliveryNote.count({
+            where: { orderId: baustelle.orderId },
+          });
+          const newOrderStatus = orderDeliveryNoteCount === 0 ? "PENDING" : "PLANNED";
           await (prisma as any).order.update({
             where: { id: baustelle.orderId },
-            data: { status: "PLANNED" },
+            data: { status: newOrderStatus },
           });
           revalidatePath("/auftraege");
           revalidatePath(`/auftraege/${baustelle.orderId}`);
@@ -267,15 +291,19 @@ export async function deleteDispositionEntry(id: string) {
     }
   }
 
-  // If this entry was linked directly to an Order (without a Baustelle), check remaining entries
+  // If this entry was linked directly to an Order (without a Baustelle), check remaining future/current entries
   if (!entry?.baustelleId && entry?.orderId) {
     const remainingEntries = await (prisma as any).dispositionEntry.count({
-      where: { orderId: entry.orderId },
+      where: { orderId: entry.orderId, endDate: { gte: now } },
     });
     if (remainingEntries === 0) {
+      const orderDeliveryNoteCount = await (prisma as any).deliveryNote.count({
+        where: { orderId: entry.orderId },
+      });
+      const newOrderStatus = orderDeliveryNoteCount === 0 ? "PENDING" : "PLANNED";
       await (prisma as any).order.update({
         where: { id: entry.orderId },
-        data: { status: "PLANNED" },
+        data: { status: newOrderStatus },
       });
       revalidatePath("/auftraege");
       revalidatePath(`/auftraege/${entry.orderId}`);

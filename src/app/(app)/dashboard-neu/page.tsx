@@ -109,7 +109,7 @@ async function getDashboardData() {
     prisma.task.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
     prisma.request.count({ where: { status: "NEU" } }),
     prisma.quote.count({ where: { status: { in: ["DRAFT", "SENT"] } } }),
-    prisma.order.count({ where: { status: { in: ["ACTIVE", "PLANNED"] } } }),
+    prisma.order.count({ where: { status: { in: ["ACTIVE", "PLANNED", "PENDING", "INVOICED"] } } }),
     prisma.order.findMany({
       where: {
         dispositionEntries: {

@@ -39,8 +39,12 @@ export function NotificationBell() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(load, 5000);
+    window.addEventListener("focus", load);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", load);
+    };
   }, []);
 
   useEffect(() => {

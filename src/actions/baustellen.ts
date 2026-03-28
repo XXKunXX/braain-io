@@ -9,7 +9,7 @@ const db = prisma as any;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type BaustelleStatusType = "PLANNED" | "ACTIVE" | "COMPLETED";
+export type BaustelleStatusType = "PLANNED" | "ACTIVE" | "PENDING" | "INVOICED" | "COMPLETED";
 
 export type BaustelleRow = {
   id: string;
@@ -81,7 +81,7 @@ const baustelleSchema = z.object({
   country: z.string().optional(),
   startDate: z.string().min(1),
   endDate: z.string().optional(),
-  status: z.enum(["PLANNED", "ACTIVE", "COMPLETED"]),
+  status: z.enum(["PLANNED", "ACTIVE", "PENDING", "INVOICED", "COMPLETED"]),
   bauleiter: z.string().optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
@@ -145,10 +145,17 @@ export async function getBaustelle(id: string) {
         include: { machine: { select: { id: true, name: true, machineType: true } } },
       },
       rapporte: { orderBy: { date: "desc" } },
-      deliveryNotes: { orderBy: { date: "desc" } },
     },
   });
   if (!b) return null;
+
+  // Load delivery notes via baustelleId OR via the linked orderId (for notes created before baustelleId was set)
+  const orConditions: any[] = [{ baustelleId: id }];
+  if (b.orderId) orConditions.push({ orderId: b.orderId });
+  const rawDeliveryNotes = await db.deliveryNote.findMany({
+    where: { OR: orConditions },
+    orderBy: { date: "desc" },
+  });
 
   return {
     ...b,
@@ -160,7 +167,7 @@ export async function getBaustelle(id: string) {
       ...r,
       hours: r.hours != null ? Number(r.hours) : null,
     })),
-    deliveryNotes: b.deliveryNotes.map((dn: any) => ({
+    deliveryNotes: rawDeliveryNotes.map((dn: any) => ({
       ...dn,
       quantity: dn.quantity != null ? Number(dn.quantity) : null,
     })),
