@@ -28,7 +28,7 @@ export default async function AngebotDetailPage({
     })),
   };
 
-  const userNames = users.map((u) => `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim());
+  const userNames = users.filter((u) => u.role !== "Fahrer").map((u) => `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim()).filter(Boolean);
 
   return <QuoteDetail quote={serialized as any} userNames={userNames} machines={machines} />;
 }

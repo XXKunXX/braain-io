@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { format, parseISO, addDays } from "date-fns";
@@ -45,6 +45,11 @@ export function DriverAppShell({
 }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("active");
+
+  useEffect(() => {
+    const interval = setInterval(() => router.refresh(), 30_000);
+    return () => clearInterval(interval);
+  }, [router]);
 
   const date = parseISO(selectedDate);
 

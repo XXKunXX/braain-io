@@ -19,7 +19,7 @@ export default async function NeuesAngebotPage({
     getMachines(),
   ]);
   const products = allResources.filter((r) => r.type === "PRODUKT");
-  const userNames = users.map((u) => `${u.firstName} ${u.lastName}`.trim()).filter(Boolean);
+  const userNames = users.filter((u) => u.role !== "Fahrer").map((u) => `${u.firstName} ${u.lastName}`.trim()).filter(Boolean);
 
   // Strip non-serializable Decimal/Date fields
   const request = rawRequest

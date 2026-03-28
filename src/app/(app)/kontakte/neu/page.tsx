@@ -8,6 +8,6 @@ export default async function NeuerKontaktPage({
 }) {
   const { returnTo } = await searchParams;
   const users = await getUsers();
-  const userNames = users.map((u) => `${u.firstName} ${u.lastName}`.trim());
+  const userNames = users.filter((u) => u.role !== "Fahrer").map((u) => `${u.firstName} ${u.lastName}`.trim()).filter(Boolean);
   return <NewContactClient userNames={userNames} returnTo={returnTo} />;
 }

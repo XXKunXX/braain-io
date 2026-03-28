@@ -69,9 +69,10 @@ interface SidebarProps {
   onClose?: () => void;
   onSearchOpen?: () => void;
   userRole?: string;
+  showFahrerApp?: boolean;
 }
 
-export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen, userRole }: SidebarProps) {
+export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen, userRole, showFahrerApp }: SidebarProps) {
   const pathname = usePathname();
 
   function handleNavClick() {
@@ -115,7 +116,7 @@ export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen, userRole }: 
               {label}
             </p>
             <div className="space-y-0.5">
-              {items.filter(({ href }) => href === "/fahrer" ? userRole === "Fahrer" : true).map(({ href, label: itemLabel, icon: Icon, badgeKey }) => {
+              {items.filter(({ href }) => href === "/fahrer" ? (userRole === "Fahrer" || showFahrerApp) : true).map(({ href, label: itemLabel, icon: Icon, badgeKey }) => {
                 const active = pathname === href || pathname.startsWith(href + "/");
                 const badge = badgeKey === "tasks" && openTaskCount > 0 ? openTaskCount : null;
                 return (

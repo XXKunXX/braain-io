@@ -47,6 +47,8 @@ interface Props {
   order: OrderInfo | null;
   drivers: ResourceItem[];
   vehicles: ResourceItem[];
+  baustelleId?: string;
+  baustelleContactId?: string;
 }
 
 function ResourceCombobox({
@@ -148,12 +150,12 @@ function ResourceCombobox({
   );
 }
 
-export function CreateDeliveryForm({ contacts, order, drivers, vehicles }: Props) {
+export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustelleId, baustelleContactId }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   // Shared fields
-  const [contactId, setContactId] = useState(order?.contactId ?? "");
+  const [contactId, setContactId] = useState(order?.contactId ?? baustelleContactId ?? "");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [driverId, setDriverId] = useState("");
   const [vehicleId, setVehicleId] = useState("");
@@ -208,6 +210,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles }: Props
         const entry = selectedItems[itemId];
         const result = await createDeliveryNote({
           contactId,
+          baustelleId,
           date,
           material: item.description,
           quantity: Number(entry.quantity),
@@ -222,6 +225,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles }: Props
       // Single custom delivery note
       const result = await createDeliveryNote({
         contactId,
+        baustelleId,
         date,
         material: customMaterial,
         quantity: Number(customQuantity),

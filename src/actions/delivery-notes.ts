@@ -54,6 +54,7 @@ export async function createInvoiceTaskForDeliveryNote(deliveryNoteId: string) {
 
 const deliveryNoteSchema = z.object({
   contactId: z.string().min(1, "Kontakt ist erforderlich"),
+  baustelleId: z.string().optional(),
   date: z.string().min(1, "Datum ist erforderlich"),
   material: z.string().min(1, "Material ist erforderlich"),
   quantity: z.coerce.number().positive("Menge muss positiv sein"),
@@ -81,7 +82,7 @@ export async function createDeliveryNote(data: DeliveryNoteFormData) {
   });
 
   revalidatePath("/lieferscheine");
-  return { deliveryNote };
+  return { deliveryNote: { ...deliveryNote, quantity: Number(deliveryNote.quantity) } };
 }
 
 export async function updateDeliveryNote(id: string, data: DeliveryNoteFormData) {
@@ -100,7 +101,7 @@ export async function updateDeliveryNote(id: string, data: DeliveryNoteFormData)
 
   revalidatePath("/lieferscheine");
   revalidatePath(`/lieferscheine/${id}`);
-  return { deliveryNote };
+  return { deliveryNote: { ...deliveryNote, quantity: Number(deliveryNote.quantity) } };
 }
 
 export interface MaterialRow {

@@ -38,7 +38,7 @@ export default async function DispositionPage({
     rangeEnd = addDays(rangeStart, 41);
   } else {
     rangeStart = startOfWeek(baseDate, { weekStartsOn: 1 });
-    rangeEnd = addDays(rangeStart, 5);
+    rangeEnd = endOfDay(addDays(rangeStart, 6));
   }
 
   const [resources, baustellen, entries] = await Promise.all([

@@ -175,6 +175,7 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
 
   revalidatePath("/disposition");
   revalidatePath("/baustellen");
+  revalidatePath("/fahrer");
   if (parsed.data.baustelleId) revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
   return { entry };
 }
@@ -229,9 +230,45 @@ export async function deleteDispositionEntry(id: string) {
     }
   }
 
-  // If this entry was linked to an Order, check if there are remaining entries
-  // and set the Order status back to PLANNED if none remain
-  if (entry?.orderId) {
+  // If this entry was linked to a Baustelle, check if there are remaining entries
+  // and set the Baustelle status back to PLANNED if none remain
+  let resetBaustelleId: string | null = null;
+  if (entry?.baustelleId) {
+    const remainingBaustelleEntries = await (prisma as any).dispositionEntry.count({
+      where: { baustelleId: entry.baustelleId },
+    });
+    if (remainingBaustelleEntries === 0) {
+      await (prisma as any).baustelle.update({
+        where: { id: entry.baustelleId },
+        data: { status: "PLANNED" },
+      });
+      resetBaustelleId = entry.baustelleId;
+      revalidatePath("/baustellen");
+      revalidatePath(`/baustellen/${entry.baustelleId}`);
+
+      // Also reset the Order if all its Baustellen have no remaining entries
+      const baustelle = await (prisma as any).baustelle.findUnique({
+        where: { id: entry.baustelleId },
+        select: { orderId: true },
+      });
+      if (baustelle?.orderId) {
+        const remainingOrderEntries = await (prisma as any).dispositionEntry.count({
+          where: { orderId: baustelle.orderId },
+        });
+        if (remainingOrderEntries === 0) {
+          await (prisma as any).order.update({
+            where: { id: baustelle.orderId },
+            data: { status: "PLANNED" },
+          });
+          revalidatePath("/auftraege");
+          revalidatePath(`/auftraege/${baustelle.orderId}`);
+        }
+      }
+    }
+  }
+
+  // If this entry was linked directly to an Order (without a Baustelle), check remaining entries
+  if (!entry?.baustelleId && entry?.orderId) {
     const remainingEntries = await (prisma as any).dispositionEntry.count({
       where: { orderId: entry.orderId },
     });
@@ -246,7 +283,8 @@ export async function deleteDispositionEntry(id: string) {
   }
 
   revalidatePath("/disposition");
-  return { success: true };
+  revalidatePath("/fahrer");
+  return { success: true, resetBaustelleId };
 }
 
 const resourceSchema = z.object({

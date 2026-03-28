@@ -12,9 +12,10 @@ interface AppShellProps {
   children: React.ReactNode;
   openTaskCount: number;
   userRole?: string;
+  showFahrerApp?: boolean;
 }
 
-export function AppShell({ children, openTaskCount, userRole }: AppShellProps) {
+export function AppShell({ children, openTaskCount, userRole, showFahrerApp }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
 
@@ -40,6 +41,7 @@ export function AppShell({ children, openTaskCount, userRole }: AppShellProps) {
           onClose={() => setSidebarOpen(false)}
           onSearchOpen={() => setSearchOpen(true)}
           userRole={userRole}
+          showFahrerApp={showFahrerApp}
         />
       </div>
 

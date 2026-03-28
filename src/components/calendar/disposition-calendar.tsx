@@ -177,9 +177,11 @@ export function DispositionCalendar({
   // Urlaub/Sperrzeit conflict warning
   const [urlaubWarning, setUrlaubWarning] = useState<"drop" | "manual" | null>(null);
 
-  // Local entries for optimistic updates
+  // Local entries + baustellen for optimistic updates
   const [localEntries, setLocalEntries] = useState<EntryWithRelations[]>(entries);
   useEffect(() => { setLocalEntries(entries); }, [entries]);
+  const [localBaustellen, setLocalBaustellen] = useState<BaustelleItem[]>(baustellen);
+  useEffect(() => { setLocalBaustellen(baustellen); }, [baustellen]);
 
   // Resize handles for hourly view
   type ResizeState = { entryId: string; side: "left" | "right"; startX: number; origStartMs: number; origEndMs: number };
@@ -273,7 +275,7 @@ export function DispositionCalendar({
   const days = useMemo(() => {
     switch (view) {
       case "tag": return [rangeStart]; // single day; header uses hours
-      case "woche": return Array.from({ length: 6 }, (_, i) => addDays(rangeStart, i));
+      case "woche": return Array.from({ length: 7 }, (_, i) => addDays(rangeStart, i));
       case "monat": {
         const ms = startOfMonth(rangeStart);
         const count = differenceInCalendarDays(new Date(ms.getFullYear(), ms.getMonth() + 1, 0), ms) + 1;
@@ -346,19 +348,19 @@ export function DispositionCalendar({
       const end = addDays(rangeStart, 41);
       return `${format(rangeStart, "dd.MM.", { locale: de })} – ${format(end, "dd.MM.yyyy", { locale: de })} (6 Wochen)`;
     }
-    return `KW ${format(rangeStart, "w", { locale: de })} · ${format(rangeStart, "dd.MM.", { locale: de })} – ${format(addDays(rangeStart, 5), "dd.MM.yyyy", { locale: de })}`;
+    return `KW ${format(rangeStart, "w", { locale: de })} · ${format(rangeStart, "dd.MM.", { locale: de })} – ${format(addDays(rangeStart, 6), "dd.MM.yyyy", { locale: de })}`;
   }, [view, rangeStart]);
 
   // Baustellen panel
   const filteredBaustellen = useMemo(() => {
     const q = search.toLowerCase();
-    return baustellen.filter(b =>
+    return localBaustellen.filter(b =>
       !q ||
       b.name.toLowerCase().includes(q) ||
       (b.contact?.companyName ?? "").toLowerCase().includes(q) ||
       (b.city ?? "").toLowerCase().includes(q)
     );
-  }, [baustellen, search]);
+  }, [localBaustellen, search]);
   const activeBaustellen = filteredBaustellen.filter(b => b.status === "ACTIVE");
   const plannedBaustellen = filteredBaustellen.filter(b => b.status === "PLANNED");
 
@@ -513,10 +515,21 @@ export function DispositionCalendar({
 
   async function handleDeleteEntry(id: string) {
     if (!confirm("Eintrag löschen?")) return;
-    const snapshot = localEntries;
+    const snapshotEntries = localEntries;
+    const snapshotBaustellen = localBaustellen;
     setLocalEntries(prev => prev.filter(e => e.id !== id));
     const result = await deleteDispositionEntry(id);
-    if (!("success" in result)) { setLocalEntries(snapshot); toast.error("Fehler beim Löschen"); return; }
+    if (!("success" in result)) {
+      setLocalEntries(snapshotEntries);
+      setLocalBaustellen(snapshotBaustellen);
+      toast.error("Fehler beim Löschen");
+      return;
+    }
+    if (result.resetBaustelleId) {
+      setLocalBaustellen(prev => prev.map(b =>
+        b.id === result.resetBaustelleId ? { ...b, status: "PLANNED" } : b
+      ));
+    }
     toast.success("Eintrag gelöscht");
     router.refresh();
   }
@@ -1211,9 +1224,10 @@ export function DispositionCalendar({
                     {days.map((day, idx) => {
                       const isToday = isSameDay(day, today);
                       const isOtherMonth = view === "monat" && !isSameMonth(day, rangeStart);
+                      const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                       return (
                         <div key={idx}
-                          className={`text-center py-2 border-r last:border-r-0 border-gray-100 ${isToday ? "bg-blue-50" : isOtherMonth ? "bg-gray-50/60" : ""}`}
+                          className={`text-center py-2 border-r last:border-r-0 border-gray-100 ${isToday ? "bg-blue-50" : isOtherMonth ? "bg-gray-50/60" : isWeekend ? "bg-gray-100/70" : ""}`}
                           style={dayCellStyle()}>
                           <p className={`text-[9px] font-bold tracking-widest uppercase leading-none mb-0.5 ${isToday ? "text-blue-500" : "text-gray-300"}`}>
                             {WEEKDAY_SHORT[(day.getDay() + 6) % 7]}
@@ -1285,9 +1299,10 @@ export function DispositionCalendar({
                                 {days.map((day, idx) => {
                                   const isOver = dropTarget?.resourceId === resource.id && dropTarget?.dayIdx === idx;
                                   const isToday = isSameDay(day, today);
+                                  const isWeekend = day.getDay() === 0 || day.getDay() === 6;
                                   return (
                                     <div key={idx}
-                                      className={`border-r last:border-r-0 border-gray-100 transition-colors ${isOver ? "bg-blue-100/50" : isToday ? "bg-blue-50/60" : ""}`}
+                                      className={`border-r last:border-r-0 border-gray-100 transition-colors ${isOver ? "bg-blue-100/50" : isToday ? "bg-blue-50/60" : isWeekend ? "bg-gray-100/70" : ""}`}
                                       style={dayCellStyle()}
                                       onDragOver={(e) => handleDragOver(e, resource.id, idx)}
                                       onDragLeave={handleDragLeave}
