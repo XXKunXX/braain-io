@@ -174,6 +174,9 @@ export function DispositionCalendar({
   const [editForm, setEditForm] = useState({ startDate: "", endDate: "", notes: "" });
   const [editSubmitting, setEditSubmitting] = useState(false);
 
+  // Urlaub/Sperrzeit conflict warning
+  const [urlaubWarning, setUrlaubWarning] = useState<"drop" | "manual" | null>(null);
+
   // Local entries for optimistic updates
   const [localEntries, setLocalEntries] = useState<EntryWithRelations[]>(entries);
   useEffect(() => { setLocalEntries(entries); }, [entries]);
@@ -471,10 +474,8 @@ export function DispositionCalendar({
     setDropModal({ resourceId, baustelleId: bId });
   }
 
-  async function handleDropModalSubmit() {
+  async function executeDropModalSave() {
     if (!dropModal) return;
-    if (!dropForm.startDate || !dropForm.endDate) { toast.error("Start und Ende sind erforderlich"); return; }
-    if (new Date(dropForm.endDate) <= new Date(dropForm.startDate)) { toast.error("Ende muss nach dem Start liegen"); return; }
     setDropSubmitting(true);
     const result = await createDispositionEntry({
       resourceId: dropModal.resourceId,
@@ -499,6 +500,15 @@ export function DispositionCalendar({
     toast.success("Eintrag erstellt");
     setDropModal(null);
     router.refresh();
+  }
+
+  async function handleDropModalSubmit() {
+    if (!dropModal) return;
+    if (!dropForm.startDate || !dropForm.endDate) { toast.error("Start und Ende sind erforderlich"); return; }
+    if (new Date(dropForm.endDate) <= new Date(dropForm.startDate)) { toast.error("Ende muss nach dem Start liegen"); return; }
+    const vacConflicts = getVacationConflicts(dropModal.resourceId, dropForm.startDate, dropForm.endDate);
+    if (vacConflicts.length > 0) { setUrlaubWarning("drop"); return; }
+    await executeDropModalSave();
   }
 
   async function handleDeleteEntry(id: string) {
@@ -533,8 +543,7 @@ export function DispositionCalendar({
     router.refresh();
   }
 
-  async function handleAddEntry() {
-    if (!entryForm.resourceId || !entryForm.baustelleId) { toast.error("Ressource und Baustelle sind erforderlich"); return; }
+  async function executeManualSave() {
     setIsSubmitting(true);
     const dateBase = entryForm.startDate.slice(0, 10);
     const startDate = entryForm.allDay ? `${dateBase}T00:00` : entryForm.startDate;
@@ -548,6 +557,17 @@ export function DispositionCalendar({
     toast.success("Eintrag erstellt");
     setShowAddEntry(false);
     router.refresh();
+  }
+
+  async function handleAddEntry() {
+    if (!entryForm.resourceId || !entryForm.baustelleId) { toast.error("Ressource und Baustelle sind erforderlich"); return; }
+    const dateBase = entryForm.startDate.slice(0, 10);
+    const startDate = entryForm.allDay ? `${dateBase}T00:00` : entryForm.startDate;
+    const endDateBase = entryForm.endDate.slice(0, 10);
+    const endDate = entryForm.allDay ? `${endDateBase}T23:59` : entryForm.endDate;
+    const vacConflicts = getVacationConflicts(entryForm.resourceId, startDate, endDate);
+    if (vacConflicts.length > 0) { setUrlaubWarning("manual"); return; }
+    await executeManualSave();
   }
 
   async function handleAddResource() {
@@ -595,6 +615,30 @@ export function DispositionCalendar({
       en.id !== excludeId &&
       new Date(en.startDate) < e &&
       new Date(en.endDate) > s
+    );
+  }
+
+  // Vacation/block conflict detection
+  function getVacationConflicts(resourceId: string, startStr: string, endStr: string) {
+    if (!startStr || !endStr) return [];
+    const s = new Date(startStr);
+    const e = new Date(endStr);
+    return localEntries.filter(en =>
+      en.resourceId === resourceId &&
+      en.blockType !== null &&
+      new Date(en.startDate) < e &&
+      new Date(en.endDate) > s
+    );
+  }
+
+  function hasVacationConflict(entry: EntryWithRelations): boolean {
+    if (entry.blockType) return false;
+    return localEntries.some(en =>
+      en.id !== entry.id &&
+      en.resourceId === entry.resourceId &&
+      en.blockType !== null &&
+      new Date(en.startDate) < new Date(entry.endDate) &&
+      new Date(en.endDate) > new Date(entry.startDate)
     );
   }
 
@@ -1068,7 +1112,7 @@ export function DispositionCalendar({
                                   <div key={entry.id} draggable={!entry.blockType && !isResizingThis}
                                     onDragStart={(e) => { if (entry.blockType || isResizingThis) { e.preventDefault(); return; } handleEntryDragStart(e, entry); }}
                                     onDragEnd={handleDragEnd}
-                                    className={`absolute top-2 rounded-md flex items-center text-white text-[11px] font-medium group shadow-sm select-none ${colorClass} ${isDragging ? "opacity-30" : "opacity-100"} ${isResizingThis ? "ring-2 ring-white/60" : ""}`}
+                                    className={`absolute top-2 rounded-md flex items-center text-white text-[11px] font-medium group shadow-sm select-none ${colorClass} ${isDragging ? "opacity-30" : "opacity-100"} ${isResizingThis ? "ring-2 ring-white/60" : hasVacationConflict(entry) ? "ring-2 ring-red-500" : ""}`}
                                     style={{ left: style.left, width: style.width, height: 32, bottom: 8, cursor: isResizingThis ? "ew-resize" : "grab" }}
                                     title={`${label}\n${timeLabel}${entry.baustelle?.city ? ` · ${entry.baustelle.city}` : ""}${entry.notes ? `\n${entry.notes}` : ""}`}
                                     onDoubleClick={() => !isResizingThis && handleOpenEditModal(entry)}>
@@ -1295,7 +1339,7 @@ export function DispositionCalendar({
                                     onDragEnd={handleDragEnd}
                                     className={`absolute top-2 rounded-md px-2.5 flex items-center gap-1.5 text-white text-[11px] font-medium group cursor-grab active:cursor-grabbing transition-opacity shadow-sm ${colorClass} ${
                                       isDragging ? "opacity-30" : (entry.blockType || isHighlighted) ? "opacity-100" : "opacity-15"
-                                    }`}
+                                    } ${hasVacationConflict(entry) ? "ring-2 ring-red-500" : ""}`}
                                     style={{ left: style.left, width: style.width, height: 32, bottom: 8 }}
                                     title={`${label}${sublabel ? ` — ${sublabel}` : ""}${entry.baustelle?.city && entry.baustelle.city !== sublabel ? ` · ${entry.baustelle.city}` : ""}${entry.notes ? `\n${entry.notes}` : ""}${`\n${format(new Date(entry.startDate), "dd.MM.yy HH:mm")} – ${format(new Date(entry.endDate), "HH:mm")}`}`}
                                     onDoubleClick={() => handleOpenEditModal(entry)}>
@@ -1538,6 +1582,36 @@ export function DispositionCalendar({
           </div>
         );
       })()}
+
+      {/* ── Modal: Urlaub-Konflikt Warnung ─────────────────────────────────── */}
+      {urlaubWarning && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+              </div>
+              <h2 className="font-semibold text-gray-900">Urlaub-Konflikt</h2>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-gray-700">
+                Achtung: Dieser Zeitraum ist als Urlaub markiert. Trotzdem einplanen?
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setUrlaubWarning(null)}>Abbrechen</Button>
+              <Button className="bg-amber-500 hover:bg-amber-600 text-white" onClick={async () => {
+                const mode = urlaubWarning;
+                setUrlaubWarning(null);
+                if (mode === "drop") await executeDropModalSave();
+                else if (mode === "manual") await executeManualSave();
+              }}>
+                Ja, trotzdem einplanen
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal: Sperren (Verfügbarkeit) ─────────────────────────────────── */}
       {sperrModal && (
