@@ -649,3 +649,90 @@ model AppSettings {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ─── Fahrer App – Erweiterte Features ────────────────────────────────────────
+
+model FahrzeugCheck {
+  id          String   @id @default(cuid())
+  clerkUserId String
+  date        String   // YYYY-MM-DD
+  vehicleName String?
+  // JSON: Array<{ label: string; checked: boolean; notes?: string }>
+  items       Json
+  photos      String[]
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([clerkUserId, date])
+}
+
+model Schadensmeldung {
+  id          String  @id @default(cuid())
+  clerkUserId String
+  driverName  String?
+  vehicleName String?
+  date        String  // YYYY-MM-DD
+  description String
+  urgency     String  @default("NORMAL") // LOW, NORMAL, HIGH
+  photos      String[]
+  status      String  @default("OPEN")   // OPEN, IN_PROGRESS, RESOLVED
+  baustelleId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clerkUserId])
+  @@index([status])
+}
+
+model TankEintrag {
+  id          String  @id @default(cuid())
+  clerkUserId String
+  date        String  // YYYY-MM-DD
+  vehicleName String
+  liters      Decimal @db.Decimal(8, 2)
+  kmStand     Int?
+  costCenter  String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([clerkUserId])
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  fromUserId  String
+  fromName    String
+  // null = broadcast / Büro-Channel visible to all
+  toDriverId  String?
+  message     String
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([toDriverId, read])
+  @@index([fromUserId])
+}
+
+model Abwesenheit {
+  id          String   @id @default(cuid())
+  clerkUserId String
+  driverName  String?
+  type        String   // URLAUB, KRANK, SONSTIGES
+  startDate   String   // YYYY-MM-DD
+  endDate     String   // YYYY-MM-DD
+  notes       String?
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt   DateTime @default(now())
+
+  @@index([clerkUserId])
+}
+
+model PushSubscription {
+  id          String   @id @default(cuid())
+  clerkUserId String
+  endpoint    String   @unique
+  auth        String
+  p256dh      String
+  createdAt   DateTime @default(now())
+
+  @@index([clerkUserId])
+}

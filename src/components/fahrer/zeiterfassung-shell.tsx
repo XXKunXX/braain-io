@@ -4,11 +4,10 @@ import { useState, useTransition } from "react";
 import { format, parseISO, addDays } from "date-fns";
 import { de } from "date-fns/locale";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight, Clock, Play, Square, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Play, Square, Trash2, ChevronDown } from "lucide-react";
 import { clockIn, clockOut, deleteZeiterfassung } from "@/actions/zeiterfassung";
 import { calcNettoStunden } from "@/lib/zeiterfassung-utils";
 import { toast } from "sonner";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -59,7 +58,9 @@ export function ZeiterfassungShell({
   const [endTime, setEndTime] = useState(eintrag?.endTime ?? nowHHMM());
   const [pause, setPause] = useState(String(eintrag?.pauseMinutes ?? 30));
   const [notes, setNotes] = useState(eintrag?.notes ?? "");
-  const [baustelleId, setBaustelleId] = useState(eintrag?.baustelleId ?? "");
+  const [baustelleId, setBaustelleId] = useState(
+    eintrag?.baustelleId ?? baustellenOptions[0]?.id ?? ""
+  );
 
   const date = parseISO(selectedDate);
   const isToday = selectedDate === today;
@@ -167,17 +168,19 @@ export function ZeiterfassungShell({
           {baustellenOptions.length > 0 && (
             <div className="space-y-1.5">
               <Label className="text-xs text-gray-500">Baustelle</Label>
-              <Select value={baustelleId || "_none"} onValueChange={(v) => setBaustelleId(v === "_none" ? "" : (v ?? ""))}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Keine Baustelle" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">Keine Baustelle</SelectItem>
+              <div className="relative">
+                <select
+                  value={baustelleId || "_none"}
+                  onChange={(e) => setBaustelleId(e.target.value === "_none" ? "" : e.target.value)}
+                  className="w-full h-12 pl-4 pr-10 rounded-xl border border-input bg-white text-[15px] font-medium text-gray-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                >
+                  <option value="_none">Keine Baustelle</option>
                   {baustellenOptions.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
-                </SelectContent>
-              </Select>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              </div>
             </div>
           )}
 

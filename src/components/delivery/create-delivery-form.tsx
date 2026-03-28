@@ -385,7 +385,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-700">Menge *</Label>
               <Input
-                type="number" min="0" step="0.001" placeholder="0.000"
+                type="number" min="0" step="1" placeholder="0"
                 required={!hasItems}
                 value={customQuantity}
                 onChange={(e) => setCustomQuantity(e.target.value)}
@@ -435,7 +435,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
                           <Input
                             type="number"
                             min="0"
-                            step="0.001"
+                            step="1"
                             value={selectedItems[item.id].quantity}
                             onChange={(e) => updateItemQty(item.id, e.target.value)}
                             className="h-8 w-24 text-sm text-right font-mono"

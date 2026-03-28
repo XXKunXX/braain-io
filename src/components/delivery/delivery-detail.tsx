@@ -4,7 +4,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, PenLine } from "lucide-react";
+import { ArrowLeft, FileText, Pencil, PenLine } from "lucide-react";
 import type { Contact, DeliveryNote } from "@prisma/client";
 
 type DeliveryWithRelations = DeliveryNote & {
@@ -40,6 +40,12 @@ export function DeliveryDetail({
             </Link>
           </div>
           <div className="flex gap-2">
+            <Link href={`/lieferscheine/${dn.id}/bearbeiten`}>
+              <Button size="sm" variant="outline">
+                <Pencil className="h-4 w-4 mr-1" />
+                Bearbeiten
+              </Button>
+            </Link>
             <Link href={`/lieferscheine/${dn.id}/ausfuellen`}>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
                 <PenLine className="h-4 w-4 mr-1" />
