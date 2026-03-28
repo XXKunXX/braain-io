@@ -1,18 +1,25 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, MapPin, Calendar, Building2 } from "lucide-react";
+import { ArrowLeft, MapPin, Building2, Clock, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { getBaustelleForDriverApp } from "@/actions/driver";
+import { getBaustelleForDriverApp, getBaustelleEntryForDate } from "@/actions/driver";
 import { NavButton } from "@/components/fahrer/nav-button";
 
 export default async function FahrerBaustelleDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ date?: string }>;
 }) {
   const { id } = await params;
-  const baustelle = await getBaustelleForDriverApp(id);
+  const { date: dateStr } = await searchParams;
+
+  const [baustelle, entry] = await Promise.all([
+    getBaustelleForDriverApp(id),
+    dateStr ? getBaustelleEntryForDate(id, dateStr) : Promise.resolve(null),
+  ]);
   if (!baustelle) notFound();
 
   const address = [baustelle.address, baustelle.postalCode, baustelle.city].filter(Boolean).join(" ");
@@ -24,6 +31,10 @@ export default async function FahrerBaustelleDetailPage({
   const notes = baustelle.notes ?? baustelle.order?.notes ?? null;
   const deliveryNotes = baustelle.order?.deliveryNotes ?? [];
   const orderId = baustelle.order?.id ?? null;
+
+  const zeitraumValue = entry
+    ? `${format(new Date(entry.startDate), "dd. MMM yyyy", { locale: de })} · ${format(new Date(entry.startDate), "HH:mm", { locale: de })} – ${format(new Date(entry.endDate), "HH:mm", { locale: de })} Uhr`
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -41,11 +52,15 @@ export default async function FahrerBaustelleDetailPage({
           {address && (
             <InfoCard icon={<MapPin className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />} label="Adresse" value={address} />
           )}
-          <InfoCard
-            icon={<Calendar className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />}
-            label="Zeitraum"
-            value={`${format(new Date(baustelle.startDate), "dd. MMM yyyy", { locale: de })}${baustelle.endDate ? ` – ${format(new Date(baustelle.endDate), "dd. MMM yyyy", { locale: de })}` : ""}`}
-          />
+          {zeitraumValue ? (
+            <InfoCard
+              icon={<Clock className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />}
+              label="Einsatz geplant"
+              value={zeitraumValue}
+            />
+          ) : (
+            <NoEntryCard />
+          )}
           {baustelle.order?.title && (
             <InfoCard icon={<Building2 className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />} label="Auftrag" value={baustelle.order.title} />
           )}
@@ -75,11 +90,15 @@ export default async function FahrerBaustelleDetailPage({
               {address && (
                 <InfoCard icon={<MapPin className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />} label="Adresse" value={address} />
               )}
-              <InfoCard
-                icon={<Calendar className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />}
-                label="Zeitraum"
-                value={`${format(new Date(baustelle.startDate), "dd. MMM yyyy", { locale: de })}${baustelle.endDate ? ` – ${format(new Date(baustelle.endDate), "dd. MMM yyyy", { locale: de })}` : ""}`}
-              />
+              {zeitraumValue ? (
+                <InfoCard
+                  icon={<Clock className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />}
+                  label="Einsatz geplant"
+                  value={zeitraumValue}
+                />
+              ) : (
+                <NoEntryCard />
+              )}
               {baustelle.order?.title && (
                 <InfoCard icon={<Building2 className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />} label="Auftrag" value={baustelle.order.title} />
               )}
@@ -137,6 +156,18 @@ function MaterialsCard({ items }: { items: { description: string; quantity: numb
             <span className="text-sm font-bold text-gray-900">{item.quantity.toLocaleString("de-DE")} {item.unit}</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function NoEntryCard() {
+  return (
+    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+      <AlertCircle className="h-5 w-5 text-amber-400 mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="text-xs font-medium text-amber-600 mb-0.5">Kein Einsatzplan</p>
+        <p className="text-sm text-amber-700">Für diesen Tag ist kein konkreter Einsatz geplant.</p>
       </div>
     </div>
   );

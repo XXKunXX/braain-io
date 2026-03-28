@@ -134,9 +134,9 @@ export async function getBaustelleForDriverApp(id: string) {
               items: { orderBy: { position: "asc" }, select: { description: true, quantity: true, unit: true } },
             },
           },
-          deliveryNotes: { orderBy: { createdAt: "desc" }, select: { id: true, deliveryNumber: true } },
         },
       },
+      deliveryNotes: { orderBy: { createdAt: "desc" }, select: { id: true, deliveryNumber: true } },
     },
   });
 }

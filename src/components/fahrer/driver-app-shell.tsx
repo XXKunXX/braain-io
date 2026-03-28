@@ -90,7 +90,7 @@ export function DriverAppShell({
             </button>
           ))}
         </div>
-        <MobileBaustellenList baustellen={filtered} />
+        <MobileBaustellenList baustellen={filtered} selectedDate={selectedDate} />
       </div>
 
       {/* ── Tablet / Desktop (≥ md) ── */}
@@ -154,7 +154,7 @@ export function DriverAppShell({
                     return (
                       <Link
                         key={b.id}
-                        href={`/fahrer/baustelle/${b.id}`}
+                        href={`/fahrer/baustelle/${b.id}?date=${selectedDate}`}
                         className="flex items-center bg-white rounded-2xl px-5 py-4 hover:shadow-sm transition-all group border border-transparent hover:border-gray-200"
                       >
                         <div className="flex-1 min-w-0 grid grid-cols-[1fr_1fr_auto] gap-4 items-center">
@@ -209,7 +209,7 @@ function DateNav({ date, onNavigate }: { date: Date; onNavigate: (d: number) => 
   );
 }
 
-function MobileBaustellenList({ baustellen }: { baustellen: BaustelleItem[] }) {
+function MobileBaustellenList({ baustellen, selectedDate }: { baustellen: BaustelleItem[]; selectedDate: string }) {
   if (baustellen.length === 0) {
     return (
       <div className="text-center py-16">
@@ -224,7 +224,7 @@ function MobileBaustellenList({ baustellen }: { baustellen: BaustelleItem[] }) {
         return (
           <Link
             key={b.id}
-            href={`/fahrer/baustelle/${b.id}`}
+            href={`/fahrer/baustelle/${b.id}?date=${selectedDate}`}
             className="flex items-center px-4 py-4 hover:bg-gray-50 transition-colors"
           >
             <div className="flex-1 min-w-0">
