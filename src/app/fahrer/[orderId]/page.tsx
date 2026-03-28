@@ -45,7 +45,7 @@ export default async function FahrerOrderDetailPage({
         {order.notes && <NotesCard notes={order.notes} />}
         <div className="space-y-3 mt-4">
           <NavButton address={address} rounded="2xl" />
-          <LieferscheinButton orderId={orderId} deliveryNotes={order.deliveryNotes} rounded="2xl" />
+          <LieferscheinButton orderId={orderId} rounded="2xl" />
         </div>
       </div>
 
@@ -73,7 +73,7 @@ export default async function FahrerOrderDetailPage({
             <div className="bg-white rounded-2xl p-5 space-y-3">
               <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1">Aktionen</p>
               <NavButton address={address} rounded="xl" />
-              <LieferscheinButton orderId={orderId} deliveryNotes={order.deliveryNotes} rounded="xl" />
+              <LieferscheinButton orderId={orderId} rounded="xl" />
             </div>
           </div>
         </div>
@@ -131,11 +131,9 @@ function NotesCard({ notes }: { notes: string }) {
 
 function LieferscheinButton({
   orderId,
-  deliveryNotes,
   rounded,
 }: {
   orderId: string;
-  deliveryNotes: { id: string; deliveryNumber: string }[];
   rounded: string;
 }) {
   const docIcon = (
@@ -143,22 +141,6 @@ function LieferscheinButton({
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
     </svg>
   );
-
-  if (deliveryNotes.length > 0) {
-    // Show most recent delivery note
-    const latest = deliveryNotes[0];
-    return (
-      <a
-        href={`/api/pdf/delivery/${latest.id}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`flex items-center justify-center gap-2 w-full bg-green-600 hover:bg-green-700 rounded-${rounded} py-4 text-sm font-semibold text-white transition-colors`}
-      >
-        {docIcon}
-        Lieferschein ansehen ({latest.deliveryNumber})
-      </a>
-    );
-  }
 
   return (
     <Link

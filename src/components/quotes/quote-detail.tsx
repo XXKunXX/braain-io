@@ -418,15 +418,15 @@ export function QuoteDetail({
               </div>
 
               {editing ? (
-                <div className="p-4 space-y-2">
-                  <div className="grid grid-cols-12 gap-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-1">
-                    <div className="col-span-1">#</div>
-                    <div className="col-span-3">Beschreibung</div>
-                    <div className="col-span-2">Menge</div>
-                    <div className="col-span-2">Einheit</div>
-                    <div className="col-span-2">EP (€)</div>
-                    <div className="col-span-1 text-right">GP (€)</div>
-                    <div className="col-span-1" />
+                <div className="px-4 pb-4 pt-2">
+                  <div className="grid grid-cols-[28px_1fr_80px_88px_108px_108px_32px] gap-x-3 px-1 pb-2 border-b-2 border-gray-100 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                    <div>#</div>
+                    <div>Beschreibung</div>
+                    <div className="text-right">Menge</div>
+                    <div>Einheit</div>
+                    <div className="text-right">EP (€)</div>
+                    <div className="text-right">GP (€)</div>
+                    <div />
                   </div>
                   {items.map((item, idx) => {
                     const isProdukt = item.itemType === "produkt";
@@ -434,11 +434,12 @@ export function QuoteDetail({
                     const fm = getFilteredMachines(item.description);
                     const showMachineDrop = isMaschine && openMachineIdx === idx;
                     return (
-                    <div key={idx} className="space-y-1.5">
-                      <div className="grid grid-cols-12 gap-2 items-start">
-                        <div className="col-span-1 flex items-center text-xs font-mono text-gray-400 h-9">{idx + 1}.</div>
+                    <div key={idx} className="group border-b border-gray-100 py-3 space-y-1.5">
+                      {/* Eingabe-Zeile */}
+                      <div className="grid grid-cols-[28px_1fr_80px_88px_108px_108px_32px] gap-x-3 items-center">
+                        <div className="text-xs font-mono text-gray-400 text-center">{idx + 1}.</div>
                         <div
-                          className="col-span-3 relative"
+                          className="relative"
                           ref={(el) => { machineRefs.current[idx] = el; }}
                         >
                           <button
@@ -451,7 +452,7 @@ export function QuoteDetail({
                           </button>
                           <input
                             type="text"
-                            className={`w-full h-9 rounded-md border border-gray-200 pl-8 pr-8 text-sm focus:outline-none focus:ring-2 ${isProdukt ? "focus:ring-blue-500" : "focus:ring-orange-400"} min-w-0`}
+                            className={`w-full h-9 rounded-md border border-gray-200 pl-8 pr-8 text-sm focus:outline-none focus:ring-1 focus:border-blue-400 ${isProdukt ? "focus:ring-blue-400" : "focus:ring-orange-400 focus:border-orange-400"} min-w-0`}
                             placeholder={isProdukt ? "Beschreibung..." : "Maschine suchen..."}
                             value={item.description}
                             onChange={(e) => {
@@ -501,26 +502,29 @@ export function QuoteDetail({
                             </div>
                           )}
                         </div>
-                        <Input className="col-span-2 text-sm h-9" type="number" min="0" step={["Std", "Stk", "Psch"].includes(item.unit) ? "1" : "0.001"} value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
+                        <Input className="text-sm h-9 text-right" type="number" min="0" step={["Std", "Stk", "Psch"].includes(item.unit) ? "1" : "0.001"} value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
                         <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
-                          <SelectTrigger className="col-span-2 text-sm h-9"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="text-sm h-9"><SelectValue /></SelectTrigger>
                           <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
                         </Select>
-                        <Input className="col-span-2 text-sm h-9" type="number" min="0" step="1" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))} />
-                        <div className="col-span-1 flex items-center justify-end text-sm font-mono text-gray-600">
+                        <Input className="text-sm h-9 text-right" type="number" min="0" step="1" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))} />
+                        <div className="h-9 flex items-center justify-end text-sm font-semibold font-mono text-gray-900">
                           {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
-                        <div className="col-span-1 flex items-center justify-end">
+                        <div className="h-9 flex items-center justify-center">
                           {items.length > 1 && (
-                            <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500">
+                            <button type="button" onClick={() => removeItem(idx)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500">
                               <Trash2 className="h-4 w-4" />
                             </button>
                           )}
                         </div>
+                      </div>
+                      {/* Notiz-Zeile — bündig mit Beschreibungs-Spalte, volle Breite */}
+                      <div className="pl-[40px] pr-[44px]">
                         <textarea
-                          rows={2}
-                          className="col-start-2 col-span-11 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                          placeholder="Positionsbeschreibung (optional)..."
+                          rows={item.note ? 2 : 1}
+                          className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-600 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 resize-none"
+                          placeholder="Positionsbeschreibung hinzufügen..."
                           value={item.note}
                           onChange={(e) => updateItem(idx, "note", e.target.value)}
                         />
@@ -528,18 +532,18 @@ export function QuoteDetail({
                     </div>
                     );
                   })}
-                  <div className="flex flex-col items-end gap-1 pt-2 border-t border-gray-100">
+                  <div className="flex flex-col items-end gap-1.5 pt-3 mt-1">
                     <div className="flex items-center gap-8 text-sm text-gray-500">
-                      <span>Netto</span>
+                      <span className="w-32 text-right">Netto</span>
                       <span className="font-mono w-28 text-right">{editTotal.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
                     </div>
-                    <div className="flex items-center gap-8 text-sm text-gray-500">
-                      <span>+ 20 % MwSt.</span>
+                    <div className="flex items-center gap-8 text-sm text-gray-400">
+                      <span className="w-32 text-right">+ 20 % MwSt.</span>
                       <span className="font-mono w-28 text-right">{(editTotal * 0.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
                     </div>
-                    <div className="flex items-center gap-8 text-sm font-semibold text-gray-900 border-t border-gray-200 pt-1 mt-0.5">
-                      <span>Gesamt (brutto)</span>
-                      <span className="font-mono w-28 text-right">{(editTotal * 1.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                    <div className="flex items-center gap-8 text-sm font-semibold text-gray-900 border-t border-gray-200 pt-2 mt-0.5">
+                      <span className="w-32 text-right">Gesamt (brutto)</span>
+                      <span className="font-mono w-28 text-right text-base">{(editTotal * 1.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
                     </div>
                   </div>
                 </div>

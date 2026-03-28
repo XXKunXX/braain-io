@@ -27,7 +27,6 @@ async function getDocuments(): Promise<UnifiedDocument[]> {
         date: true,
         createdAt: true,
         contact: { select: { id: true, companyName: true } },
-        order: { select: { id: true, title: true } },
       },
     }),
     prisma.attachment.findMany({
@@ -67,7 +66,7 @@ async function getDocuments(): Promise<UnifiedDocument[]> {
       status: null,
       contactId: d.contact.id,
       contactName: d.contact.companyName,
-      linkedTo: d.order ? { label: d.order.title, href: `/auftraege/${d.order.id}` } : undefined,
+      linkedTo: undefined,
       url: `/api/pdf/delivery/${d.id}`,
       meta: `${Number(d.quantity)} ${d.unit}`,
       createdAt: d.createdAt,

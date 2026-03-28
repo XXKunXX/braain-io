@@ -208,7 +208,6 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles }: Props
         const entry = selectedItems[itemId];
         const result = await createDeliveryNote({
           contactId,
-          orderId: order!.id,
           date,
           material: item.description,
           quantity: Number(entry.quantity),
@@ -223,7 +222,6 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles }: Props
       // Single custom delivery note
       const result = await createDeliveryNote({
         contactId,
-        orderId: order?.id,
         date,
         material: customMaterial,
         quantity: Number(customQuantity),

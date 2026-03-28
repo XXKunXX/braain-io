@@ -7,7 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, FileUp, Receipt, Truck, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2, Activity, FileText } from "lucide-react";
+import { ArrowLeft, Pencil, FileUp, Receipt, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2, Activity, FileText } from "lucide-react";
 import { OrderActivityTab } from "./order-activity-tab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,10 +20,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateOrderStatus, updateOrder } from "@/actions/orders";
-import { deleteDeliveryNote } from "@/actions/delivery-notes";
 import { createPaymentMilestone, updatePaymentMilestone, markPaymentMilestonePaid, markPaymentMilestoneUnpaid, deletePaymentMilestone } from "@/actions/payment-milestones";
-import { CreateDeliveryButton } from "@/components/delivery/create-delivery-button";
-import type { Contact, DeliveryNote, Order, Quote, QuoteItem } from "@prisma/client";
+import type { Contact, Order, Quote, QuoteItem } from "@prisma/client";
 
 type BaustelleSummary = {
   id: string;
@@ -53,7 +51,6 @@ type PaymentMilestoneSummary = {
 type OrderWithRelations = Order & {
   contact: Contact;
   quote: (Quote & { items: QuoteItem[] }) | null;
-  deliveryNotes: DeliveryNote[];
   baustellen: BaustelleSummary[];
   paymentMilestones: PaymentMilestoneSummary[];
 };
@@ -74,7 +71,6 @@ const TABS = [
   { key: "Details" as const, label: "Details", icon: ClipboardList },
   { key: "Baustellen" as const, label: "Baustellen", icon: HardHat },
   { key: "Leistungen" as const, label: "Leistungen", icon: Receipt },
-  { key: "Lieferscheine" as const, label: "Lieferscheine", icon: Truck },
   { key: "Zahlungen" as const, label: "Zahlungen", icon: Euro },
   { key: "Aktivität" as const, label: "Aktivität", icon: Activity },
 ];
@@ -157,7 +153,7 @@ export function OrderDetail({
   const { containerRef: tabContainerRef, showLabels } = useTabLabels();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
-    const tabs: Tab[] = ["Details", "Leistungen", "Lieferscheine", "Baustellen", "Zahlungen", "Aktivität"];
+    const tabs: Tab[] = ["Details", "Leistungen", "Baustellen", "Zahlungen", "Aktivität"];
     return (tabs.includes(tab as Tab) ? tab : "Details") as Tab;
   });
   const [editing, setEditing] = useState(false);
@@ -336,8 +332,6 @@ export function OrderDetail({
   const overdueCount = order.paymentMilestones.filter(m => m.status === "OFFEN" && m.dueDate && new Date(m.dueDate) < new Date()).length;
 
   const quoteItems = order.quote?.items ?? [];
-  const coveredMaterials = new Set(order.deliveryNotes.map((dn) => dn.material));
-  const allItemsCovered = quoteItems.length > 0 && quoteItems.every((item) => coveredMaterials.has(item.description));
 
   return (
     <div className="flex flex-col min-h-full">
@@ -392,20 +386,6 @@ export function OrderDetail({
             >
               <FileText className="h-3.5 w-3.5" />Rechnung erstellen
             </Button>
-            <CreateDeliveryButton
-              contacts={contacts}
-              defaultContactId={order.contactId}
-              defaultOrderId={order.id}
-              quoteItems={order.quote?.items.map((i) => ({
-                id: i.id,
-                position: i.position,
-                description: i.description,
-                quantity: Number(i.quantity),
-                unit: i.unit,
-              }))}
-              orderTitle={order.title}
-              allItemsCovered={allItemsCovered}
-            />
           </div>
         </div>
       </div>
@@ -563,66 +543,6 @@ export function OrderDetail({
             ) : (
               <div className="text-center py-20 text-gray-400">
                 <p className="text-sm">Keine Leistungen verknüpft</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === "Lieferscheine" && (
-          <div className="max-w-4xl">
-            <div className="flex justify-end mb-4">
-              <CreateDeliveryButton
-                contacts={contacts}
-                defaultContactId={order.contactId}
-                defaultOrderId={order.id}
-                quoteItems={order.quote?.items.map((i) => ({
-                  id: i.id,
-                  position: i.position,
-                  description: i.description,
-                  quantity: Number(i.quantity),
-                  unit: i.unit,
-                }))}
-                orderTitle={order.title}
-                allItemsCovered={allItemsCovered}
-              />
-            </div>
-            {order.deliveryNotes.length === 0 ? (
-              <div className="text-center py-20 text-gray-400">
-                <Truck className="h-10 w-10 mx-auto mb-3 text-gray-200" />
-                <p className="text-sm">Noch keine Lieferscheine</p>
-              </div>
-            ) : (
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1fr_100px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-                  {["Nr.", "Datum", "Material", "Menge", "Fahrer", ""].map((h) => (
-                    <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-                  ))}
-                </div>
-                {order.deliveryNotes.map((dn, i) => (
-                  <div key={dn.id} className={`grid grid-cols-[1fr_1fr_1fr_1fr_1fr_100px] gap-4 px-5 py-3 items-center ${i !== order.deliveryNotes.length - 1 ? "border-b border-gray-100" : ""}`}>
-                    <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
-                    <span className="text-sm text-gray-700">{format(new Date(dn.date), "dd.MM.yyyy", { locale: de })}</span>
-                    <span className="text-sm font-medium text-gray-900">{dn.material}</span>
-                    <span className="text-sm font-mono text-gray-700">{Number(dn.quantity).toLocaleString("de-DE")} {dn.unit}</span>
-                    <span className="text-sm text-gray-500">{dn.driver ?? "–"}</span>
-                    <div className="flex items-center justify-end gap-2">
-                      <Link href={`/lieferscheine/${dn.id}`} className="text-gray-300 hover:text-blue-600 transition-colors" title="Öffnen">
-                        <Pencil className="h-4 w-4" />
-                      </Link>
-                      <button
-                        onClick={async () => {
-                          if (!window.confirm("Lieferschein wirklich löschen?")) return;
-                          await deleteDeliveryNote(dn.id);
-                          router.refresh();
-                        }}
-                        className="text-gray-300 hover:text-red-500 transition-colors"
-                        title="Löschen"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
           </div>

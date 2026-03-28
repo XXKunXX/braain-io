@@ -172,10 +172,6 @@ export async function getOrderForDriverApp(id: string) {
           },
         },
       },
-      deliveryNotes: {
-        orderBy: { createdAt: "desc" },
-        select: { id: true, deliveryNumber: true },
-      },
     },
   });
 }

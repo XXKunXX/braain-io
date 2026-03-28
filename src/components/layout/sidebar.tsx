@@ -109,7 +109,7 @@ export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen, userRole }: 
 
 
 <nav className="flex-1 px-2.5 py-3 overflow-y-auto space-y-4">
-        {navSections.map(({ label, items }) => (
+        {navSections.filter(({ label }) => label === "Einstellungen" ? userRole === "Admin" : true).map(({ label, items }) => (
           <div key={label}>
             <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase px-2 mb-1">
               {label}

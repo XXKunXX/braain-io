@@ -374,13 +374,13 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                 <Plus className="h-3.5 w-3.5" />Position
               </button>
             </div>
-            <div className="p-4 space-y-2">
-              <div className="grid grid-cols-[24px_1fr_80px_90px_90px_80px_28px] gap-2 text-[11px] font-semibold tracking-wider text-gray-400 uppercase px-1">
+            <div className="px-4 pb-4 pt-2">
+              <div className="grid grid-cols-[28px_1fr_80px_88px_108px_108px_32px] gap-x-3 px-1 pb-2 border-b-2 border-gray-100 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
                 <div>#</div>
                 <div>Beschreibung</div>
-                <div>Menge</div>
+                <div className="text-right">Menge</div>
                 <div>Einheit</div>
-                <div>EP (€)</div>
+                <div className="text-right">EP (€)</div>
                 <div className="text-right">GP (€)</div>
                 <div />
               </div>
@@ -397,153 +397,154 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                 const showProductDrop = isProdukt && openProductIdx === idx && fp.length > 0;
                 const showMachineDrop = isMaschine && openMachineIdx === idx;
                 return (
-                  <div key={idx} className="space-y-1.5">
-                  <div className="grid grid-cols-[24px_1fr_80px_90px_90px_80px_28px] gap-2 items-start">
-                    {/* Position number */}
-                    <div className="h-9 flex items-center text-xs font-mono text-gray-400">{idx + 1}.</div>
-                    {/* Description with type-toggle icon + combobox */}
-                    <div
-                      className="relative"
-                      ref={(el) => { productRefs.current[idx] = el; machineRefs.current[idx] = el; }}
-                    >
-                      <button
-                        type="button"
-                        title={isProdukt ? "Zu Maschine wechseln" : "Zu Produkt wechseln"}
-                        className={`absolute left-2.5 top-1/2 -translate-y-1/2 transition-colors z-10 ${isProdukt ? "text-blue-400 hover:text-blue-600" : "text-orange-400 hover:text-orange-600"}`}
-                        onClick={() => switchItemType(idx, isProdukt ? "maschine" : "produkt")}
+                  <div key={idx} className="group border-b border-gray-100 py-3 space-y-1.5">
+                    {/* Eingabe-Zeile */}
+                    <div className="grid grid-cols-[28px_1fr_80px_88px_108px_108px_32px] gap-x-3 items-center">
+                      <div className="text-xs font-mono text-gray-400 text-center">{idx + 1}.</div>
+                      <div
+                        className="relative"
+                        ref={(el) => { productRefs.current[idx] = el; machineRefs.current[idx] = el; }}
                       >
-                        {isProdukt ? <Package className="h-3.5 w-3.5" /> : <Wrench className="h-3.5 w-3.5" />}
-                      </button>
-                      <input
-                        type="text"
-                        className={`w-full h-9 rounded-md border border-gray-200 pl-8 pr-8 text-sm focus:outline-none focus:ring-2 ${isProdukt ? "focus:ring-blue-500" : "focus:ring-orange-400"} min-w-0`}
-                        placeholder={isProdukt ? "Freitext oder Produkt wählen..." : "Maschine suchen..."}
-                        value={item.description}
-                        required
-                        onChange={(e) => {
-                          updateItem(idx, "description", e.target.value);
-                          if (isProdukt) setOpenProductIdx(idx);
-                          else setOpenMachineIdx(idx);
-                        }}
-                        onFocus={() => {
-                          if (isProdukt && products.length > 0) setOpenProductIdx(idx);
-                          else if (isMaschine) setOpenMachineIdx(idx);
-                        }}
-                      />
-                      {item.description && (
                         <button
                           type="button"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
-                          onClick={() => {
-                            updateItem(idx, "description", "");
+                          title={isProdukt ? "Zu Maschine wechseln" : "Zu Produkt wechseln"}
+                          className={`absolute left-2.5 top-1/2 -translate-y-1/2 transition-colors z-10 ${isProdukt ? "text-blue-400 hover:text-blue-600" : "text-orange-400 hover:text-orange-600"}`}
+                          onClick={() => switchItemType(idx, isProdukt ? "maschine" : "produkt")}
+                        >
+                          {isProdukt ? <Package className="h-3.5 w-3.5" /> : <Wrench className="h-3.5 w-3.5" />}
+                        </button>
+                        <input
+                          type="text"
+                          className={`w-full h-9 rounded-md border border-gray-200 pl-8 pr-8 text-sm focus:outline-none focus:ring-1 focus:border-blue-400 ${isProdukt ? "focus:ring-blue-400" : "focus:ring-orange-400 focus:border-orange-400"} min-w-0`}
+                          placeholder={isProdukt ? "Freitext oder Produkt wählen..." : "Maschine suchen..."}
+                          value={item.description}
+                          required
+                          onChange={(e) => {
+                            updateItem(idx, "description", e.target.value);
                             if (isProdukt) setOpenProductIdx(idx);
                             else setOpenMachineIdx(idx);
                           }}
-                        >
-                          <X className="h-3.5 w-3.5" />
+                          onFocus={() => {
+                            if (isProdukt && products.length > 0) setOpenProductIdx(idx);
+                            else if (isMaschine) setOpenMachineIdx(idx);
+                          }}
+                        />
+                        {item.description && (
+                          <button
+                            type="button"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                            onClick={() => {
+                              updateItem(idx, "description", "");
+                              if (isProdukt) setOpenProductIdx(idx);
+                              else setOpenMachineIdx(idx);
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {(showProductDrop || (openProductIdx === idx && products.length > 0 && !item.description)) && (
+                          <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                            {fp.length === 0 && (
+                              <div className="px-3 py-2 text-sm text-gray-400">Kein Produkt gefunden</div>
+                            )}
+                            {fp.map((p) => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                                onMouseDown={() => {
+                                  updateItem(idx, "description", p.name);
+                                  setOpenProductIdx(null);
+                                }}
+                              >
+                                <Package className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
+                                <span className="font-medium text-gray-900">{p.name}</span>
+                                {p.description && <span className="text-xs text-gray-400 truncate">· {p.description}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {showMachineDrop && (
+                          <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
+                            {fm.length === 0 && (
+                              <div className="px-3 py-2 text-sm text-gray-400">Keine Maschine gefunden</div>
+                            )}
+                            {fm.map((m) => (
+                              <button
+                                key={m.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 flex items-center gap-2"
+                                onMouseDown={() => selectMachine(idx, m)}
+                              >
+                                <Wrench className="h-3.5 w-3.5 text-orange-300 flex-shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-medium text-gray-900">{m.name}</span>
+                                  <span className="text-xs text-gray-400 ml-1.5">· {m.machineType}</span>
+                                </div>
+                                {m.hourlyRate != null && (
+                                  <span className="text-xs text-orange-600 font-mono flex-shrink-0">
+                                    {m.hourlyRate.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}/Std
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <Input
+                        className="text-sm h-9 text-right"
+                        type="number"
+                        min="0"
+                        step={["Std", "Stk", "Psch"].includes(item.unit) ? "1" : "0.001"}
+                        value={item.quantity}
+                        onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))}
+                      />
+                      <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
+                        <SelectTrigger className="text-sm h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <Input
+                        className="text-sm h-9 text-right"
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={item.unitPrice}
+                        onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
+                      />
+                      <div className="h-9 flex items-center justify-end text-sm font-semibold font-mono text-gray-900">
+                        {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="h-9 flex items-center justify-center">
+                        <button type="button" onClick={() => removeItem(idx)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500">
+                          <Trash2 className="h-4 w-4" />
                         </button>
-                      )}
-                      {(showProductDrop || (openProductIdx === idx && products.length > 0 && !item.description)) && (
-                        <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                          {fp.length === 0 && (
-                            <div className="px-3 py-2 text-sm text-gray-400">Kein Produkt gefunden</div>
-                          )}
-                          {fp.map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
-                              onMouseDown={() => {
-                                updateItem(idx, "description", p.name);
-                                setOpenProductIdx(null);
-                              }}
-                            >
-                              <Package className="h-3.5 w-3.5 text-gray-300 flex-shrink-0" />
-                              <span className="font-medium text-gray-900">{p.name}</span>
-                              {p.description && <span className="text-xs text-gray-400 truncate">· {p.description}</span>}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                      {showMachineDrop && (
-                        <div className="absolute z-50 top-full mt-1 left-0 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
-                          {fm.length === 0 && (
-                            <div className="px-3 py-2 text-sm text-gray-400">Keine Maschine gefunden</div>
-                          )}
-                          {fm.map((m) => (
-                            <button
-                              key={m.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 flex items-center gap-2"
-                              onMouseDown={() => selectMachine(idx, m)}
-                            >
-                              <Wrench className="h-3.5 w-3.5 text-orange-300 flex-shrink-0" />
-                              <div className="flex-1 min-w-0">
-                                <span className="font-medium text-gray-900">{m.name}</span>
-                                <span className="text-xs text-gray-400 ml-1.5">· {m.machineType}</span>
-                              </div>
-                              {m.hourlyRate != null && (
-                                <span className="text-xs text-orange-600 font-mono flex-shrink-0">
-                                  {m.hourlyRate.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}/Std
-                                </span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      </div>
                     </div>
-
-                    <Input
-                      className="text-sm h-9"
-                      type="number"
-                      min="0"
-                      step={["Std", "Stk", "Psch"].includes(item.unit) ? "1" : "0.001"}
-                      value={item.quantity}
-                      onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))}
-                    />
-                    <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
-                      <SelectTrigger className="text-sm h-9"><SelectValue /></SelectTrigger>
-                      <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
-                    </Select>
-                    <Input
-                      className="text-sm h-9"
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={item.unitPrice}
-                      onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))}
-                    />
-                    <div className="h-9 flex items-center justify-end text-sm font-mono text-gray-600">
-                      {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {/* Notiz-Zeile — bündig mit Beschreibungs-Spalte, volle Breite */}
+                    <div className="pl-[40px] pr-[44px]">
+                      <textarea
+                        rows={item.note ? 2 : 1}
+                        className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-600 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 resize-none"
+                        placeholder="Positionsbeschreibung hinzufügen..."
+                        value={item.note}
+                        onChange={(e) => updateItem(idx, "note", e.target.value)}
+                      />
                     </div>
-                    <div className="h-9 flex items-center justify-center">
-                      <button type="button" onClick={() => removeItem(idx)} className="text-gray-300 hover:text-red-500 transition-colors">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <textarea
-                      rows={2}
-                      className="col-start-2 col-span-6 rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                      placeholder="Positionsbeschreibung (optional)..."
-                      value={item.note}
-                      onChange={(e) => updateItem(idx, "note", e.target.value)}
-                    />
-                  </div>
                   </div>
                 );
               })}
-              <div className="flex flex-col items-end gap-1 pt-2 border-t border-gray-100">
+              <div className="flex flex-col items-end gap-1.5 pt-3 mt-1">
                 <div className="flex items-center gap-8 text-sm text-gray-500">
-                  <span>Netto</span>
+                  <span className="w-32 text-right">Netto</span>
                   <span className="font-mono w-28 text-right">{total.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
                 </div>
-                <div className="flex items-center gap-8 text-sm text-gray-500">
-                  <span>+ 20 % MwSt.</span>
+                <div className="flex items-center gap-8 text-sm text-gray-400">
+                  <span className="w-32 text-right">+ 20 % MwSt.</span>
                   <span className="font-mono w-28 text-right">{(total * 0.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
                 </div>
-                <div className="flex items-center gap-8 text-sm font-semibold text-gray-900 border-t border-gray-200 pt-1 mt-0.5">
-                  <span>Gesamt (brutto)</span>
-                  <span className="font-mono w-28 text-right">{(total * 1.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                <div className="flex items-center gap-8 text-sm font-semibold text-gray-900 border-t border-gray-200 pt-2 mt-0.5">
+                  <span className="w-32 text-right">Gesamt (brutto)</span>
+                  <span className="font-mono w-28 text-right text-base">{(total * 1.2).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
                 </div>
               </div>
             </div>

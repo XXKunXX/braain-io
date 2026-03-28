@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getNextNumber } from "@/lib/counter";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
 
 const orderSchema = z.object({
   title: z.string().min(1, "Titel ist erforderlich"),
@@ -41,6 +42,19 @@ export async function createOrder(data: OrderFormData) {
     });
   }
 
+  // Notify all non-driver users about the new order
+  try {
+    const userIds = await getNonDriverUserIds();
+    await createNotificationsForUsers(userIds, {
+      title: `Neuer Auftrag: ${orderData.title}`,
+      message: `Auftrag #${orderNumber} wurde erstellt.`,
+      type: "INFO",
+      link: `/auftraege/${order.id}`,
+    });
+  } catch {
+    // Notification errors must not block the main flow
+  }
+
   revalidatePath("/auftraege");
   revalidatePath("/disposition");
   return { order };
@@ -68,6 +82,12 @@ export async function updateOrder(id: string, data: OrderFormData) {
   return { order };
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  PLANNED: "Geplant",
+  ACTIVE: "Aktiv",
+  COMPLETED: "Abgeschlossen",
+};
+
 export async function updateOrderStatus(
   id: string,
   status: "PLANNED" | "ACTIVE" | "COMPLETED"
@@ -76,6 +96,20 @@ export async function updateOrderStatus(
     where: { id },
     data: { status },
   });
+
+  // Notify all non-driver users about the status change
+  try {
+    const userIds = await getNonDriverUserIds();
+    await createNotificationsForUsers(userIds, {
+      title: `Auftrag Status geändert: ${order.title}`,
+      message: `Status wurde auf "${STATUS_LABELS[status] ?? status}" gesetzt.`,
+      type: "INFO",
+      link: `/auftraege/${id}`,
+    });
+  } catch {
+    // Notification errors must not block the main flow
+  }
+
   revalidatePath("/auftraege");
   revalidatePath(`/auftraege/${id}`);
   revalidatePath("/disposition");
@@ -103,7 +137,6 @@ export async function getOrder(id: string) {
     include: {
       contact: true,
       quote: { include: { items: true } },
-      deliveryNotes: { orderBy: { date: "desc" } },
       baustellen: {
         orderBy: { startDate: "asc" },
         select: {
@@ -201,6 +234,19 @@ export async function createOrderWithDetails(data: {
       where: { id: order.id },
       data: { quoteId: quote.id },
     });
+  }
+
+  // Notify all non-driver users about the new order
+  try {
+    const userIds = await getNonDriverUserIds();
+    await createNotificationsForUsers(userIds, {
+      title: `Neuer Auftrag: ${data.title}`,
+      message: `Auftrag #${orderNumber} wurde erstellt.`,
+      type: "INFO",
+      link: `/auftraege/${order.id}`,
+    });
+  } catch {
+    // Notification errors must not block the main flow
   }
 
   revalidatePath("/auftraege");

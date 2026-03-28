@@ -5,11 +5,10 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText, PenLine } from "lucide-react";
-import type { Contact, DeliveryNote, Order } from "@prisma/client";
+import type { Contact, DeliveryNote } from "@prisma/client";
 
 type DeliveryWithRelations = DeliveryNote & {
   contact: Contact;
-  order: Order | null;
 };
 
 export function DeliveryDetail({
@@ -17,8 +16,8 @@ export function DeliveryDetail({
 }: {
   deliveryNote: DeliveryWithRelations;
 }) {
-  const backHref = dn.order ? `/auftraege/${dn.order.id}?tab=Lieferscheine` : "/lieferscheine";
-  const backLabel = dn.order ? `Zurück zu ${dn.order.orderNumber}` : "Zurück zu Lieferscheine";
+  const backHref = "/lieferscheine";
+  const backLabel = "Zurück zu Lieferscheine";
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -75,19 +74,6 @@ export function DeliveryDetail({
             <div>
               <dt className="text-xs text-zinc-500">Fahrzeug</dt>
               <dd className="font-medium">{dn.vehicle}</dd>
-            </div>
-          )}
-          {dn.order && (
-            <div>
-              <dt className="text-xs text-zinc-500">Auftrag</dt>
-              <dd>
-                <Link
-                  href={`/auftraege/${dn.order.id}`}
-                  className="font-medium text-blue-600 hover:underline font-mono"
-                >
-                  {dn.order.orderNumber}
-                </Link>
-              </dd>
             </div>
           )}
         </dl>

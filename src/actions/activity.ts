@@ -18,7 +18,6 @@ export async function getOrderActivity(orderId: string): Promise<ActivityEvent[]
     include: {
       quote: true,
       baustellen: { orderBy: { createdAt: "asc" } },
-      deliveryNotes: { orderBy: { createdAt: "asc" } },
       paymentMilestones: { orderBy: { createdAt: "asc" } },
       dispositionEntries: { include: { resource: true }, orderBy: { createdAt: "asc" } },
     },

@@ -24,7 +24,6 @@ export async function createInvoiceTaskForDeliveryNote(deliveryNoteId: string) {
     where: { id: deliveryNoteId },
     select: {
       contactId: true,
-      order: { select: { title: true, quote: { select: { assignedTo: true } } } },
       baustelle: {
         select: {
           name: true,
@@ -35,8 +34,8 @@ export async function createInvoiceTaskForDeliveryNote(deliveryNoteId: string) {
   });
   if (!deliveryNote) return;
 
-  const orderTitle = deliveryNote.order?.title ?? deliveryNote.baustelle?.order?.title ?? deliveryNote.baustelle?.name ?? "Auftrag";
-  const assignedTo = deliveryNote.order?.quote?.assignedTo ?? deliveryNote.baustelle?.order?.quote?.assignedTo ?? null;
+  const orderTitle = deliveryNote.baustelle?.order?.title ?? deliveryNote.baustelle?.name ?? "Auftrag";
+  const assignedTo = deliveryNote.baustelle?.order?.quote?.assignedTo ?? null;
 
   await prisma.task.create({
     data: {

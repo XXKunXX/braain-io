@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Search, SlidersHorizontal, Trash2 } from "lucide-react";
-import type { Contact, DeliveryNote, Order } from "@prisma/client";
+import type { Contact, DeliveryNote } from "@prisma/client";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -23,7 +23,6 @@ import { SortHeader } from "@/components/ui/sort-header";
 type DeliveryWithRelations = Omit<DeliveryNote, "quantity"> & {
   quantity: number;
   contact: Contact;
-  order: Order | null;
 };
 
 export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRelations[] }) {

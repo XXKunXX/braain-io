@@ -7,11 +7,10 @@ import {
 } from "@react-pdf/renderer";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import type { Contact, DeliveryNote, Order } from "@prisma/client";
+import type { Contact, DeliveryNote } from "@prisma/client";
 
 type DeliveryWithRelations = DeliveryNote & {
   contact: Contact;
-  order: Order | null;
 };
 
 const styles = StyleSheet.create({
@@ -105,12 +104,6 @@ export function DeliveryPDF({ dn }: { dn: DeliveryWithRelations }) {
               {format(new Date(dn.date), "dd.MM.yyyy", { locale: de })}
             </Text>
           </View>
-          {dn.order && (
-            <View style={styles.field}>
-              <Text style={styles.label}>Auftrag</Text>
-              <Text style={styles.value}>{dn.order.orderNumber}</Text>
-            </View>
-          )}
         </View>
 
         {/* Customer */}

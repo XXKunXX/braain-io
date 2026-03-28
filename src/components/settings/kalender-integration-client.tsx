@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,14 +16,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   CheckCircle2,
-  XCircle,
   RefreshCw,
   Unlink,
-  Link2,
   CalendarDays,
   ChevronDown,
   ChevronUp,
   Info,
+  AlertCircle,
+  ExternalLink,
 } from "lucide-react";
 import {
   connectCalendar,
@@ -75,59 +76,43 @@ function ICloudIcon({ size = 24 }: { size?: number }) {
 
 type Provider = "GOOGLE" | "OUTLOOK" | "ICLOUD";
 
-const PROVIDERS: {
-  id: Provider;
-  name: string;
-  tagline: string;
-  icon: React.ComponentType<{ size?: number }>;
-  accentColor: string;
-  bgColor: string;
-  emailPlaceholder: string;
-  urlLabel: string;
-  urlPlaceholder: string;
-  urlHelp: string;
-  features: string[];
-}[] = [
+const PROVIDERS = [
   {
-    id: "GOOGLE",
+    id: "GOOGLE" as Provider,
     name: "Google Kalender",
-    tagline: "Synchronisiere Termine mit deinem Google-Konto",
+    tagline: "Verbinde dein Google-Konto sicher über OAuth",
     icon: GoogleIcon,
     accentColor: "text-blue-600",
     bgColor: "bg-blue-50",
-    emailPlaceholder: "deine@gmail.com",
-    urlLabel: "CalDAV-URL (optional)",
-    urlPlaceholder: "https://calendar.google.com/calendar/dav/...",
-    urlHelp: "Zu finden unter Google Kalender → Einstellungen → CalDAV-URL",
+    borderColor: "border-blue-100",
+    authType: "oauth" as const,
+    oauthPath: "/api/auth/calendar/google",
     features: ["Aufträge als Termine", "Baustellen-Zeiträume", "Erinnerungen"],
   },
   {
-    id: "OUTLOOK",
+    id: "OUTLOOK" as Provider,
     name: "Microsoft Outlook",
-    tagline: "Verbinde Outlook oder Microsoft 365",
+    tagline: "Verbinde Outlook oder Microsoft 365 sicher über OAuth",
     icon: OutlookIcon,
     accentColor: "text-sky-600",
     bgColor: "bg-sky-50",
-    emailPlaceholder: "deine@outlook.com",
-    urlLabel: "CalDAV-URL (optional)",
-    urlPlaceholder: "https://outlook.live.com/owa/...",
-    urlHelp: "Zu finden unter Outlook → Einstellungen → Kalender → Freigabe",
-    features: ["Teams-Integration", "Aufträge als Termine", "Meeting-Einladungen"],
+    borderColor: "border-sky-100",
+    authType: "oauth" as const,
+    oauthPath: "/api/auth/calendar/outlook",
+    features: ["Microsoft 365 Integration", "Aufträge als Termine", "Teams-kompatibel"],
   },
   {
-    id: "ICLOUD",
+    id: "ICLOUD" as Provider,
     name: "Apple iCloud",
-    tagline: "Synchronisiere mit iPhone, iPad & Mac",
+    tagline: "Verbinde via CalDAV mit App-spezifischem Passwort",
     icon: ICloudIcon,
     accentColor: "text-indigo-600",
     bgColor: "bg-indigo-50",
-    emailPlaceholder: "deine@icloud.com",
-    urlLabel: "CalDAV-URL",
-    urlPlaceholder: "https://caldav.icloud.com/...",
-    urlHelp: "Zu finden unter iCloud.com → Kalender → Freigabe-Symbol",
+    borderColor: "border-indigo-100",
+    authType: "manual" as const,
     features: ["iPhone & Mac Sync", "Siri-Integration", "Aufträge als Termine"],
   },
-];
+] as const;
 
 // ── Toggle Switch ─────────────────────────────────────────────────────────────
 
@@ -160,35 +145,31 @@ function Toggle({
   );
 }
 
-// ── Connect Modal ─────────────────────────────────────────────────────────────
+// ── iCloud Manual Connect Modal ───────────────────────────────────────────────
 
-function ConnectModal({
-  provider,
-  onClose,
-}: {
-  provider: (typeof PROVIDERS)[number];
-  onClose: () => void;
-}) {
+function ICloudConnectModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("");
-  const [url, setUrl] = useState("");
+  const [password, setPassword] = useState("");
+  const [calendarUrl, setCalendarUrl] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleConnect() {
-    if (!email) {
-      toast.error("Bitte E-Mail-Adresse eingeben.");
+    if (!email || !password) {
+      toast.error("Bitte E-Mail und App-Passwort eingeben.");
       return;
     }
     setLoading(true);
     const result = await connectCalendar({
-      provider: provider.id,
+      provider: "ICLOUD",
       accountEmail: email,
-      calendarUrl: url || undefined,
+      calendarUrl: calendarUrl || undefined,
+      calendarPassword: password,
     });
     setLoading(false);
     if ("error" in result && result.error) {
       toast.error(result.error);
     } else {
-      toast.success(`${provider.name} erfolgreich verbunden.`);
+      toast.success("iCloud Kalender erfolgreich verbunden.");
       onClose();
     }
   }
@@ -197,24 +178,33 @@ function ConnectModal({
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <div className="flex items-center gap-3 mb-1">
-          <div className={`p-2 rounded-xl ${provider.bgColor}`}>
-            <provider.icon size={28} />
+          <div className="p-2 rounded-xl bg-indigo-50">
+            <ICloudIcon size={28} />
           </div>
           <div>
-            <DialogTitle>{provider.name} verbinden</DialogTitle>
+            <DialogTitle>Apple iCloud verbinden</DialogTitle>
             <DialogDescription className="text-xs mt-0.5">
-              {provider.tagline}
+              Nutze ein App-spezifisches Passwort — nicht dein iCloud-Passwort.
             </DialogDescription>
           </div>
         </div>
       </DialogHeader>
 
       <div className="space-y-4 pt-2">
+        {/* Security notice */}
+        <div className="flex gap-2.5 rounded-lg bg-amber-50 border border-amber-200 p-3">
+          <Info className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+          <div className="text-xs text-amber-800 space-y-1">
+            <p className="font-medium">App-spezifisches Passwort erforderlich</p>
+            <p>Erstelle eines unter <span className="font-mono">appleid.apple.com</span> → Anmeldung und Sicherheit → App-spezifische Passwörter.</p>
+          </div>
+        </div>
+
         <div className="space-y-1.5">
-          <Label>E-Mail-Adresse *</Label>
+          <Label>Apple-ID (E-Mail) *</Label>
           <Input
             type="email"
-            placeholder={provider.emailPlaceholder}
+            placeholder="deine@icloud.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             autoFocus
@@ -222,29 +212,26 @@ function ConnectModal({
         </div>
 
         <div className="space-y-1.5">
-          <Label>{provider.urlLabel}</Label>
+          <Label>App-spezifisches Passwort *</Label>
           <Input
-            type="url"
-            placeholder={provider.urlPlaceholder}
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
+            type="password"
+            placeholder="xxxx-xxxx-xxxx-xxxx"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
           />
-          <p className="flex items-start gap-1.5 text-xs text-gray-400 leading-snug">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            {provider.urlHelp}
-          </p>
         </div>
 
-        <div className={`rounded-lg p-3 ${provider.bgColor} space-y-1`}>
-          <p className="text-xs font-medium text-gray-700">Was wird synchronisiert:</p>
-          <ul className="space-y-0.5">
-            {provider.features.map((f) => (
-              <li key={f} className="flex items-center gap-1.5 text-xs text-gray-600">
-                <CheckCircle2 className="h-3.5 w-3.5 text-green-500 shrink-0" />
-                {f}
-              </li>
-            ))}
-          </ul>
+        <div className="space-y-1.5">
+          <Label>CalDAV-URL <span className="text-gray-400 font-normal">(optional)</span></Label>
+          <Input
+            type="url"
+            placeholder="https://caldav.icloud.com/..."
+            value={calendarUrl}
+            onChange={(e) => setCalendarUrl(e.target.value)}
+          />
+          <p className="text-xs text-gray-400">
+            Leer lassen = Haupt-Kalender. Zu finden unter iCloud.com → Kalender → Freigabe.
+          </p>
         </div>
 
         <div className="flex justify-end gap-2 pt-1">
@@ -279,7 +266,10 @@ function ConnectedCard({
   const [saving, setSaving] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
+  const isError = integration.status === "ERROR";
+
   async function handleToggle(field: keyof typeof settings, value: boolean) {
+    const prev = settings;
     const next = { ...settings, [field]: value };
     setSettings(next);
     setSaving(true);
@@ -287,7 +277,7 @@ function ConnectedCard({
     setSaving(false);
     if ("error" in result && result.error) {
       toast.error(result.error);
-      setSettings(settings);
+      setSettings(prev);
     }
   }
 
@@ -303,21 +293,27 @@ function ConnectedCard({
   }
 
   return (
-    <div className="border border-gray-200 rounded-xl overflow-hidden">
-      {/* Header */}
+    <div className={`border rounded-xl overflow-hidden ${isError ? "border-red-200" : "border-gray-200"}`}>
       <div className="flex items-center gap-4 p-4">
         <div className={`p-2.5 rounded-xl ${provider.bgColor} shrink-0`}>
           <provider.icon size={26} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <p className="font-medium text-gray-900 text-sm">{provider.name}</p>
-            <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
-              <CheckCircle2 className="h-3 w-3" />
-              Verbunden
-            </span>
-            {!settings.syncEnabled && (
-              <span className="inline-flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
+            {isError ? (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                <AlertCircle className="h-3 w-3" />
+                Fehler
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                <CheckCircle2 className="h-3 w-3" />
+                Verbunden
+              </span>
+            )}
+            {!settings.syncEnabled && !isError && (
+              <span className="text-xs text-gray-500 bg-gray-100 border border-gray-200 rounded-full px-2 py-0.5">
                 Pausiert
               </span>
             )}
@@ -336,7 +332,6 @@ function ConnectedCard({
         </div>
       </div>
 
-      {/* Expanded Settings */}
       {expanded && (
         <div className="border-t border-gray-100 bg-gray-50 p-4 space-y-3">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -349,10 +344,7 @@ function ConnectedCard({
                 <p className="text-sm font-medium text-gray-800">Synchronisation aktiv</p>
                 <p className="text-xs text-gray-400">Alle Sync-Regeln ein-/ausschalten</p>
               </div>
-              <Toggle
-                checked={settings.syncEnabled}
-                onChange={(v) => handleToggle("syncEnabled", v)}
-              />
+              <Toggle checked={settings.syncEnabled} onChange={(v) => handleToggle("syncEnabled", v)} />
             </div>
 
             <div className="border-t border-gray-200 pt-3 space-y-3">
@@ -419,10 +411,10 @@ function ConnectedCard({
 
 function ProviderCard({
   provider,
-  onConnect,
+  onConnectManual,
 }: {
   provider: (typeof PROVIDERS)[number];
-  onConnect: () => void;
+  onConnectManual: () => void;
 }) {
   return (
     <div className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
@@ -433,15 +425,20 @@ function ProviderCard({
         <p className="font-medium text-gray-900 text-sm">{provider.name}</p>
         <p className="text-xs text-gray-400 mt-0.5">{provider.tagline}</p>
       </div>
-      <Button
-        size="sm"
-        variant="outline"
-        className="gap-1.5 shrink-0"
-        onClick={onConnect}
-      >
-        <Link2 className="h-3.5 w-3.5" />
-        Verbinden
-      </Button>
+      <div className="shrink-0">
+        {provider.authType === "oauth" ? (
+          <a href={provider.oauthPath}>
+            <Button size="sm" className="gap-1.5">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Anmelden
+            </Button>
+          </a>
+        ) : (
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={onConnectManual}>
+            Verbinden
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -453,14 +450,22 @@ type Props = {
 };
 
 export function KalenderIntegrationClient({ integrations }: Props) {
-  const [connectingProvider, setConnectingProvider] = useState<Provider | null>(null);
+  const [showICloudModal, setShowICloudModal] = useState(false);
+  const searchParams = useSearchParams();
+
+  // Show toast on OAuth callback result
+  useEffect(() => {
+    const success = searchParams.get("success");
+    const error = searchParams.get("error");
+    if (success === "google") toast.success("Google Kalender erfolgreich verbunden.");
+    if (success === "outlook") toast.success("Outlook Kalender erfolgreich verbunden.");
+    if (error === "access_denied") toast.error("Anmeldung abgebrochen.");
+    if (error && error !== "access_denied") toast.error(`Verbindungsfehler: ${error}`);
+  }, [searchParams]);
 
   const connectedIds = new Set(integrations.map((i) => i.provider));
   const connectedProviders = PROVIDERS.filter((p) => connectedIds.has(p.id));
   const availableProviders = PROVIDERS.filter((p) => !connectedIds.has(p.id));
-  const activeModal = connectingProvider
-    ? PROVIDERS.find((p) => p.id === connectingProvider)
-    : null;
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -476,8 +481,8 @@ export function KalenderIntegrationClient({ integrations }: Props) {
               </p>
               <p className="text-xs text-gray-500 leading-relaxed">
                 Verbinde deinen Kalender, damit Aufträge, Baustellen und Aufgaben automatisch als
-                Termine eingetragen werden. Unterstützt werden Google Kalender, Microsoft Outlook
-                und Apple iCloud.
+                Termine eingetragen werden. Google und Outlook nutzen sichere OAuth-Anmeldung —
+                du wirst direkt beim Anbieter eingeloggt, kein Passwort wird bei uns gespeichert.
               </p>
             </div>
           </div>
@@ -494,11 +499,7 @@ export function KalenderIntegrationClient({ integrations }: Props) {
             {connectedProviders.map((provider) => {
               const integration = integrations.find((i) => i.provider === provider.id)!;
               return (
-                <ConnectedCard
-                  key={provider.id}
-                  integration={integration}
-                  provider={provider}
-                />
+                <ConnectedCard key={provider.id} integration={integration} provider={provider} />
               );
             })}
           </div>
@@ -516,43 +517,16 @@ export function KalenderIntegrationClient({ integrations }: Props) {
               <ProviderCard
                 key={provider.id}
                 provider={provider}
-                onConnect={() => setConnectingProvider(provider.id)}
+                onConnectManual={() => provider.id === "ICLOUD" && setShowICloudModal(true)}
               />
             ))}
           </div>
         </div>
       )}
 
-      {/* All connected */}
-      {availableProviders.length === 0 && (
-        <div className="text-center py-8 text-sm text-gray-400">
-          <CheckCircle2 className="h-8 w-8 text-green-400 mx-auto mb-2" />
-          Alle Kalender-Dienste sind verbunden.
-        </div>
-      )}
-
-      {/* No connections yet empty state */}
-      {connectedProviders.length === 0 && availableProviders.length === PROVIDERS.length && (
-        <div className="rounded-xl border border-dashed border-gray-200 p-6 text-center">
-          <XCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-          <p className="text-sm font-medium text-gray-600">Noch kein Kalender verbunden</p>
-          <p className="text-xs text-gray-400 mt-1">
-            Wähle einen Anbieter oben aus, um loszulegen.
-          </p>
-        </div>
-      )}
-
-      {/* Connect Modal */}
-      <Dialog
-        open={!!connectingProvider}
-        onOpenChange={(open) => !open && setConnectingProvider(null)}
-      >
-        {activeModal && (
-          <ConnectModal
-            provider={activeModal}
-            onClose={() => setConnectingProvider(null)}
-          />
-        )}
+      {/* iCloud Modal */}
+      <Dialog open={showICloudModal} onOpenChange={setShowICloudModal}>
+        <ICloudConnectModal onClose={() => setShowICloudModal(false)} />
       </Dialog>
     </div>
   );

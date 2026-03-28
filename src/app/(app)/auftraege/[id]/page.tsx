@@ -26,10 +26,6 @@ export default async function AuftragDetailPage({
         total: i.total.toNumber(),
       })),
     } : null,
-    deliveryNotes: order.deliveryNotes.map((dn) => ({
-      ...dn,
-      quantity: dn.quantity.toNumber(),
-    })),
     baustellen: order.baustellen,
     paymentMilestones: (order.paymentMilestones ?? []).map((m) => ({
       ...m,

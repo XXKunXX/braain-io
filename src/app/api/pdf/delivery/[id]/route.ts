@@ -13,7 +13,7 @@ export async function GET(
 
   const dn = await prisma.deliveryNote.findUnique({
     where: { id },
-    include: { contact: true, order: true },
+    include: { contact: true },
   });
 
   if (!dn) {

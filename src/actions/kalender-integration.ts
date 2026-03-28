@@ -10,6 +10,7 @@ const connectSchema = z.object({
   provider: z.enum(["GOOGLE", "OUTLOOK", "ICLOUD"]),
   accountEmail: z.string().email("Bitte eine gültige E-Mail-Adresse eingeben."),
   calendarUrl: z.string().url("Bitte eine gültige URL eingeben.").optional().or(z.literal("")),
+  calendarPassword: z.string().optional(),
 });
 
 const syncSettingsSchema = z.object({
@@ -33,6 +34,7 @@ export async function connectCalendar(data: {
   provider: string;
   accountEmail: string;
   calendarUrl?: string;
+  calendarPassword?: string;
 }) {
   const { userId } = await auth();
   if (!userId) return { error: "Nicht authentifiziert" };
@@ -40,7 +42,7 @@ export async function connectCalendar(data: {
   const parsed = connectSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.errors[0].message };
 
-  const { provider, accountEmail, calendarUrl } = parsed.data;
+  const { provider, accountEmail, calendarUrl, calendarPassword } = parsed.data;
 
   try {
     await prisma.calendarIntegration.upsert({
@@ -50,11 +52,13 @@ export async function connectCalendar(data: {
         provider: provider as CalendarProvider,
         accountEmail,
         calendarUrl: calendarUrl || null,
+        calendarPassword: calendarPassword || null,
         status: "ACTIVE",
       },
       update: {
         accountEmail,
         calendarUrl: calendarUrl || null,
+        calendarPassword: calendarPassword || null,
         status: "ACTIVE",
         syncEnabled: true,
       },
