@@ -419,14 +419,13 @@ export function QuoteDetail({
 
               {editing ? (
                 <div className="px-4 pb-4 pt-2">
-                  <div className="grid grid-cols-[28px_1fr_80px_88px_108px_108px_32px] gap-x-3 px-1 pb-2 border-b-2 border-gray-100 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
+                  <div className="grid grid-cols-[32px_1fr_100px_100px_100px_112px] gap-x-3 pb-2 border-b-2 border-gray-100 text-[11px] font-semibold tracking-wider text-gray-400 uppercase">
                     <div>#</div>
                     <div>Beschreibung</div>
                     <div className="text-right">Menge</div>
-                    <div>Einheit</div>
+                    <div className="text-right">Einheit</div>
                     <div className="text-right">EP (€)</div>
                     <div className="text-right">GP (€)</div>
-                    <div />
                   </div>
                   {items.map((item, idx) => {
                     const isProdukt = item.itemType === "produkt";
@@ -436,8 +435,19 @@ export function QuoteDetail({
                     return (
                     <div key={idx} className="group border-b border-gray-100 py-3 space-y-1.5">
                       {/* Eingabe-Zeile */}
-                      <div className="grid grid-cols-[28px_1fr_80px_88px_108px_108px_32px] gap-x-3 items-center">
-                        <div className="text-xs font-mono text-gray-400 text-center">{idx + 1}.</div>
+                      <div className="grid grid-cols-[32px_1fr_100px_100px_100px_112px] gap-x-3 items-center">
+                        <div className="relative h-9 flex items-center justify-center">
+                          <span className="text-xs font-mono text-gray-400 group-hover:opacity-0 transition-opacity select-none">{idx + 1}.</span>
+                          {items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeItem(idx)}
+                              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                         <div
                           className="relative"
                           ref={(el) => { machineRefs.current[idx] = el; }}
@@ -504,23 +514,16 @@ export function QuoteDetail({
                         </div>
                         <Input className="text-sm h-9 text-right" type="number" min="0" step={["Std", "Stk", "Psch"].includes(item.unit) ? "1" : "0.001"} value={item.quantity} onChange={(e) => updateItem(idx, "quantity", Number(e.target.value))} />
                         <Select value={item.unit} onValueChange={(v) => v && updateItem(idx, "unit", v)}>
-                          <SelectTrigger className="text-sm h-9"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="text-sm h-9 w-full"><SelectValue /></SelectTrigger>
                           <SelectContent>{UNITS.map((u) => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent>
                         </Select>
                         <Input className="text-sm h-9 text-right" type="number" min="0" step="1" value={item.unitPrice} onChange={(e) => updateItem(idx, "unitPrice", Number(e.target.value))} />
-                        <div className="h-9 flex items-center justify-end text-sm font-semibold font-mono text-gray-900">
+                        <div className="h-9 flex items-center justify-end px-3 text-sm font-mono text-gray-900 bg-gray-50 rounded-md border border-gray-100">
                           {(item.quantity * item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
-                        <div className="h-9 flex items-center justify-center">
-                          {items.length > 1 && (
-                            <button type="button" onClick={() => removeItem(idx)} className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          )}
-                        </div>
                       </div>
-                      {/* Notiz-Zeile — bündig mit Beschreibungs-Spalte, volle Breite */}
-                      <div className="pl-[40px] pr-[44px]">
+                      {/* Notiz-Zeile — bündig mit Beschreibungs-Spalte bis Ende GP */}
+                      <div className="pl-[44px]">
                         <textarea
                           rows={item.note ? 2 : 1}
                           className="w-full rounded-md border border-gray-200 px-3 py-2 text-sm text-gray-600 placeholder:text-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 resize-none"
@@ -554,7 +557,7 @@ export function QuoteDetail({
                       <th className="text-left px-5 py-2.5">Pos.</th>
                       <th className="text-left px-5 py-2.5">Beschreibung</th>
                       <th className="text-right px-5 py-2.5">Menge</th>
-                      <th className="text-left px-5 py-2.5">Einh.</th>
+                      <th className="text-right px-5 py-2.5">Einheit</th>
                       <th className="text-right px-5 py-2.5">EP €</th>
                       <th className="text-right px-5 py-2.5">GP €</th>
                     </tr>
@@ -568,9 +571,9 @@ export function QuoteDetail({
                           {item.note && <p className="text-xs text-gray-500 mt-0.5 whitespace-pre-wrap">{item.note}</p>}
                         </td>
                         <td className="px-5 py-3 text-right font-mono">{Number(item.quantity).toLocaleString("de-DE")}</td>
-                        <td className="px-5 py-3 text-gray-500">{item.unit}</td>
+                        <td className="px-5 py-3 text-right text-gray-500">{item.unit}</td>
                         <td className="px-5 py-3 text-right font-mono">{Number(item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</td>
-                        <td className="px-5 py-3 text-right font-mono font-semibold">{Number(item.total).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</td>
+                        <td className="px-5 py-3 text-right font-mono">{Number(item.total).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</td>
                       </tr>
                     ))}
                   </tbody>

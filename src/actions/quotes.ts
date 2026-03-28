@@ -67,7 +67,18 @@ export async function createQuote(data: QuoteFormData) {
   }
 
   revalidatePath("/angebote");
-  return { quote };
+  return {
+    quote: {
+      ...quote,
+      totalPrice: Number(quote.totalPrice),
+      items: quote.items.map((i) => ({
+        ...i,
+        quantity: Number(i.quantity),
+        unitPrice: Number(i.unitPrice),
+        total: Number(i.total),
+      })),
+    },
+  };
 }
 
 export async function updateQuote(id: string, data: QuoteFormData) {
@@ -103,7 +114,24 @@ export async function updateQuote(id: string, data: QuoteFormData) {
 
   revalidatePath("/angebote");
   revalidatePath(`/angebote/${id}`);
-  return { quote };
+  return {
+    quote: {
+      ...quote,
+      totalPrice: Number(quote.totalPrice),
+      validUntil: quote.validUntil ? quote.validUntil.toISOString() : null,
+      createdAt: quote.createdAt.toISOString(),
+      updatedAt: quote.updatedAt.toISOString(),
+      items: quote.items.map((i) => ({
+        ...i,
+        quantity: Number(i.quantity),
+        unitPrice: Number(i.unitPrice),
+        total: Number(i.total),
+      })),
+      contact: quote.contact
+        ? { ...quote.contact, createdAt: quote.contact.createdAt.toISOString(), updatedAt: quote.contact.updatedAt.toISOString() }
+        : null,
+    },
+  };
 }
 
 export async function updateQuoteStatus(
