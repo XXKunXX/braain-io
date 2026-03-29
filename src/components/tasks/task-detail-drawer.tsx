@@ -10,7 +10,7 @@ import { updateTaskStatus } from "@/actions/tasks";
 import { toast } from "sonner";
 import type { Task, Contact, Request, DeliveryNote } from "@prisma/client";
 
-type TaskWithRelations = Task & { contact: Contact | null; request: Request | null; deliveryNote: DeliveryNote | null };
+type TaskWithRelations = Task & { contact: Contact | null; request: Request | null; deliveryNote: (Omit<DeliveryNote, "quantity"> & { quantity: number | null }) | null };
 
 const priorityLabels: Record<string, string> = {
   LOW: "Niedrig",
