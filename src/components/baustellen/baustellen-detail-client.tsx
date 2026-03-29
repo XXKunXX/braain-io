@@ -587,12 +587,12 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
         onOpenChange={open => { if (!open) setDeleteLieferscheinId(null); }}
         title="Lieferschein löschen"
         description={
-          deleteLieferscheinId && b.deliveryNotes.find(d => d.id === deleteLieferscheinId)?.signatureUrl
+          deleteLieferscheinId && (b.deliveryNotes.find(d => d.id === deleteLieferscheinId) as any)?.signatureUrl
             ? "Dieser Lieferschein wurde bereits unterschrieben. Soll er trotzdem gelöscht werden?"
             : "Soll dieser Lieferschein wirklich gelöscht werden? Diese Aktion kann nicht rückgängig gemacht werden."
         }
         variant={
-          deleteLieferscheinId && b.deliveryNotes.find(d => d.id === deleteLieferscheinId)?.signatureUrl
+          deleteLieferscheinId && (b.deliveryNotes.find(d => d.id === deleteLieferscheinId) as any)?.signatureUrl
             ? "warning"
             : "destructive"
         }
