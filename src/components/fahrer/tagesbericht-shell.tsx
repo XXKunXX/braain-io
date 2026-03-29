@@ -173,7 +173,7 @@ export function TagesberichtShell({
           <button
             onClick={handleSubmit}
             disabled={pending || !baustelleId}
-            className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors disabled:opacity-50"
           >
             <FileText className="h-4 w-4" />
             Bericht speichern
@@ -192,7 +192,7 @@ export function TagesberichtShell({
                       <p className="text-sm font-semibold text-gray-900">
                         {format(new Date(r.date), "EEE, dd. MMM yyyy", { locale: de })}
                       </p>
-                      <p className="text-xs text-indigo-600 font-medium mt-0.5">{r.baustelle.name}</p>
+                      <p className="text-xs text-blue-600 font-medium mt-0.5">{r.baustelle.name}</p>
                       {(r.hours != null || r.employees != null) && (
                         <div className="flex items-center gap-3 mt-1.5">
                           {r.hours != null && (

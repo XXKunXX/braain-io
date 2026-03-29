@@ -31,7 +31,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STATUS_BADGE: Record<string, string> = {
   PLANNED: "bg-amber-100 text-amber-700",
-  ACTIVE: "bg-indigo-100 text-indigo-700",
+  ACTIVE: "bg-blue-100 text-blue-700",
   PENDING: "bg-rose-100 text-rose-700",
   INVOICED: "bg-orange-100 text-orange-700",
   COMPLETED: "bg-emerald-100 text-emerald-700",
@@ -39,7 +39,7 @@ const STATUS_BADGE: Record<string, string> = {
 
 const STATUS_ACCENT: Record<string, string> = {
   PLANNED: "bg-amber-400",
-  ACTIVE: "bg-indigo-500",
+  ACTIVE: "bg-blue-500",
   PENDING: "bg-rose-500",
   INVOICED: "bg-orange-400",
   COMPLETED: "bg-emerald-500",
@@ -48,7 +48,7 @@ const STATUS_ACCENT: Record<string, string> = {
 // Desktop only (keep border style)
 const STATUS_STYLE: Record<string, string> = {
   PLANNED: "border border-amber-300 text-amber-600 bg-amber-50",
-  ACTIVE: "border border-indigo-300 text-indigo-600 bg-indigo-50",
+  ACTIVE: "border border-blue-300 text-blue-600 bg-blue-50",
   PENDING: "border border-rose-300 text-rose-600 bg-rose-50",
   INVOICED: "border border-orange-300 text-orange-600 bg-orange-50",
   COMPLETED: "border border-emerald-300 text-emerald-600 bg-emerald-50",
@@ -268,8 +268,8 @@ export function DriverAppShell({
               </div>
 
               <div className="bg-white rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center flex-shrink-0">
-                  <HardHat className="h-5 w-5 text-indigo-500" />
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <HardHat className="h-5 w-5 text-blue-500" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{filtered.length}</p>
@@ -353,7 +353,7 @@ function RouteOptimizeButton({ baustellen, companyAddress }: { baustellen: Baust
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 text-xs font-semibold transition-colors mb-3 md:mb-0 active:scale-[0.97]"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 text-xs font-semibold transition-colors mb-3 md:mb-0 active:scale-[0.97]"
       >
         <Route className="h-3.5 w-3.5" />
         Route optimieren ({addresses.length} Stopps)

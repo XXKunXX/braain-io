@@ -172,7 +172,7 @@ export function ZeiterfassungShell({
                 <select
                   value={baustelleId || "_none"}
                   onChange={(e) => setBaustelleId(e.target.value === "_none" ? "" : e.target.value)}
-                  className="w-full h-12 pl-4 pr-10 rounded-xl border border-input bg-white text-[15px] font-medium text-gray-900 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  className="w-full h-12 pl-4 pr-10 rounded-xl border border-input bg-white text-[15px] font-medium text-gray-900 appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="_none">Keine Baustelle</option>
                   {baustellenOptions.map((b) => (

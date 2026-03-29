@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ContactCombobox } from "./contact-combobox";
 import { createRequest } from "@/actions/requests";
 import { toast } from "sonner";
 import type { Contact } from "@prisma/client";
@@ -171,20 +172,11 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt *</Label>
-                  <Select value={contactId} onValueChange={(v) => v && handleContactChange(v)}>
-                    <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
-                      <SelectValue>
-                        {contactId
-                          ? selectedContact?.companyName
-                          : <span className="text-gray-400">Wählen...</span>}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {contacts.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.companyName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <ContactCombobox
+                    contacts={contacts}
+                    value={contactId}
+                    onChange={handleContactChange}
+                  />
                   {/* Neuer Kontakt link */}
                   <Link
                     href="/kontakte/neu?returnTo=/anfragen/neu"

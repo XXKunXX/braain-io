@@ -152,7 +152,7 @@ export function FahrzeugCheckShell({
           <button
             onClick={handleSubmit}
             disabled={pending}
-            className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm transition-colors disabled:opacity-50"
+            className="flex items-center justify-center gap-2 w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm transition-colors disabled:opacity-50"
           >
             <ClipboardCheck className="h-4 w-4" />
             Check speichern

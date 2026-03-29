@@ -38,6 +38,7 @@ export async function createContact(data: ContactFormData) {
   const { owner, companyName, ...rest } = parsed.data;
   const contact = await prisma.contact.create({ data: { ...rest, companyName: companyName ?? "", owner: owner || null } });
   revalidatePath("/kontakte");
+  revalidatePath("/anfragen/neu");
   return { contact };
 }
 

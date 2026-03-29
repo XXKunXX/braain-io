@@ -15,7 +15,7 @@ const primaryTabs = [
 ];
 
 const moreItems = [
-  { href: "/fahrer/nachrichten", label: "Nachrichten", icon: MessageSquare, color: "text-indigo-600", bg: "bg-indigo-50" },
+  { href: "/fahrer/nachrichten", label: "Nachrichten", icon: MessageSquare, color: "text-blue-600", bg: "bg-blue-50" },
   { href: "/fahrer/fahrzeug-check", label: "Fahrzeug-Check", icon: ClipboardCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
   { href: "/fahrer/schaden", label: "Schadensmeldung", icon: AlertTriangle, color: "text-rose-600", bg: "bg-rose-50" },
   { href: "/fahrer/tankbuch", label: "Tankbuch", icon: Fuel, color: "text-amber-600", bg: "bg-amber-50" },
@@ -90,14 +90,14 @@ export function BottomNav() {
                   <div
                     className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 ${
                       active
-                        ? "bg-indigo-600"
+                        ? "bg-blue-600"
                         : ""
                     }`}
-                    style={active ? { boxShadow: "0 4px 14px rgba(99,102,241,0.45)" } : undefined}
+                    style={active ? { boxShadow: "0 4px 14px rgba(37,99,235,0.45)" } : undefined}
                   >
-                    <Icon className={`h-[19px] w-[19px] transition-colors ${active ? "text-white" : "text-gray-400"}`} />
+                    <Icon className={`h-[19px] w-[19px] transition-colors ${active ? "" : "text-gray-400"}`} style={active ? { color: "#F5B400" } : undefined} />
                   </div>
-                  <span className={`text-[10px] font-semibold leading-none transition-colors ${active ? "text-indigo-600" : "text-gray-400"}`}>
+                  <span className={`text-[10px] font-semibold leading-none transition-colors ${active ? "text-blue-600" : "text-gray-400"}`}>
                     {label}
                   </span>
                 </Link>
@@ -109,13 +109,13 @@ export function BottomNav() {
             >
               <div
                 className={`w-10 h-10 flex items-center justify-center rounded-xl transition-all duration-200 ${
-                  isMoreActive ? "bg-indigo-600" : ""
+                  isMoreActive ? "bg-blue-600" : ""
                 }`}
-                style={isMoreActive ? { boxShadow: "0 4px 14px rgba(99,102,241,0.45)" } : undefined}
+                style={isMoreActive ? { boxShadow: "0 4px 14px rgba(37,99,235,0.45)" } : undefined}
               >
-                <MoreHorizontal className={`h-[19px] w-[19px] transition-colors ${isMoreActive ? "text-white" : "text-gray-400"}`} />
+                <MoreHorizontal className={`h-[19px] w-[19px] transition-colors ${isMoreActive ? "" : "text-gray-400"}`} style={isMoreActive ? { color: "#F5B400" } : undefined} />
               </div>
-              <span className={`text-[10px] font-semibold leading-none transition-colors ${isMoreActive ? "text-indigo-600" : "text-gray-400"}`}>
+              <span className={`text-[10px] font-semibold leading-none transition-colors ${isMoreActive ? "text-blue-600" : "text-gray-400"}`}>
                 Mehr
               </span>
             </button>

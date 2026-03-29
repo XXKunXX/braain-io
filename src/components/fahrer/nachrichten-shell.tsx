@@ -87,14 +87,14 @@ export function NachrichtenShell({
               <div key={msg.id} className={`flex ${isOwn ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
                   isOwn
-                    ? "bg-indigo-600 text-white rounded-br-sm"
+                    ? "bg-blue-600 text-white rounded-br-sm"
                     : "bg-gray-100 text-gray-900 rounded-bl-sm"
                 }`}>
                   {!isOwn && (
-                    <p className="text-xs font-semibold mb-0.5 text-indigo-600">{msg.fromName}</p>
+                    <p className="text-xs font-semibold mb-0.5 text-blue-600">{msg.fromName}</p>
                   )}
                   <p className="text-sm leading-relaxed">{msg.message}</p>
-                  <p className={`text-xs mt-1 ${isOwn ? "text-indigo-200" : "text-gray-400"}`}>
+                  <p className={`text-xs mt-1 ${isOwn ? "text-blue-200" : "text-gray-400"}`}>
                     {format(new Date(msg.createdAt), "HH:mm", { locale: de })}
                   </p>
                 </div>
@@ -116,7 +116,7 @@ export function NachrichtenShell({
           <button
             onClick={handleSend}
             disabled={pending || !text.trim()}
-            className="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition-colors disabled:opacity-40"
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-40"
           >
             <Send className="h-4 w-4" />
           </button>

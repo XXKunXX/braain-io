@@ -25,7 +25,7 @@ export default async function FahrerLieferscheinDetailPage({
       <div className="max-w-lg mx-auto px-4 py-4">
         <Link
           href="/fahrer"
-          className="inline-flex items-center gap-0.5 text-indigo-600 font-semibold text-[15px] mb-4"
+          className="inline-flex items-center gap-0.5 text-blue-600 font-semibold text-[15px] mb-4"
         >
           <ArrowLeft className="h-5 w-5" />
           Zurück
@@ -94,7 +94,7 @@ export default async function FahrerLieferscheinDetailPage({
               href={`/api/pdf/delivery/${id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2.5 w-full bg-indigo-600 hover:bg-indigo-700 rounded-2xl py-4 text-[15px] font-bold text-white transition-colors active:scale-[0.99]"
+              className="flex items-center justify-center gap-2.5 w-full bg-blue-600 hover:bg-blue-700 rounded-2xl py-4 text-[15px] font-bold text-white transition-colors active:scale-[0.99]"
             >
               <FileText className="h-5 w-5" />
               PDF anzeigen

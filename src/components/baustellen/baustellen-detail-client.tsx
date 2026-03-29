@@ -101,6 +101,7 @@ type Baustelle = {
   deliveryNotes: Array<{
     id: string; deliveryNumber: string; date: Date; material: string;
     quantity: number | null; unit: string; driver: string | null;
+    signatureUrl: string | null;
   }>;
 };
 

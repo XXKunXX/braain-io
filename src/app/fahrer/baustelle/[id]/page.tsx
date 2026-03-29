@@ -48,7 +48,7 @@ export default async function FahrerBaustelleDetailPage({
       <div className="md:hidden">
         {/* Page header */}
         <div className="bg-white px-4 pt-3 pb-5 border-b border-gray-100">
-          <Link href="/fahrer" className="inline-flex items-center gap-0.5 text-indigo-600 font-semibold text-[15px] mb-3">
+          <Link href="/fahrer" className="inline-flex items-center gap-0.5 text-blue-600 font-semibold text-[15px] mb-3">
             <ChevronLeft className="h-5 w-5" />
             Baustellen
           </Link>
@@ -63,7 +63,7 @@ export default async function FahrerBaustelleDetailPage({
           {address && <NavAddressCard address={address} origin={companyAddress} />}
           {zeitraumValue ? (
             <InfoCard
-              icon={<Clock className="h-5 w-5 text-indigo-400 flex-shrink-0" />}
+              icon={<Clock className="h-5 w-5 text-blue-400 flex-shrink-0" />}
               label="Einsatz geplant"
               value={zeitraumValue}
             />
@@ -72,7 +72,7 @@ export default async function FahrerBaustelleDetailPage({
           )}
           {baustelle.order?.title && (
             <InfoCard
-              icon={<Building2 className="h-5 w-5 text-indigo-400 flex-shrink-0" />}
+              icon={<Building2 className="h-5 w-5 text-blue-400 flex-shrink-0" />}
               label="Auftrag"
               value={baustelle.order.title}
             />
@@ -91,7 +91,7 @@ export default async function FahrerBaustelleDetailPage({
 
       {/* ── Tablet / Desktop (≥ md) ── */}
       <div className="hidden md:block max-w-5xl mx-auto px-6 lg:px-10 py-8">
-        <Link href="/fahrer" className="inline-flex items-center gap-1 text-indigo-600 font-medium text-sm mb-6 hover:text-indigo-700">
+        <Link href="/fahrer" className="inline-flex items-center gap-1 text-blue-600 font-medium text-sm mb-6 hover:text-blue-700">
           <ChevronLeft className="h-4 w-4" />
           Baustellen
         </Link>
@@ -109,7 +109,7 @@ export default async function FahrerBaustelleDetailPage({
               {address && <NavAddressCard address={address} origin={companyAddress} />}
               {zeitraumValue ? (
                 <InfoCard
-                  icon={<Clock className="h-5 w-5 text-indigo-400 flex-shrink-0" />}
+                  icon={<Clock className="h-5 w-5 text-blue-400 flex-shrink-0" />}
                   label="Einsatz geplant"
                   value={zeitraumValue}
                 />
@@ -118,7 +118,7 @@ export default async function FahrerBaustelleDetailPage({
               )}
               {baustelle.order?.title && (
                 <InfoCard
-                  icon={<Building2 className="h-5 w-5 text-indigo-400 flex-shrink-0" />}
+                  icon={<Building2 className="h-5 w-5 text-blue-400 flex-shrink-0" />}
                   label="Auftrag"
                   value={baustelle.order.title}
                 />
@@ -220,7 +220,7 @@ function LieferscheinButton({
   return (
     <Link
       href={`/fahrer/${orderId}/lieferschein`}
-      className={`flex items-center justify-center gap-2 w-full bg-indigo-600 hover:bg-indigo-700 rounded-${rounded} py-4 text-[15px] font-bold text-white transition-colors active:scale-[0.99]`}
+      className={`flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 rounded-${rounded} py-4 text-[15px] font-bold text-white transition-colors active:scale-[0.99]`}
     >
       <FileText className="h-5 w-5" />
       Lieferschein erstellen

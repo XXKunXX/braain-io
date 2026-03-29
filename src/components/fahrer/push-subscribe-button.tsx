@@ -69,11 +69,12 @@ export function PushSubscribeButton() {
   }
 
   if (state === "unsupported" || state === "denied") return null;
+
   if (state === "granted") {
     return (
-      <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
-        <Bell className="h-3.5 w-3.5" /> Benachrichtigungen aktiv
-      </span>
+      <div className="w-8 h-8 flex items-center justify-center rounded-full bg-green-50" title="Benachrichtigungen aktiv">
+        <Bell className="h-4 w-4 text-green-600" />
+      </div>
     );
   }
 
@@ -81,10 +82,10 @@ export function PushSubscribeButton() {
     <button
       onClick={handleClick}
       disabled={loading}
-      className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-indigo-600 font-medium transition-colors disabled:opacity-50"
+      title={loading ? "Aktiviere..." : "Benachrichtigungen aktivieren"}
+      className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 transition-colors disabled:opacity-50"
     >
-      <BellOff className="h-3.5 w-3.5" />
-      {loading ? "Aktiviere..." : "Benachrichtigungen"}
+      <BellOff className="h-4 w-4 text-gray-500" />
     </button>
   );
 }
