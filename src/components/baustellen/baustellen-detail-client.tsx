@@ -5,7 +5,7 @@ import { useTabLabels } from "@/hooks/use-tab-labels";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, FileText, FolderOpen, User, Truck,
+  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, FileText, FolderOpen, User, Truck, ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -145,19 +145,23 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
     if ("error" in r) { toast.error("Fehler"); return; }
     setB((prev) => ({ ...prev, ...r.baustelle }));
     setEditMode(false);
-    toast.success("Gespeichert");
+    toast.success("Baustelle gespeichert");
     router.refresh();
   }
 
   // ── Disposition ────────────────────────────────────────────────────────────
-  async function handleDeleteDispo(id: string) {
-    if (!confirm("Einsatz wirklich löschen?")) return;
-    await deleteBaustelleDispositionEntry(id, b.id);
-    setB(prev => ({ ...prev, dispositionEntries: prev.dispositionEntries.filter(e => e.id !== id) }));
-    toast.success("Gelöscht");
+  const [deleteDispoId, setDeleteDispoId] = useState<string | null>(null);
+
+  async function confirmDeleteDispo() {
+    if (!deleteDispoId) return;
+    await deleteBaustelleDispositionEntry(deleteDispoId, b.id);
+    setB(prev => ({ ...prev, dispositionEntries: prev.dispositionEntries.filter(e => e.id !== deleteDispoId) }));
+    toast.success("Einsatz gelöscht");
+    router.refresh();
   }
 
   // ── Rapport modal ──────────────────────────────────────────────────────────
+  const [deleteRapportId, setDeleteRapportId] = useState<string | null>(null);
   const [deleteLieferscheinId, setDeleteLieferscheinId] = useState<string | null>(null);
   const [rapOpen, setRapOpen] = useState(false);
   const [rf, setRf] = useState({ date: "", driverName: "", machineName: "", hours: "", employees: "", description: "" });
@@ -181,11 +185,12 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
     toast.success("Rapport erstellt");
   }
 
-  async function handleDeleteRapport(id: string) {
-    if (!confirm("Rapport wirklich löschen?")) return;
-    await deleteTagesrapport(id, b.id);
-    setB(prev => ({ ...prev, rapporte: prev.rapporte.filter(r => r.id !== id) }));
-    toast.success("Gelöscht");
+  async function confirmDeleteRapport() {
+    if (!deleteRapportId) return;
+    await deleteTagesrapport(deleteRapportId, b.id);
+    setB(prev => ({ ...prev, rapporte: prev.rapporte.filter(r => r.id !== deleteRapportId) }));
+    toast.success("Tagesbericht gelöscht");
+    router.refresh();
   }
 
   async function confirmDeleteLieferschein() {
@@ -449,36 +454,39 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">Geplante Einsätze</h2>
-              <a
+              <Link
                 href={`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 h-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
               >
                 <CalendarDays className="h-4 w-4" />Im Disposition öffnen
-              </a>
+              </Link>
             </div>
             {b.dispositionEntries.length === 0 ? (
               <div className="text-center py-20 text-gray-400 text-sm">Noch keine Einsätze geplant</div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_1fr_2fr_1fr_40px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                <div className="grid grid-cols-[1fr_1fr_2fr_1fr_56px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                   {["Von", "Bis", "Ressource", "Notizen", ""].map(h => (
                     <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
                   ))}
                 </div>
-                {b.dispositionEntries.map((e, i) => (
-                  <div key={e.id} className={`grid grid-cols-[1fr_1fr_2fr_1fr_40px] gap-3 px-5 py-3 items-center group hover:bg-gray-50 ${i !== b.dispositionEntries.length - 1 ? "border-b border-gray-100" : ""}`}>
-                    <p className="text-sm text-gray-900">{fmt(e.startDate)}</p>
-                    <p className="text-sm text-gray-500">{fmt(e.endDate)}</p>
+                {b.dispositionEntries.map((entry, i) => (
+                  <div key={entry.id} className={`grid grid-cols-[1fr_1fr_2fr_1fr_56px] gap-3 px-5 py-3 items-center hover:bg-gray-50 ${i !== b.dispositionEntries.length - 1 ? "border-b border-gray-100" : ""}`}>
+                    <p className="text-sm text-gray-900">{fmt(entry.startDate)}</p>
+                    <p className="text-sm text-gray-500">{fmt(entry.endDate)}</p>
                     <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${TYPE_COLOR[e.resource.type] ?? "bg-gray-100 text-gray-600"}`}>
-                        {TYPE_LABEL[e.resource.type] ?? e.resource.type}
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0 ${TYPE_COLOR[entry.resource.type] ?? "bg-gray-100 text-gray-600"}`}>
+                        {TYPE_LABEL[entry.resource.type] ?? entry.resource.type}
                       </span>
-                      <p className="text-sm font-medium text-gray-900 truncate">{e.resource.name}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{entry.resource.name}</p>
                     </div>
-                    <p className="text-sm text-gray-500 truncate">{e.notes || "–"}</p>
-                    <button onClick={() => handleDeleteDispo(e.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <p className="text-sm text-gray-500 truncate">{entry.notes || "–"}</p>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={(ev) => { ev.stopPropagation(); setDeleteDispoId(entry.id); }} className="text-gray-300 hover:text-red-400 transition-colors p-0.5">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -492,7 +500,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">Tagesberichte</h2>
-              <Button onClick={() => setRapOpen(true)} size="sm" className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white">
+              <Button onClick={() => setRapOpen(true)} size="sm" className="gap-1.5">
                 <Plus className="h-4 w-4" />Tagesbericht erstellen
               </Button>
             </div>
@@ -500,22 +508,25 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
               <div className="text-center py-20 text-gray-400 text-sm">Noch keine Tagesberichte erfasst</div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_1.5fr_1.5fr_0.7fr_0.7fr_2fr_40px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                <div className="grid grid-cols-[1fr_1.5fr_1.5fr_0.7fr_0.7fr_2fr_56px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                   {["Datum", "Fahrer", "Maschine", "Stunden", "MA", "Beschreibung", ""].map(h => (
                     <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
                   ))}
                 </div>
                 {b.rapporte.map((r, i) => (
-                  <div key={r.id} className={`grid grid-cols-[1fr_1.5fr_1.5fr_0.7fr_0.7fr_2fr_40px] gap-3 px-5 py-3 items-center group hover:bg-gray-50 ${i !== b.rapporte.length - 1 ? "border-b border-gray-100" : ""}`}>
+                  <div key={r.id} className={`grid grid-cols-[1fr_1.5fr_1.5fr_0.7fr_0.7fr_2fr_56px] gap-3 px-5 py-3 items-center hover:bg-gray-50 ${i !== b.rapporte.length - 1 ? "border-b border-gray-100" : ""}`}>
                     <p className="text-sm text-gray-900">{fmt(r.date)}</p>
                     <p className="text-sm text-gray-500">{r.driverName || "–"}</p>
                     <p className="text-sm text-gray-500">{r.machineName || "–"}</p>
                     <p className="text-sm text-gray-500">{r.hours != null ? `${r.hours} h` : "–"}</p>
                     <p className="text-sm text-gray-500">{r.employees != null ? r.employees : "–"}</p>
                     <p className="text-sm text-gray-500 truncate">{r.description || "–"}</p>
-                    <button onClick={() => handleDeleteRapport(r.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button onClick={(ev) => { ev.stopPropagation(); setDeleteRapportId(r.id); }} className="text-gray-300 hover:text-red-400 transition-colors p-0.5">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -528,39 +539,39 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">Lieferscheine</h2>
-              <a
+              <Link
                 href={`/lieferscheine/neu?baustelleId=${b.id}${b.orderId ? `&orderId=${b.orderId}` : ""}`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 h-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
               >
                 <Plus className="h-4 w-4" />Neuer Lieferschein
-              </a>
+              </Link>
             </div>
             {b.deliveryNotes.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Lieferscheine</div>
+              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Lieferscheine erfasst</div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_1fr_2fr_1fr_1fr_80px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                <div className="grid grid-cols-[1fr_1fr_2fr_1fr_1fr_56px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                   {["Nr.", "Datum", "Material", "Menge", "Fahrer", ""].map(h => (
                     <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
                   ))}
                 </div>
                 {b.deliveryNotes.map((dn, i) => (
-                  <div key={dn.id} className={`group grid grid-cols-[1fr_1fr_2fr_1fr_1fr_80px] gap-3 px-5 py-3 items-center hover:bg-gray-50 ${i !== b.deliveryNotes.length - 1 ? "border-b border-gray-100" : ""}`}>
+                  <Link key={dn.id} href={`/lieferscheine/${dn.id}`} className={`group grid grid-cols-[1fr_1fr_2fr_1fr_1fr_56px] gap-3 px-5 py-3 items-center hover:bg-gray-50 transition-colors ${i !== b.deliveryNotes.length - 1 ? "border-b border-gray-100" : ""}`}>
                     <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
                     <span className="text-sm text-gray-700">{fmt(dn.date)}</span>
                     <span className="text-sm font-medium text-gray-900 truncate">{dn.material}</span>
                     <span className="text-sm font-mono text-gray-700">{dn.quantity != null ? dn.quantity.toLocaleString("de-DE") : "–"} {dn.unit}</span>
                     <span className="text-sm text-gray-500">{dn.driver ?? "–"}</span>
-                    <div className="flex items-center justify-end gap-2">
-                      <a href={`/lieferscheine/${dn.id}`} className="text-xs text-blue-600 hover:underline">Öffnen</a>
+                    <div className="flex items-center justify-end gap-1">
                       <button
-                        onClick={() => setDeleteLieferscheinId(dn.id)}
-                        className="text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteLieferscheinId(dn.id); }}
+                        className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
+                      <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -581,6 +592,24 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
           </div>
         )}
       </div>
+
+      {/* ── Dialog: Disposition löschen ───────────────────────────────────────── */}
+      <ConfirmDialog
+        open={!!deleteDispoId}
+        onOpenChange={(open) => { if (!open) setDeleteDispoId(null); }}
+        title="Einsatz löschen"
+        description="Dieser Dispositionseintrag wird unwiderruflich gelöscht."
+        onConfirm={confirmDeleteDispo}
+      />
+
+      {/* ── Dialog: Rapport löschen ────────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={!!deleteRapportId}
+        onOpenChange={(open) => { if (!open) setDeleteRapportId(null); }}
+        title="Tagesbericht löschen"
+        description="Dieser Tagesbericht wird unwiderruflich gelöscht."
+        onConfirm={confirmDeleteRapport}
+      />
 
       {/* ── Dialog: Lieferschein löschen ──────────────────────────────────────── */}
       <ConfirmDialog

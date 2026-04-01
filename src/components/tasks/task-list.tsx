@@ -3,7 +3,9 @@
 import { useState, useMemo, useTransition } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
+import { RelativeDate } from "@/components/ui/relative-date";
 import { Search, Trash2, ChevronRight, CheckSquare, AlertCircle, Clock } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -18,6 +20,7 @@ import type { Task, Contact, Request, DeliveryNote } from "@prisma/client";
 import { TaskDetailDrawer } from "./task-detail-drawer";
 import { sortItems } from "@/lib/sort";
 import { SortHeader } from "@/components/ui/sort-header";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 type TaskWithContact = Task & { contact: Contact | null; request: Request | null; deliveryNote: (Omit<DeliveryNote, "quantity"> & { quantity: number }) | null };
 
@@ -55,6 +58,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
   const [statusFilter, setStatusFilter] = useState("OPEN_AND_IN_PROGRESS");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [selectedTask, setSelectedTask] = useState<TaskWithContact | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<string | null>("dueDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [, startTransition] = useTransition();
@@ -100,15 +104,26 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
     });
   }
 
-  function handleDelete(id: string) {
-    startTransition(async () => {
-      await deleteTask(id);
-      toast.success("Aufgabe gelöscht");
-    });
+  function handleDelete(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    setDeleteId(id);
+  }
+
+  async function confirmDelete() {
+    if (!deleteId) return;
+    await deleteTask(deleteId);
+    toast.success("Aufgabe gelöscht");
   }
 
   return (
     <>
+    <ConfirmDialog
+      open={!!deleteId}
+      onOpenChange={(open) => { if (!open) setDeleteId(null); }}
+      title="Aufgabe löschen"
+      description="Diese Aufgabe wird unwiderruflich gelöscht."
+      onConfirm={confirmDelete}
+    />
     <TaskDetailDrawer
       task={selectedTask}
       fallbackRequest={selectedTask && !selectedTask.request && selectedTask.contactId
@@ -182,10 +197,11 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
 
       {/* Table */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <CheckSquare className="h-10 w-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Keine Aufgaben gefunden</p>
-        </div>
+        <EmptyState
+          icon={CheckSquare}
+          headline="Keine Aufgaben gefunden"
+          subline="Passe die Filter an oder lege eine neue Aufgabe an."
+        />
       ) : (
         <>
           {/* Mobile Card Layout */}
@@ -214,7 +230,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                           {task.title}
                         </p>
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}
+                          onClick={(e) => handleDelete(e, task.id)}
                           className="text-gray-300 hover:text-red-400 transition-colors p-0.5 flex-shrink-0"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -228,10 +244,11 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                           {priorityLabels[task.priority]}
                         </span>
                         {task.dueDate && (
-                          <span className={`text-xs ${overdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
-                            {format(new Date(task.dueDate), "dd.MM.yyyy")}
-                            {overdue && " · Überfällig"}
-                          </span>
+                          <RelativeDate
+                            date={task.dueDate}
+                            overdue={overdue}
+                            className="text-xs"
+                          />
                         )}
                         {task.contact?.companyName && (
                           <span className="text-xs text-gray-400">{task.contact.companyName}</span>
@@ -251,7 +268,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
           {/* Desktop Table Layout */}
           <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_60px] gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+            <div className="grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_80px_48px] gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
               <span />
               <SortHeader label="Titel" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
@@ -259,6 +276,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
               <SortHeader label="Fälligkeit" sortKey="dueDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Priorität" sortKey="priority" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
+              <span />
             </div>
 
             {/* Rows */}
@@ -269,7 +287,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                 <div
                   key={task.id}
                   onClick={() => setSelectedTask(task)}
-                  className={`grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_60px] gap-3 px-4 py-3 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
+                  className={`grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_80px_48px] gap-3 px-4 py-3 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
                     i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                   }`}
                 >
@@ -307,20 +325,11 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
 
                   {/* Due date */}
                   <div className="flex items-center gap-1.5">
-                    {task.dueDate ? (
-                      <>
-                        <span className={`text-sm ${overdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
-                          {format(new Date(task.dueDate), "dd.MM.yyyy")}
-                        </span>
-                        {overdue && (
-                          <span className="text-xs font-medium text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
-                            Überfällig
-                          </span>
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-sm text-gray-300">—</span>
-                    )}
+                    <RelativeDate
+                      date={task.dueDate}
+                      overdue={overdue}
+                      className="text-sm"
+                    />
                   </div>
 
                   {/* Priority */}
@@ -330,11 +339,13 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                     </span>
                   </div>
 
-                  {/* Status + actions */}
-                  <div className="flex items-center gap-1.5 justify-end">
-                    <span className="text-xs text-gray-500">{statusLabels[task.status]}</span>
+                  {/* Status */}
+                  <span className="text-xs text-gray-500">{statusLabels[task.status]}</span>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1 justify-end">
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(task.id); }}
+                      onClick={(e) => handleDelete(e, task.id)}
                       className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
                     >
                       <Trash2 className="h-3.5 w-3.5" />

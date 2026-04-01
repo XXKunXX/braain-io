@@ -127,7 +127,7 @@ export function CreateTaskDialog() {
                 Abbrechen
               </Button>
               <Button type="submit" disabled={loading} className="rounded-lg">
-                {loading ? "Speichere..." : "Erstellen"}
+                {loading ? "Erstellt..." : "Erstellen"}
               </Button>
             </div>
           </form>

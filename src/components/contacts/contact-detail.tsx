@@ -485,7 +485,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-2">
                             <span className="text-xs text-gray-400">{format(new Date(att.createdAt), "dd.MM.yyyy", { locale: de })}</span>
                             <button onClick={() => handleDeleteAttachment(att.id)} className="text-gray-300 hover:text-red-500 transition-colors">
                               <Trash2 className="h-3.5 w-3.5" />
@@ -536,7 +536,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                        className="rounded-lg"
                         onClick={handleSaveNote}
                         disabled={noteSaving || !noteText.trim()}
                       >
@@ -567,7 +567,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
                           <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">{note.content}</p>
                           <button
                             onClick={() => handleDeleteNote(note.id)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500 flex-shrink-0 mt-0.5"
+                            className="text-gray-300 hover:text-red-500 flex-shrink-0 mt-0.5"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>

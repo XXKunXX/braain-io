@@ -1,13 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, Eye, AlertTriangle, X } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Search, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { createMachine, updateMachine, deleteMachine } from "@/actions/machines";
 import type { MachineRow, MachineStatusType } from "@/actions/machines";
 import Link from "next/link";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 const MACHINE_TYPES = [
   "Bagger", "Radlader", "LKW", "Kipper", "Planierraupe", "Walze",
@@ -58,10 +76,23 @@ const EMPTY_FORM: FormData = {
 
 export function MachineTab({ machines }: { machines: MachineRow[] }) {
   const router = useRouter();
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    if (!q) return machines;
+    return machines.filter((m) =>
+      m.name.toLowerCase().includes(q) ||
+      m.machineType.toLowerCase().includes(q) ||
+      (m.manufacturer ?? "").toLowerCase().includes(q) ||
+      (m.model ?? "").toLowerCase().includes(q)
+    );
+  }, [machines, search]);
 
   function openCreate() {
     setForm(EMPTY_FORM);
@@ -133,9 +164,9 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
     router.refresh();
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`"${name}" wirklich löschen? Alle Einsätze und Wartungen werden ebenfalls gelöscht.`)) return;
-    await deleteMachine(id);
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    await deleteMachine(deleteTarget.id);
     toast.success("Maschine gelöscht");
     router.refresh();
   }
@@ -143,9 +174,17 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
   return (
     <>
       {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-400">{machines.length} Maschinen</p>
-        <Button onClick={openCreate} className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <Input
+            placeholder="Suchen..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 bg-white"
+          />
+        </div>
+        <Button onClick={openCreate} className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
           <Plus className="h-4 w-4" />
           Neue Maschine
         </Button>
@@ -156,17 +195,22 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
         <div className="text-center py-20 text-gray-400">
           <p className="text-sm">Noch keine Maschinen erfasst</p>
         </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">
+          <p className="text-sm">Keine Maschinen gefunden</p>
+        </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="grid grid-cols-[2fr_1.2fr_1.5fr_1.2fr_1fr_1fr_80px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+          <div className="grid grid-cols-[2fr_1.2fr_1.5fr_1.2fr_1fr_1fr_56px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
             {["Name", "Typ", "Hersteller", "Modell", "Status", "Stundensatz", ""].map((h) => (
               <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
             ))}
           </div>
-          {machines.map((m, i) => (
-            <div
+          {filtered.map((m, i) => (
+            <Link
               key={m.id}
-              className={`grid grid-cols-[2fr_1.2fr_1.5fr_1.2fr_1fr_1fr_80px] gap-3 px-5 py-3.5 items-center group hover:bg-gray-50 transition-colors ${i !== machines.length - 1 ? "border-b border-gray-100" : ""}`}
+              href={`/ressourcen/maschinen/${m.id}`}
+              className={`grid grid-cols-[2fr_1.2fr_1.5fr_1.2fr_1fr_1fr_56px] gap-3 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${i !== filtered.length - 1 ? "border-b border-gray-100" : ""}`}
             >
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold text-gray-900 truncate">{m.name}</p>
@@ -185,71 +229,56 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
               <p className="text-sm text-gray-500">
                 {m.hourlyRate != null ? `${m.hourlyRate.toLocaleString("de-DE")} €/h` : "–"}
               </p>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Link
-                  href={`/ressourcen/maschinen/${m.id}`}
-                  className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
-                  title="Details"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                </Link>
+              <div className="flex items-center justify-end gap-1">
                 <button
-                  onClick={() => openEdit(m)}
-                  className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors"
-                  title="Bearbeiten"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => handleDelete(m.id, m.name)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
-                  title="Löschen"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteTarget({ id: m.id, name: m.name }); }}
+                  className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
+                <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
 
-      {/* Create / Edit Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 border-b flex items-center justify-between sticky top-0 bg-white z-10">
-              <h2 className="font-semibold text-gray-900">
-                {editingId ? "Maschine bearbeiten" : "Neue Maschine"}
-              </h2>
-              <button onClick={closeForm} className="text-gray-400 hover:text-gray-600">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="px-6 py-4 space-y-3">
+      {/* ConfirmDialog: Maschine löschen */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Maschine löschen"
+        description={deleteTarget ? `"${deleteTarget.name}" wird unwiderruflich gelöscht. Alle Einsätze und Wartungen werden ebenfalls gelöscht.` : undefined}
+        onConfirm={confirmDelete}
+      />
+
+      {/* Create / Edit Dialog */}
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) closeForm(); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingId ? "Maschine bearbeiten" : "Neue Maschine"}</DialogTitle>
+          </DialogHeader>
+            <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
-                  <input
-                    type="text"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700">Name *</Label>
+                  <Input
                     placeholder="z.B. Bagger 01"
                     value={form.name}
                     onChange={(e) => setForm((d) => ({ ...d, name: e.target.value }))}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Maschinentyp *</label>
-                  <select
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={form.machineType}
-                    onChange={(e) => setForm((d) => ({ ...d, machineType: e.target.value }))}
-                  >
-                    {MACHINE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700">Maschinentyp *</Label>
+                  <Select value={form.machineType} onValueChange={(v) => setForm((d) => ({ ...d, machineType: v }))}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MACHINE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                   {form.machineType === "Sonstiges" && (
-                    <input
-                      type="text"
-                      className="mt-1.5 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    <Input
+                      className="mt-1.5"
                       placeholder="Typ eingeben..."
                       value={form.machineTypeCustom}
                       onChange={(e) => setForm((d) => ({ ...d, machineTypeCustom: e.target.value }))}
@@ -258,21 +287,17 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Hersteller</label>
-                  <input
-                    type="text"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700">Hersteller</Label>
+                  <Input
                     placeholder="z.B. Caterpillar"
                     value={form.manufacturer}
                     onChange={(e) => setForm((d) => ({ ...d, manufacturer: e.target.value }))}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Modell</label>
-                  <input
-                    type="text"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700">Modell</Label>
+                  <Input
                     placeholder="z.B. 320"
                     value={form.model}
                     onChange={(e) => setForm((d) => ({ ...d, model: e.target.value }))}
@@ -280,11 +305,10 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Baujahr</label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700">Baujahr</Label>
+                  <Input
                     type="number"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="2020"
                     min="1950"
                     max="2099"
@@ -292,11 +316,9 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
                     onChange={(e) => setForm((d) => ({ ...d, year: e.target.value }))}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Kennzeichen</label>
-                  <input
-                    type="text"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700">Kennzeichen</Label>
+                  <Input
                     placeholder="z.B. W-12345"
                     value={form.licensePlate}
                     onChange={(e) => setForm((d) => ({ ...d, licensePlate: e.target.value }))}
@@ -304,62 +326,57 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Seriennummer</label>
-                  <input
-                    type="text"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700">Seriennummer</Label>
+                  <Input
                     placeholder="Optional"
                     value={form.serialNumber}
                     onChange={(e) => setForm((d) => ({ ...d, serialNumber: e.target.value }))}
                   />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Stundensatz (€/h)</label>
-                  <input
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-gray-700">Stundensatz (€/h)</Label>
+                  <Input
                     type="number"
                     min="0"
                     step="0.01"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="0.00"
                     value={form.hourlyRate}
                     onChange={(e) => setForm((d) => ({ ...d, hourlyRate: e.target.value }))}
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={form.status}
-                  onChange={(e) => setForm((d) => ({ ...d, status: e.target.value as MachineStatusType }))}
-                >
-                  <option value="AVAILABLE">Verfügbar</option>
-                  <option value="IN_USE">Im Einsatz</option>
-                  <option value="MAINTENANCE">Wartung</option>
-                  <option value="OUT_OF_SERVICE">Außer Betrieb</option>
-                </select>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-700">Status</Label>
+                <Select value={form.status} onValueChange={(v) => setForm((d) => ({ ...d, status: v as MachineStatusType }))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AVAILABLE">Verfügbar</SelectItem>
+                    <SelectItem value="IN_USE">Im Einsatz</SelectItem>
+                    <SelectItem value="MAINTENANCE">Wartung</SelectItem>
+                    <SelectItem value="OUT_OF_SERVICE">Außer Betrieb</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Notizen</label>
-                <textarea
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-gray-700">Notizen</Label>
+                <Textarea
                   rows={2}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  className="resize-none"
                   placeholder="Optional"
                   value={form.notes}
                   onChange={(e) => setForm((d) => ({ ...d, notes: e.target.value }))}
                 />
               </div>
             </div>
-            <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
+            <DialogFooter>
               <Button variant="outline" onClick={closeForm}>Abbrechen</Button>
               <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Wird gespeichert..." : editingId ? "Speichern" : "Maschine erstellen"}
+                {isSubmitting ? "Speichert..." : editingId ? "Speichern" : "Maschine erstellen"}
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

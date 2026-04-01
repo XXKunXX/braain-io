@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   createDispositionEntry,
   updateDispositionEntry,
@@ -188,6 +189,7 @@ export function DispositionCalendar({
   const resizingRef = useRef<ResizeState | null>(null);
   const resizePreviewRef = useRef<{ id: string; startMs: number; endMs: number } | null>(null);
   const [resizePreview, setResizePreview] = useState<{ id: string; startMs: number; endMs: number } | null>(null);
+  const [deleteEntryId, setDeleteEntryId] = useState<string | null>(null);
 
   useEffect(() => {
     function onMouseMove(e: MouseEvent) {
@@ -515,8 +517,9 @@ export function DispositionCalendar({
     await executeDropModalSave();
   }
 
-  async function handleDeleteEntry(id: string) {
-    if (!confirm("Eintrag löschen?")) return;
+  async function confirmDeleteEntry() {
+    if (!deleteEntryId) return;
+    const id = deleteEntryId;
     const snapshotEntries = localEntries;
     const snapshotBaustellen = localBaustellen;
     setLocalEntries(prev => prev.filter(e => e.id !== id));
@@ -757,6 +760,14 @@ export function DispositionCalendar({
   const INP = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!deleteEntryId}
+      onOpenChange={(open) => { if (!open) setDeleteEntryId(null); }}
+      title="Eintrag löschen"
+      description="Dieser Dispositionseintrag wird unwiderruflich gelöscht."
+      onConfirm={confirmDeleteEntry}
+    />
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -794,7 +805,7 @@ export function DispositionCalendar({
           }}>
             <Lock className="h-3.5 w-3.5" />Sperren
           </Button>
-          <Button size="sm" className="h-8 gap-1.5 text-xs bg-blue-600 hover:bg-blue-700" onClick={() => setShowAddEntry(true)}>
+          <Button size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setShowAddEntry(true)}>
             <Plus className="h-3.5 w-3.5" />Eintrag
           </Button>
         </div>
@@ -836,6 +847,38 @@ export function DispositionCalendar({
           ))}
         </div>
         <span className="text-xs font-medium text-gray-500 capitalize whitespace-nowrap flex-shrink-0">{rangeLabel}</span>
+      </div>
+
+      {/* ── Legende ─────────────────────────────────────────────────────────── */}
+      <div className="hidden md:flex items-center gap-4 px-4 md:px-6 py-1.5 bg-gray-50/60 border-b border-gray-100 flex-shrink-0">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 mr-1">Legende:</span>
+        {/* Einsatz */}
+        <div className="flex items-center gap-1.5">
+          <span className="w-3 h-3 rounded-sm bg-violet-500 flex-shrink-0" />
+          <span className="text-[11px] text-gray-500">Einsatz</span>
+        </div>
+        {/* Sperrzeiten */}
+        {Object.entries(BLOCK_TYPE_LABEL).map(([key, label]) => (
+          <div key={key} className="flex items-center gap-1.5">
+            <span className={`w-3 h-3 rounded-sm flex-shrink-0 ${BLOCK_TYPE_COLOR[key]}`} />
+            <span className="text-[11px] text-gray-500">{label}</span>
+          </div>
+        ))}
+        {/* Row color legend */}
+        <div className="ml-auto flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-blue-100 flex-shrink-0" />
+            <span className="text-[11px] text-gray-400">Fahrer</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-emerald-100 flex-shrink-0" />
+            <span className="text-[11px] text-gray-400">Fahrzeug</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-orange-100 flex-shrink-0" />
+            <span className="text-[11px] text-gray-400">Maschine</span>
+          </div>
+        </div>
       </div>
 
       {/* ── Mobile List View (< md) ────────────────────────────────────────── */}
@@ -885,7 +928,7 @@ export function DispositionCalendar({
                         </div>
                         <span className="text-xs text-gray-500 whitespace-nowrap flex-shrink-0">{timeLabel}</span>
                         <button
-                          onClick={() => handleDeleteEntry(entry.id)}
+                          onClick={() => setDeleteEntryId(entry.id)}
                           className="text-gray-300 hover:text-red-400 transition-colors p-1 min-w-[44px] min-h-[44px] flex items-center justify-center"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -1179,8 +1222,8 @@ export function DispositionCalendar({
                                         <span className="text-[10px] opacity-80 whitespace-nowrap font-normal">{timeLabel}</span>
                                       )}
                                       {hasConflict && <AlertTriangle className="h-3 w-3 text-yellow-200 flex-shrink-0 opacity-90" />}
-                                      <button className="opacity-0 group-hover:opacity-100 hover:text-red-200 transition-opacity flex-shrink-0"
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id); }}>
+                                      <button className="hover:text-red-200 flex-shrink-0"
+                                        onClick={(e) => { e.stopPropagation(); setDeleteEntryId(entry.id); }}>
                                         <Trash2 className="h-3 w-3" />
                                       </button>
                                     </div>
@@ -1391,8 +1434,8 @@ export function DispositionCalendar({
                                       {style.spanDays > 1 && <span className="opacity-60 ml-1">· {style.spanDays}T</span>}
                                     </span>
                                     {hasConflict && <AlertTriangle className="h-3 w-3 text-yellow-200 flex-shrink-0 opacity-90" />}
-                                    <button className="opacity-0 group-hover:opacity-100 hover:text-red-200 transition-opacity flex-shrink-0 ml-0.5"
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteEntry(entry.id); }}>
+                                    <button className="hover:text-red-200 flex-shrink-0 ml-0.5"
+                                      onClick={(e) => { e.stopPropagation(); setDeleteEntryId(entry.id); }}>
                                       <Trash2 className="h-3 w-3" />
                                     </button>
                                   </div>
@@ -1483,7 +1526,7 @@ export function DispositionCalendar({
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowAddEntry(false)}>Abbrechen</Button>
-              <Button onClick={handleAddEntry} disabled={isSubmitting}>{isSubmitting ? "Wird erstellt..." : "Eintrag erstellen"}</Button>
+              <Button onClick={handleAddEntry} disabled={isSubmitting}>{isSubmitting ? "Erstellt..." : "Eintrag erstellen"}</Button>
             </div>
           </div>
         </div>
@@ -1518,7 +1561,7 @@ export function DispositionCalendar({
             </div>
             <div className="px-6 py-4 border-t flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowAddResource(false)}>Abbrechen</Button>
-              <Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting ? "Wird erstellt..." : "Ressource erstellen"}</Button>
+              <Button onClick={handleAddResource} disabled={isSubmitting}>{isSubmitting ? "Erstellt..." : "Ressource erstellen"}</Button>
             </div>
           </div>
         </div>
@@ -1552,8 +1595,8 @@ export function DispositionCalendar({
               </div>
             </div>
             <div className="px-6 py-4 border-t flex items-center justify-between">
-              <button className="text-gray-300 hover:text-red-500 transition-colors p-1 rounded" title="Eintrag löschen" onClick={() => { setEditModal(null); handleDeleteEntry(editModal.id); }}>
-                <Trash2 className="h-4 w-4" />
+              <button className="text-gray-300 hover:text-red-400 transition-colors p-0.5" title="Eintrag löschen" onClick={() => { setDeleteEntryId(editModal.id); setEditModal(null); }}>
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setEditModal(null)}>Abbrechen</Button>
@@ -1619,7 +1662,7 @@ export function DispositionCalendar({
               </div>
               <div className="px-6 py-4 border-t flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setDropModal(null)}>Abbrechen</Button>
-                <Button onClick={handleDropModalSubmit} disabled={dropSubmitting}>{dropSubmitting ? "Wird erstellt..." : "Eintrag erstellen"}</Button>
+                <Button onClick={handleDropModalSubmit} disabled={dropSubmitting}>{dropSubmitting ? "Erstellt..." : "Eintrag erstellen"}</Button>
               </div>
             </div>
           </div>
@@ -1700,12 +1743,13 @@ export function DispositionCalendar({
             <div className="px-6 py-4 border-t flex justify-end gap-2">
               <Button variant="outline" onClick={() => setSperrModal(null)}>Abbrechen</Button>
               <Button onClick={handleSperrSubmit} disabled={sperrSubmitting || !sperrModal.resourceId}>
-                {sperrSubmitting ? "Wird gespeichert..." : "Speichern"}
+                {sperrSubmitting ? "Speichert..." : "Speichern"}
               </Button>
             </div>
           </div>
         </div>
       )}
     </div>
+    </>
   );
 }

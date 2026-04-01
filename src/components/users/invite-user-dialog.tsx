@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -64,13 +65,13 @@ export function InviteUserDialog() {
 
   return (
     <>
-      <button
+      <Button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+        className="gap-1.5"
       >
         <Plus className="h-4 w-4" />
         Benutzer hinzufügen
-      </button>
+      </Button>
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
         <DialogContent className="max-w-md">
@@ -135,9 +136,9 @@ export function InviteUserDialog() {
               <Button type="button" variant="outline" onClick={() => setOpen(false)} className="rounded-lg">
                 Abbrechen
               </Button>
-              <Button type="submit" disabled={loading} className="rounded-lg">
-                {loading ? "Wird gesendet..." : "Einladung senden"}
-              </Button>
+              <LoadingButton type="submit" loading={loading} className="rounded-lg">
+                Einladung senden
+              </LoadingButton>
             </div>
           </form>
         </DialogContent>

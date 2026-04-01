@@ -1,6 +1,5 @@
 import { getContacts } from "@/actions/contacts";
 import { ContactList } from "@/components/contacts/contact-list";
-import { CreateContactButton } from "@/components/contacts/create-contact-button";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -20,13 +19,10 @@ export default async function KontaktePage({
           <h1 className="text-xl font-semibold text-gray-900">Kontakte</h1>
           <p className="text-sm text-gray-400 mt-0.5">{contacts.length} Kontakte</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5">
-            <Download className="h-4 w-4" />
-            Export CSV
-          </Button>
-          <CreateContactButton />
-        </div>
+        <Button variant="outline" size="sm" className="gap-1.5">
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       <ContactList contacts={contacts} search={params.q} />

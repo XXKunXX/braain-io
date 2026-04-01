@@ -484,7 +484,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
             disabled={loading || !canSubmit}
             className="bg-amber-500 hover:bg-amber-600 text-white min-w-44"
           >
-            {loading ? "Wird erstellt..." : submitLabel}
+            {loading ? "Erstellt..." : submitLabel}
           </Button>
         </div>
       </form>

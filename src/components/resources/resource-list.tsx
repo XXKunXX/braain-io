@@ -3,11 +3,20 @@
 import { useState, useMemo, useEffect } from "react";
 import { useTabLabels } from "@/hooks/use-tab-labels";
 import { useRouter } from "next/navigation";
-import { Search, Plus, X, User, Truck, Settings2, Package, Pencil, Trash2, Link2 } from "lucide-react";
+import { Search, Plus, User, Truck, Settings2, Package, Trash2, Link2, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { updateResource, deleteResource } from "@/actions/resources";
 import type { ResourceFormData } from "@/actions/resources";
 import { MachineTab } from "@/components/machines/machine-tab";
@@ -65,6 +74,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
   const [form, setForm] = useState<ResourceFormData>(EMPTY_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clerkUsers, setClerkUsers] = useState<ClerkUser[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [sortKey, setSortKey] = useState<string | null>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -145,85 +155,83 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
     router.refresh();
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!confirm(`"${name}" wirklich löschen?`)) return;
-    await deleteResource(id);
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    await deleteResource(deleteTarget.id);
     toast.success("Ressource gelöscht");
     router.refresh();
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">Ressourcen</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{resources.length} Ressourcen</p>
-        </div>
-        {activeTab !== "MASCHINE" && (
-          <Link href={`/ressourcen/neu?type=${activeTab}`}>
-            <Button className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white">
-              <Plus className="h-4 w-4" />
-              Neue Ressource
-            </Button>
-          </Link>
-        )}
-      </div>
-
+    <div className="space-y-5">
       {/* Type tabs */}
       <div className="overflow-hidden">
-      <div ref={tabContainerRef} className="flex items-center gap-1">
-        {TYPE_TABS.filter((t) => (tabCounts[t.key] ?? 0) > 0 || t.key === activeTab || t.key === "MASCHINE" || t.key === "FAHRZEUG").map(
-          ({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              title={label}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-                activeTab === key
-                  ? "bg-white border-gray-300 text-gray-900 shadow-sm"
-                  : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-              }`}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span data-tab-label className={showLabels ? "inline" : "hidden"}>{label}</span>
-              {(tabCounts[key] ?? 0) > 0 && (
-                <span data-tab-label className={showLabels ? "inline text-xs text-gray-400" : "hidden"}>({tabCounts[key]})</span>
-              )}
-            </button>
-          )
-        )}
-      </div>
+        <div ref={tabContainerRef} className="flex items-center gap-1">
+          {TYPE_TABS.filter((t) => (tabCounts[t.key] ?? 0) > 0 || t.key === activeTab || t.key === "MASCHINE" || t.key === "FAHRZEUG").map(
+            ({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                title={label}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
+                  activeTab === key
+                    ? "bg-white border-gray-300 text-gray-900 shadow-sm"
+                    : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                }`}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span data-tab-label className={showLabels ? "inline" : "hidden"}>{label}</span>
+                {(tabCounts[key] ?? 0) > 0 && (
+                  <span data-tab-label className={showLabels ? "inline text-xs text-gray-400" : "hidden"}>({tabCounts[key]})</span>
+                )}
+              </button>
+            )
+          )}
+        </div>
       </div>
 
       {/* Machine tab — handled by its own component */}
       {activeTab === "MASCHINE" && <MachineTab machines={machines} />}
 
-      {/* Search */}
+      {/* Search + CTA */}
       {activeTab !== "MASCHINE" && (
-        <div className="relative max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-          <Input
-            placeholder="Suchen..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-white"
-          />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+            <Input
+              placeholder="Suchen..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 bg-white"
+            />
+          </div>
+          <Link href={`/ressourcen/neu?type=${activeTab}`}>
+            <Button className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
+              <Plus className="h-4 w-4" />
+              Neue Ressource
+            </Button>
+          </Link>
         </div>
       )}
 
       {/* Table (not shown for MASCHINE tab — handled above) */}
       {activeTab !== "MASCHINE" && (filtered.length === 0 ? (
-        <div className="text-center py-20 text-gray-400">
-          <p className="text-sm">Keine Einträge gefunden</p>
-        </div>
+        <EmptyState
+          icon={activeTab === "FAHRER" ? User : activeTab === "FAHRZEUG" ? Truck : activeTab === "PRODUKT" ? Package : Settings2}
+          headline="Keine Einträge gefunden"
+          subline="Passe die Suche an oder lege eine neue Ressource an."
+        />
       ) : (
         <>
         {/* Mobile Card Layout */}
         <div className="md:hidden space-y-3">
           {filtered.map((resource) => (
-            <div key={resource.id} className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="flex items-start justify-between gap-3">
+            <div
+              key={resource.id}
+              onClick={() => openEdit(resource)}
+              className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-300 transition-colors"
+            >
+              <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-900">{resource.name}</p>
                   {activeTab === "FAHRZEUG" && (
@@ -249,7 +257,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="flex items-center gap-1 flex-shrink-0">
                   {activeTab !== "PRODUKT" && (
                     resource.isDeployed ? (
                       <span className="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border border-blue-300 text-blue-700 bg-blue-50">Im Einsatz</span>
@@ -257,12 +265,13 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                       <span className="inline-flex text-xs font-medium px-2 py-0.5 rounded-full border border-green-300 text-green-700 bg-green-50">Verfügbar</span>
                     )
                   )}
-                  <button onClick={() => openEdit(resource)} className="p-2 text-gray-400 hover:text-gray-700 min-w-[44px] min-h-[44px] flex items-center justify-center">
-                    <Pencil className="h-4 w-4" />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: resource.id, name: resource.name }); }}
+                    className="p-2 text-gray-300 hover:text-red-400 transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                  <button onClick={() => handleDelete(resource.id, resource.name)} className="p-2 text-gray-400 hover:text-red-500 min-w-[44px] min-h-[44px] flex items-center justify-center">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
                 </div>
               </div>
             </div>
@@ -270,7 +279,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
         </div>
 
         {/* Desktop Table Layout */}
-        <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
           {/* Header */}
           {activeTab === "FAHRZEUG" ? (
             <div className="grid grid-cols-[2fr_1.5fr_2fr_1fr_64px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
@@ -289,12 +298,11 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
               <span />
             </div>
           ) : (
-            <div className={`grid gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80 ${activeTab === "FAHRER" ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]" : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"}`}>
+            <div className="grid grid-cols-[2fr_2fr_1.5fr_1fr_64px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
               <SortHeader label="Name" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">E-Mail</span>
               <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Telefon</span>
               <SortHeader label="Status" sortKey="active" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
-              {activeTab === "FAHRER" && <span />}
               <span />
             </div>
           )}
@@ -303,11 +311,10 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
           {filtered.map((resource, i) => (
             <div
               key={resource.id}
-              className={`grid gap-4 px-5 py-3.5 items-center group hover:bg-gray-50 transition-colors ${
+              onClick={() => openEdit(resource)}
+              className={`grid gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
                 activeTab === "FAHRZEUG"
                   ? "grid-cols-[2fr_1.5fr_2fr_1fr_64px]"
-                  : activeTab === "FAHRER"
-                  ? "grid-cols-[2fr_2fr_1.5fr_1fr_24px_64px]"
                   : activeTab === "PRODUKT"
                   ? "grid-cols-[2fr_1fr_1fr_2fr_64px]"
                   : "grid-cols-[2fr_2fr_1.5fr_1fr_64px]"
@@ -344,24 +351,19 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                   )}
                 </div>
               )}
-              {activeTab === "FAHRER" && (
-                <div title={resource.clerkUserId ? "App-Nutzer verknüpft" : "Kein App-Nutzer"}>
-                  <Link2 className={`h-3.5 w-3.5 ${resource.clerkUserId ? "text-blue-500" : "text-gray-200"}`} />
-                </div>
-              )}
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center justify-end gap-1">
+                {activeTab === "FAHRER" && (
+                  <span title={resource.clerkUserId ? "App-Nutzer verknüpft" : "Kein App-Nutzer"}>
+                    <Link2 className={`h-3.5 w-3.5 ${resource.clerkUserId ? "text-blue-500" : "text-gray-200"}`} />
+                  </span>
+                )}
                 <button
-                  onClick={() => openEdit(resource)}
-                  className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors"
-                >
-                  <Pencil className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => handleDelete(resource.id, resource.name)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors"
+                  onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: resource.id, name: resource.name }); }}
+                  className="p-1.5 text-gray-300 hover:text-red-400 transition-colors"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
+                <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
               </div>
             </div>
           ))}
@@ -369,17 +371,22 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
         </>
       ))}
 
-      {/* Edit Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Ressource bearbeiten</h2>
-              <button onClick={closeForm} className="text-gray-400 hover:text-gray-600">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="px-6 py-4 space-y-4">
+      {/* ConfirmDialog: Ressource löschen */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Ressource löschen"
+        description={deleteTarget ? `"${deleteTarget.name}" wird unwiderruflich gelöscht.` : undefined}
+        onConfirm={confirmDelete}
+      />
+
+      {/* Edit Dialog */}
+      <Dialog open={showForm} onOpenChange={(open) => { if (!open) closeForm(); }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Ressource bearbeiten</DialogTitle>
+          </DialogHeader>
+            <div className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">Name *</label>
@@ -514,15 +521,14 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
                 </>
               )}
             </div>
-            <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
+            <DialogFooter>
               <Button variant="outline" onClick={closeForm}>Abbrechen</Button>
               <Button onClick={handleSubmit} disabled={isSubmitting}>
-                {isSubmitting ? "Wird gespeichert..." : "Speichern"}
+                {isSubmitting ? "Speichert..." : "Speichern"}
               </Button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

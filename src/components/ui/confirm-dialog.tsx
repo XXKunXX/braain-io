@@ -1,6 +1,7 @@
 "use client";
 
-import { TriangleAlertIcon, Trash2Icon } from "lucide-react";
+import { useState } from "react";
+import { TriangleAlertIcon, Trash2Icon, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,7 @@ interface ConfirmDialogProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: "destructive" | "warning";
-  onConfirm: () => void;
+  onConfirm: () => void | Promise<void>;
 }
 
 export function ConfirmDialog({
@@ -33,8 +34,20 @@ export function ConfirmDialog({
   variant = "destructive",
   onConfirm,
 }: ConfirmDialogProps) {
+  const [loading, setLoading] = useState(false);
+
+  async function handleConfirm() {
+    setLoading(true);
+    try {
+      await onConfirm();
+      onOpenChange(false);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!loading) onOpenChange(o); }}>
       <DialogContent showCloseButton={false} className="max-w-sm">
         <DialogHeader>
           <div className="flex items-start gap-3">
@@ -55,20 +68,23 @@ export function ConfirmDialog({
         </DialogHeader>
         <DialogFooter>
           <DialogClose
-            render={
-              <Button variant="outline" />
-            }
+            render={<Button variant="outline" disabled={loading} />}
           >
             {cancelLabel}
           </DialogClose>
           <Button
             variant="destructive"
-            onClick={() => {
-              onConfirm();
-              onOpenChange(false);
-            }}
+            onClick={handleConfirm}
+            disabled={loading}
           >
-            {confirmLabel}
+            {loading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                Löschen...
+              </>
+            ) : (
+              confirmLabel
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

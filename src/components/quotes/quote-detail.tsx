@@ -8,6 +8,8 @@ import { de } from "date-fns/locale";
 import { toast } from "sonner";
 import { ArrowLeft, FileText, Mail, Pencil, Trash2, CheckCircle, Activity, Plus, Package, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { updateQuote, updateQuoteStatus, deleteQuote, acceptQuoteAndCreateOrder } from "@/actions/quotes";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { sendQuoteEmail } from "@/actions/send-quote-email";
 import type { Contact, Quote, QuoteItem, Request } from "@prisma/client";
 import type { MachineRow } from "@/actions/machines";
@@ -82,6 +85,7 @@ export function QuoteDetail({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailTo, setEmailTo] = useState(quote.contact?.email ?? "");
   const [emailSending, setEmailSending] = useState(false);
@@ -171,7 +175,7 @@ export function QuoteDetail({
       notes: notes || undefined,
       items: submitItems,
     });
-    toast.success("Gespeichert");
+    toast.success("Angebot gespeichert");
     setSaving(false);
     setEditing(false);
     router.refresh();
@@ -212,8 +216,7 @@ export function QuoteDetail({
     }
   }
 
-  async function handleDelete() {
-    if (!confirm("Angebot wirklich löschen?")) return;
+  async function confirmDelete() {
     setDeleting(true);
     await deleteQuote(quote.id);
     toast.success("Angebot gelöscht");
@@ -239,9 +242,7 @@ export function QuoteDetail({
           </Link>
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold text-gray-900">{quote.quoteNumber}</h1>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColors[quote.status]}`}>
-              {statusLabels[quote.status]}
-            </span>
+            <StatusBadge status={quote.status} />
           </div>
           <Link href={`/kontakte/${quote.contact.id}`} className="text-sm text-gray-500 hover:text-blue-600 transition-colors mt-0.5 block">
             {quote.contact.companyName}
@@ -289,9 +290,9 @@ export function QuoteDetail({
           {editing ? (
             <>
               <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
-              <Button className="rounded-lg bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={saving}>
-                {saving ? "Speichert..." : "Speichern"}
-              </Button>
+              <LoadingButton className="rounded-lg" onClick={handleSave} loading={saving}>
+                Speichern
+              </LoadingButton>
             </>
           ) : (
             <Button variant="outline" className="rounded-lg gap-1.5" onClick={() => setEditing(true)}>
@@ -303,7 +304,7 @@ export function QuoteDetail({
           <Button
             variant="outline"
             className="rounded-lg gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
-            onClick={handleDelete}
+            onClick={() => setConfirmDeleteOpen(true)}
             disabled={deleting}
           >
             <Trash2 className="h-3.5 w-3.5" />{deleting ? "..." : "Löschen"}
@@ -436,13 +437,12 @@ export function QuoteDetail({
                     <div key={idx} className="group border-b border-gray-100 py-3 space-y-1.5">
                       {/* Eingabe-Zeile */}
                       <div className="grid grid-cols-[32px_1fr_100px_100px_100px_112px] gap-x-3 items-center">
-                        <div className="relative h-9 flex items-center justify-center">
-                          <span className="text-xs font-mono text-gray-400 group-hover:opacity-0 transition-opacity select-none">{idx + 1}.</span>
+                        <div className="h-9 flex items-center justify-center">
                           {items.length > 1 && (
                             <button
                               type="button"
                               onClick={() => removeItem(idx)}
-                              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500"
+                              className="flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -631,6 +631,15 @@ export function QuoteDetail({
       </div>
     </div>
 
+    {/* ConfirmDialog: Angebot löschen */}
+    <ConfirmDialog
+      open={confirmDeleteOpen}
+      onOpenChange={setConfirmDeleteOpen}
+      title="Angebot löschen"
+      description="Dieses Angebot wird unwiderruflich gelöscht."
+      onConfirm={confirmDelete}
+    />
+
     {/* E-Mail Dialog */}
 
     <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
@@ -659,7 +668,7 @@ export function QuoteDetail({
               Abbrechen
             </Button>
             <Button
-              className="rounded-lg bg-blue-600 hover:bg-blue-700"
+              className="rounded-lg"
               disabled={emailSending || !emailTo}
               onClick={handleSendEmail}
             >

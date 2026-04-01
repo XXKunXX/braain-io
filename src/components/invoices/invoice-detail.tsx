@@ -164,7 +164,7 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
       notes: editNotes || undefined,
     });
     setSaving(false);
-    if (result.success) { toast.success("Gespeichert"); setEditingDetails(false); router.refresh(); }
+    if (result.success) { toast.success("Rechnung gespeichert"); setEditingDetails(false); router.refresh(); }
     else toast.error("Fehler beim Speichern");
   }
 
@@ -305,7 +305,7 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
           <p className="text-sm text-red-700">Rechnung wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.</p>
           <div className="flex gap-2 flex-shrink-0">
             <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>Abbrechen</Button>
-            <Button size="sm" className="bg-red-600 hover:bg-red-700 text-white" onClick={handleDelete}>Löschen</Button>
+            <Button size="sm" variant="destructive" onClick={handleDelete}>Löschen</Button>
           </div>
         </div>
       )}
@@ -327,7 +327,7 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
             </div>
             <Button
               size="sm"
-              className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
+              className="gap-1.5"
               onClick={handleSendEmail}
               disabled={sendingEmail}
             >
@@ -392,7 +392,7 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
               <Textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} rows={2} placeholder="Interne Anmerkungen..." />
             </div>
             <div className="flex gap-2">
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1" onClick={handleSaveDetails} disabled={saving}>
+              <Button size="sm" className="gap-1" onClick={handleSaveDetails} disabled={saving}>
                 <Save className="h-3.5 w-3.5" />
                 Speichern
               </Button>
@@ -537,7 +537,7 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
               </div>
             </div>
             <div className="px-5 py-3 border-t border-gray-100 flex gap-2">
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1" onClick={handleSaveItems} disabled={saving}>
+              <Button size="sm" className="gap-1" onClick={handleSaveItems} disabled={saving}>
                 <Save className="h-3.5 w-3.5" />
                 Positionen speichern
               </Button>

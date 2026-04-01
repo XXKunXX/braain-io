@@ -5,21 +5,20 @@ import { useTabLabels } from "@/hooks/use-tab-labels";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Pencil, Plus, Trash2, X, AlertTriangle, FileText,
-  Wrench, Clock, Activity, Info,
+  ArrowLeft, Pencil, Trash2, X, AlertTriangle, FileText,
+  Wrench, Activity, Info, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatLicensePlate } from "@/lib/license-plate";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   updateMachine,
-  createMachineUsage,
-  deleteMachineUsage,
   createMachineMaintenance,
   deleteMachineMaintenance,
 } from "@/actions/machines";
 import type {
-  MachineRow, MachineUsageRow, MachineMaintenanceRow, MachineStatusType, MaintenanceTypeValue,
+  MachineRow, MachineMaintenanceRow, MachineStatusType, MaintenanceTypeValue,
 } from "@/actions/machines";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -54,25 +53,31 @@ function fmt(d: Date | string | null | undefined) {
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type MachineWithRelations = MachineRow & {
-  usages: MachineUsageRow[];
   maintenances: MachineMaintenanceRow[];
 };
 
-type OrderOption = { id: string; orderNumber: string; title: string };
-type DriverOption = { id: string; name: string };
+type DispositionEntryRow = {
+  id: string;
+  startDate: Date;
+  endDate: Date;
+  notes: string | null;
+  blockType: string | null;
+  order: { id: string; orderNumber: string; title: string } | null;
+  baustelle: { id: string; name: string } | null;
+};
 
 interface Props {
   machine: MachineWithRelations;
-  orders: OrderOption[];
-  drivers: DriverOption[];
+  dispositionEntries: DispositionEntryRow[];
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function MachineDetailClient({ machine: initialMachine, orders, drivers }: Props) {
+export function MachineDetailClient({ machine: initialMachine, dispositionEntries }: Props) {
   const router = useRouter();
   const [machine, setMachine] = useState(initialMachine);
   const [activeTab, setActiveTab] = useState<"overview" | "usage" | "maintenance" | "documents">("overview");
+  const [deleteMaintenanceId, setDeleteMaintenanceId] = useState<string | null>(null);
   const { containerRef: tabContainerRef, showLabels } = useTabLabels();
 
   // ── Overview edit mode ───────────────────────────────────────────────────
@@ -114,45 +119,8 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
     if ("error" in result) { toast.error("Fehler beim Speichern"); return; }
     setMachine((m) => ({ ...m, ...(result.machine as Partial<MachineWithRelations>) }));
     setEditMode(false);
-    toast.success("Gespeichert");
+    toast.success("Maschine gespeichert");
     router.refresh();
-  }
-
-  // ── Usage modal ──────────────────────────────────────────────────────────
-  const [usageOpen, setUsageOpen] = useState(false);
-  const [usageForm, setUsageForm] = useState({
-    orderId: "", driverName: "", startDate: "", endDate: "", hours: "", notes: "",
-  });
-  const [savingUsage, setSavingUsage] = useState(false);
-
-  async function handleCreateUsage() {
-    if (!usageForm.startDate) { toast.error("Startdatum erforderlich"); return; }
-    setSavingUsage(true);
-    const result = await createMachineUsage({
-      machineId: machine.id,
-      orderId: usageForm.orderId || null,
-      driverName: usageForm.driverName || undefined,
-      startDate: usageForm.startDate,
-      endDate: usageForm.endDate || undefined,
-      hours: usageForm.hours ? parseFloat(usageForm.hours) : null,
-      notes: usageForm.notes || undefined,
-    });
-    setSavingUsage(false);
-    if ("error" in result) { toast.error("Fehler beim Speichern"); return; }
-    setMachine((m) => ({
-      ...m,
-      usages: [result.usage as MachineUsageRow, ...m.usages],
-    }));
-    setUsageOpen(false);
-    setUsageForm({ orderId: "", driverName: "", startDate: "", endDate: "", hours: "", notes: "" });
-    toast.success("Einsatz hinzugefügt");
-  }
-
-  async function handleDeleteUsage(id: string) {
-    if (!confirm("Einsatz wirklich löschen?")) return;
-    await deleteMachineUsage(id, machine.id);
-    setMachine((m) => ({ ...m, usages: m.usages.filter((u) => u.id !== id) }));
-    toast.success("Einsatz gelöscht");
   }
 
   // ── Maintenance modal ────────────────────────────────────────────────────
@@ -191,10 +159,10 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
     toast.success("Wartung hinzugefügt");
   }
 
-  async function handleDeleteMaintenance(id: string) {
-    if (!confirm("Wartungseintrag wirklich löschen?")) return;
-    await deleteMachineMaintenance(id, machine.id);
-    setMachine((m) => ({ ...m, maintenances: m.maintenances.filter((x) => x.id !== id) }));
+  async function confirmDeleteMaintenance() {
+    if (!deleteMaintenanceId) return;
+    await deleteMachineMaintenance(deleteMaintenanceId, machine.id);
+    setMachine((m) => ({ ...m, maintenances: m.maintenances.filter((x) => x.id !== deleteMaintenanceId) }));
     toast.success("Wartung gelöscht");
   }
 
@@ -205,12 +173,20 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
   // ── Tabs config ──────────────────────────────────────────────────────────
   const TABS = [
     { key: "overview" as const, label: "Übersicht", icon: Info },
-    { key: "usage" as const, label: "Einsatzhistorie", icon: Activity, count: machine.usages.length },
+    { key: "usage" as const, label: "Einsatzhistorie", icon: Activity, count: dispositionEntries.length },
     { key: "maintenance" as const, label: "Wartung / Service", icon: Wrench, count: machine.maintenances.length, warn: overdueMaint },
     { key: "documents" as const, label: "Dokumente", icon: FileText },
   ];
 
   return (
+    <>
+    <ConfirmDialog
+      open={!!deleteMaintenanceId}
+      onOpenChange={(open) => { if (!open) setDeleteMaintenanceId(null); }}
+      title="Wartungseintrag löschen"
+      description="Dieser Wartungseintrag wird unwiderruflich gelöscht."
+      onConfirm={confirmDeleteMaintenance}
+    />
     <div className="flex flex-col min-h-full">
       {/* Header */}
       <div className="px-6 py-5 border-b border-gray-200 bg-white">
@@ -371,41 +347,64 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
           <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">Einsatzhistorie</h2>
-              <Button onClick={() => setUsageOpen(true)} className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white" size="sm">
-                <Plus className="h-4 w-4" />
-                Neuen Einsatz
-              </Button>
+              <Link
+                href="/disposition"
+                className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800"
+              >
+                Zur Disposition
+                <ExternalLink className="h-3.5 w-3.5" />
+              </Link>
             </div>
 
-            {machine.usages.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Einsätze erfasst</div>
+            {dispositionEntries.length === 0 ? (
+              <div className="text-center py-20 text-gray-400 text-sm">
+                Keine Einsätze geplant — Einsätze über die{" "}
+                <Link href="/disposition" className="text-blue-500 hover:underline">Disposition</Link>{" "}
+                erfassen.
+              </div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_1fr_2fr_1.5fr_1fr_40px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-                  {["Startdatum", "Enddatum", "Auftrag", "Fahrer", "Stunden", ""].map((h) => (
+                <div className="grid grid-cols-[80px_1fr_1fr_2fr_1fr] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                  {["Status", "Von", "Bis", "Auftrag / Baustelle", "Notizen"].map((h) => (
                     <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
                   ))}
                 </div>
-                {machine.usages.map((u, i) => (
-                  <div key={u.id} className={`grid grid-cols-[1fr_1fr_2fr_1.5fr_1fr_40px] gap-3 px-5 py-3 items-center group hover:bg-gray-50 ${i !== machine.usages.length - 1 ? "border-b border-gray-100" : ""}`}>
-                    <p className="text-sm text-gray-900">{fmt(u.startDate)}</p>
-                    <p className="text-sm text-gray-500">{u.endDate ? fmt(u.endDate) : "laufend"}</p>
-                    <div>
-                      {u.order ? (
-                        <Link href={`/auftraege/${u.order.id}`} className="text-sm text-blue-600 hover:underline">
-                          {u.order.orderNumber} {u.order.title}
-                        </Link>
-                      ) : (
-                        <p className="text-sm text-gray-400">–</p>
-                      )}
+                {[...dispositionEntries].sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()).map((entry, i) => {
+                  const now = new Date();
+                  const start = new Date(entry.startDate);
+                  const end = new Date(entry.endDate);
+                  const isPast = end < now;
+                  const isActive = start <= now && end >= now;
+                  return (
+                    <div key={entry.id} className={`grid grid-cols-[80px_1fr_1fr_2fr_1fr] gap-3 px-5 py-3 items-center hover:bg-gray-50 ${i !== dispositionEntries.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <span className={`inline-flex text-[10px] font-semibold px-2 py-0.5 rounded-full border w-fit ${
+                        isActive ? "border-blue-300 text-blue-700 bg-blue-50"
+                        : isPast ? "border-gray-200 text-gray-400 bg-gray-50"
+                        : "border-green-300 text-green-700 bg-green-50"
+                      }`}>
+                        {isActive ? "Aktiv" : isPast ? "Vergangen" : "Geplant"}
+                      </span>
+                      <p className={`text-sm ${isPast ? "text-gray-400" : "text-gray-900"}`}>{fmt(entry.startDate)}</p>
+                      <p className={`text-sm ${isPast ? "text-gray-400" : "text-gray-500"}`}>{fmt(entry.endDate)}</p>
+                      <div>
+                        {entry.blockType ? (
+                          <span className="text-sm text-amber-600">{entry.blockType}</span>
+                        ) : entry.order ? (
+                          <Link href={`/auftraege/${entry.order.id}`} className="text-sm text-blue-600 hover:underline">
+                            {entry.order.orderNumber} · {entry.order.title}
+                          </Link>
+                        ) : entry.baustelle ? (
+                          <Link href={`/baustellen/${entry.baustelle.id}`} className="text-sm text-blue-600 hover:underline">
+                            {entry.baustelle.name}
+                          </Link>
+                        ) : (
+                          <p className="text-sm text-gray-400">–</p>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-400 truncate">{entry.notes || "–"}</p>
                     </div>
-                    <p className="text-sm text-gray-500">{u.driverName || "–"}</p>
-                    <p className="text-sm text-gray-500">{u.hours != null ? `${u.hours} h` : "–"}</p>
-                    <button onClick={() => handleDeleteUsage(u.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -429,7 +428,7 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
             </div>
 
             {machine.maintenances.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Wartungseinträge</div>
+              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Wartungseinträge erfasst</div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <div className="grid grid-cols-[1fr_1fr_2fr_1fr_1fr_1.5fr_40px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
@@ -456,7 +455,7 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
                         {isOverdue && <AlertTriangle className="h-3 w-3 text-amber-500" />}
                       </div>
                       <p className="text-sm text-gray-500 truncate">{m.performedBy || "–"}</p>
-                      <button onClick={() => handleDeleteMaintenance(m.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => setDeleteMaintenanceId(m.id)} className="p-1 text-gray-300 hover:text-red-500 ">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -482,50 +481,6 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
           </div>
         )}
       </div>
-
-      {/* ── Modal: Einsatz erfassen ──────────────────────────────────────────── */}
-      {usageOpen && (
-        <Modal title="Einsatz erfassen" onClose={() => setUsageOpen(false)}>
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Startdatum *">
-                <input type="date" className={INPUT_CLS} value={usageForm.startDate} onChange={(e) => setUsageForm((f) => ({ ...f, startDate: e.target.value }))} />
-              </Field>
-              <Field label="Enddatum">
-                <input type="date" className={INPUT_CLS} value={usageForm.endDate} onChange={(e) => setUsageForm((f) => ({ ...f, endDate: e.target.value }))} />
-              </Field>
-            </div>
-            <Field label="Auftrag">
-              <select className={INPUT_CLS} value={usageForm.orderId} onChange={(e) => setUsageForm((f) => ({ ...f, orderId: e.target.value }))}>
-                <option value="">– Kein Auftrag –</option>
-                {orders.map((o) => (
-                  <option key={o.id} value={o.id}>{o.orderNumber} – {o.title}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Fahrer">
-              <select className={INPUT_CLS} value={usageForm.driverName} onChange={(e) => setUsageForm((f) => ({ ...f, driverName: e.target.value }))}>
-                <option value="">– Kein Fahrer –</option>
-                {drivers.map((d) => (
-                  <option key={d.id} value={d.name}>{d.name}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Einsatzstunden">
-              <input type="number" min="0" step="0.5" className={INPUT_CLS} placeholder="0" value={usageForm.hours} onChange={(e) => setUsageForm((f) => ({ ...f, hours: e.target.value }))} />
-            </Field>
-            <Field label="Notizen">
-              <textarea rows={2} className={`${INPUT_CLS} resize-none`} value={usageForm.notes} onChange={(e) => setUsageForm((f) => ({ ...f, notes: e.target.value }))} />
-            </Field>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
-            <Button variant="outline" onClick={() => setUsageOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleCreateUsage} disabled={savingUsage}>
-              {savingUsage ? "Speichert..." : "Einsatz speichern"}
-            </Button>
-          </div>
-        </Modal>
-      )}
 
       {/* ── Modal: Wartung erfassen ──────────────────────────────────────────── */}
       {maintOpen && (
@@ -567,6 +522,7 @@ export function MachineDetailClient({ machine: initialMachine, orders, drivers }
         </Modal>
       )}
     </div>
+    </>
   );
 }
 

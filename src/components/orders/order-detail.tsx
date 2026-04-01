@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { ArrowLeft, Pencil, FileUp, Receipt, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2, Activity, FileText } from "lucide-react";
 import { OrderActivityTab } from "./order-activity-tab";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -210,7 +212,7 @@ export function OrderDetail({
     if (editStatus !== order.status) {
       await updateOrderStatus(order.id, editStatus as "PLANNED" | "ACTIVE" | "COMPLETED");
     }
-    toast.success("Gespeichert");
+    toast.success("Auftrag gespeichert");
     setSaving(false);
     setEditing(false);
     router.refresh();
@@ -274,7 +276,7 @@ export function OrderDetail({
       skontoPercent: editMilestone.skontoPercent ? parseFloat(editMilestone.skontoPercent) : undefined,
       skontoDays: editMilestone.skontoDays ? parseInt(editMilestone.skontoDays) : undefined,
     });
-    toast.success("Gespeichert");
+    toast.success("Meilenstein gespeichert");
     setEditingMilestoneId(null);
     setEditMilestone(null);
     setSavingMilestone(false);
@@ -297,7 +299,7 @@ export function OrderDetail({
 
   async function handleDeleteMilestone(milestoneId: string) {
     await deletePaymentMilestone(milestoneId, order.id);
-    toast.success("Gelöscht");
+    toast.success("Meilenstein gelöscht");
     router.refresh();
   }
 
@@ -349,9 +351,7 @@ export function OrderDetail({
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{order.title}</h1>
-              <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColors[order.status]}`}>
-                {statusLabels[order.status]}
-              </span>
+              <StatusBadge status={order.status} />
             </div>
             <Link href={`/kontakte/${order.contact.id}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-600 transition-colors mt-1">
               <User className="h-3.5 w-3.5" />
@@ -363,9 +363,9 @@ export function OrderDetail({
             {editing && (
               <>
                 <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
-                <Button className="rounded-lg bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={saving}>
-                  {saving ? "Speichert..." : "Speichern"}
-                </Button>
+                <LoadingButton className="rounded-lg" onClick={handleSave} loading={saving}>
+                  Speichern
+                </LoadingButton>
               </>
             )}
             {order.quote && (
@@ -385,7 +385,7 @@ export function OrderDetail({
               <Receipt className="h-3.5 w-3.5" />Zahlungsplan
             </Button>
             <Button
-              className="rounded-lg gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+              className="rounded-lg gap-1.5"
               onClick={() => router.push(`/rechnungen/neu?orderId=${order.id}`)}
             >
               <FileText className="h-3.5 w-3.5" />Rechnung erstellen
@@ -397,9 +397,7 @@ export function OrderDetail({
       {/* ── Stat cards ── */}
       <div className="px-6 py-4 grid grid-cols-4 gap-4 border-b border-gray-100 bg-gray-50/60">
         <StatCard label="Status">
-          <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColors[order.status]}`}>
-            {statusLabels[order.status]}
-          </span>
+          <StatusBadge status={order.status} />
         </StatCard>
         <StatCard label="Auftragssumme">
           <span className="text-xl font-bold text-gray-900">
@@ -558,13 +556,12 @@ export function OrderDetail({
               <h3 className="text-base font-semibold text-gray-900">
                 Baustellen ({order.baustellen.length})
               </h3>
-              <Link
-                href={`/baustellen/neu?orderId=${order.id}`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                Neue Baustelle
-              </Link>
+              <Button asChild className="gap-1.5">
+                <Link href={`/baustellen/neu?orderId=${order.id}`}>
+                  <Plus className="h-4 w-4" />
+                  Neue Baustelle
+                </Link>
+              </Button>
             </div>
             {order.baustellen.length === 0 ? (
               <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
@@ -827,7 +824,7 @@ export function OrderDetail({
                     <Input value={milestoneNotes} onChange={(e) => setMilestoneNotes(e.target.value)} placeholder="Optionale Anmerkung zur Zahlung..." className="h-10 rounded-lg border-gray-200 bg-white" />
                   </div>
                   <div className="flex gap-2 pt-1">
-                    <Button className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white h-10 px-4" onClick={handleAddMilestone} disabled={addingMilestone || !milestoneTitle || !milestoneAmount}>
+                    <Button className="rounded-lg h-10 px-4" onClick={handleAddMilestone} disabled={addingMilestone || !milestoneTitle || !milestoneAmount}>
                       {addingMilestone ? "Speichert..." : "Meilenstein speichern"}
                     </Button>
                     <Button variant="outline" className="rounded-lg h-10 px-4" onClick={() => setShowAddMilestone(false)}>Abbrechen</Button>
@@ -921,7 +918,7 @@ export function OrderDetail({
                               <Input value={editMilestone.notes} onChange={(e) => setEditMilestone({ ...editMilestone, notes: e.target.value })} placeholder="Optionale Anmerkung..." className="h-10 rounded-lg border-gray-200" />
                             </div>
                             <div className="flex gap-2">
-                              <Button className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white h-10 px-4" onClick={() => handleSaveMilestone(m.id)} disabled={savingMilestone}>
+                              <Button className="rounded-lg h-10 px-4" onClick={() => handleSaveMilestone(m.id)} disabled={savingMilestone}>
                                 {savingMilestone ? "Speichert..." : "Änderungen speichern"}
                               </Button>
                               <Button variant="outline" className="rounded-lg h-10 px-4" onClick={() => { setEditingMilestoneId(null); setEditMilestone(null); }}>Abbrechen</Button>

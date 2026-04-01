@@ -57,7 +57,7 @@ function calcTotals(items: InvoiceItemInput[], vatRate: number) {
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function getInvoices() {
-  return prisma.invoice.findMany({
+  const invoices = await prisma.invoice.findMany({
     orderBy: { invoiceDate: "desc" },
     include: {
       contact: { select: { id: true, companyName: true, email: true } },
@@ -65,6 +65,20 @@ export async function getInvoices() {
       items: { orderBy: { position: "asc" } },
     },
   });
+  return invoices.map((inv) => ({
+    ...inv,
+    subtotal: Number(inv.subtotal),
+    vatRate: Number(inv.vatRate),
+    vatAmount: Number(inv.vatAmount),
+    totalAmount: Number(inv.totalAmount),
+    items: inv.items.map((item) => ({
+      ...item,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      vatRate: Number(item.vatRate),
+      total: Number(item.total),
+    })),
+  }));
 }
 
 export async function getInvoice(id: string) {

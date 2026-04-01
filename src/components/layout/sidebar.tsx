@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -37,11 +38,11 @@ const navSections = [
     label: "CRM",
     items: [
       { href: "/kontakte", label: "Kontakte", icon: Users, badgeKey: "" },
-      { href: "/anfragen", label: "Anfragen", icon: MessageSquare, badgeKey: "" },
+      { href: "/anfragen", label: "Anfragen", icon: MessageSquare, badgeKey: "requests" },
       { href: "/angebote", label: "Angebote", icon: FileText, badgeKey: "" },
       { href: "/auftraege", label: "Aufträge", icon: ClipboardList, badgeKey: "" },
       { href: "/rechnungen", label: "Rechnungen", icon: Receipt, badgeKey: "" },
-      { href: "/zahlungen", label: "Zahlungen", icon: Banknote, badgeKey: "" },
+      { href: "/zahlungen", label: "Zahlungen", icon: Banknote, badgeKey: "payments" },
       { href: "/dokumente", label: "Dokumente", icon: FolderOpen, badgeKey: "" },
     ],
   },
@@ -66,18 +67,30 @@ const navSections = [
 
 interface SidebarProps {
   openTaskCount?: number;
+  newRequestCount?: number;
+  overduePaymentCount?: number;
   onClose?: () => void;
   onSearchOpen?: () => void;
   userRole?: string;
   showFahrerApp?: boolean;
 }
 
-export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen, userRole, showFahrerApp }: SidebarProps) {
+export function Sidebar({ openTaskCount = 0, newRequestCount = 0, overduePaymentCount = 0, onClose, onSearchOpen, userRole, showFahrerApp }: SidebarProps) {
   const pathname = usePathname();
 
   function handleNavClick() {
     onClose?.();
   }
+
+  const filteredSections = useMemo(() =>
+    navSections
+      .filter(({ label }) => label === "Einstellungen" ? userRole === "Admin" : true)
+      .map(({ label, items }) => ({
+        label,
+        items: items.filter(({ href }) => href === "/fahrer" ? (userRole === "Fahrer" || showFahrerApp) : true),
+      })),
+    [userRole, showFahrerApp]
+  );
 
   return (
     <aside className="w-64 md:w-56 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col h-screen">
@@ -110,15 +123,19 @@ export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen, userRole, sh
 
 
 <nav className="flex-1 px-2.5 py-3 overflow-y-auto space-y-4">
-        {navSections.filter(({ label }) => label === "Einstellungen" ? userRole === "Admin" : true).map(({ label, items }) => (
+        {filteredSections.map(({ label, items }) => (
           <div key={label}>
             <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase px-2 mb-1">
               {label}
             </p>
             <div className="space-y-0.5">
-              {items.filter(({ href }) => href === "/fahrer" ? (userRole === "Fahrer" || showFahrerApp) : true).map(({ href, label: itemLabel, icon: Icon, badgeKey }) => {
+              {items.map(({ href, label: itemLabel, icon: Icon, badgeKey }) => {
                 const active = pathname === href || pathname.startsWith(href + "/");
-                const badge = badgeKey === "tasks" && openTaskCount > 0 ? openTaskCount : null;
+                const badge =
+                  badgeKey === "tasks" && openTaskCount > 0 ? { count: openTaskCount, color: "bg-blue-600" } :
+                  badgeKey === "requests" && newRequestCount > 0 ? { count: newRequestCount, color: "bg-amber-500" } :
+                  badgeKey === "payments" && overduePaymentCount > 0 ? { count: overduePaymentCount, color: "bg-red-500" } :
+                  null;
                 return (
                   <Link
                     key={href}
@@ -134,8 +151,8 @@ export function Sidebar({ openTaskCount = 0, onClose, onSearchOpen, userRole, sh
                     <Icon className={cn("h-4 w-4 flex-shrink-0", active ? "text-blue-600" : "text-gray-400")} />
                     <span className="flex-1">{itemLabel}</span>
                     {badge !== null && (
-                      <span className="text-[11px] font-semibold bg-blue-600 text-white rounded-full px-1.5 py-0.5 leading-none">
-                        {badge}
+                      <span className={`text-[11px] font-semibold ${badge.color} text-white rounded-full px-1.5 py-0.5 leading-none`}>
+                        {badge.count}
                       </span>
                     )}
                   </Link>

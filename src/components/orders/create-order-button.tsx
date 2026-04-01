@@ -3,10 +3,7 @@ import { Plus } from "lucide-react";
 
 export function CreateOrderButton({ contacts: _ }: { contacts?: unknown[] }) {
   return (
-    <Link
-      href="/auftraege/neu"
-      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
-    >
+    <Link href="/auftraege/neu" className="inline-flex items-center justify-center rounded-md font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white h-9 px-4 text-sm gap-1.5">
       <Plus className="h-4 w-4" />
       Neuer Auftrag
     </Link>

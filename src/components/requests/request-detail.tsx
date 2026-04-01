@@ -8,6 +8,8 @@ import { de } from "date-fns/locale";
 import { ArrowLeft, Pencil, FileText, User, Clock, Paperclip, Upload, Activity, CheckCircle2, MessageSquare, Plus, Trash2, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -150,7 +152,7 @@ export function RequestDetail({
       inspectionStatus,
       noInspectionRequired,
     });
-    toast.success("Gespeichert");
+    toast.success("Anfrage gespeichert");
     setSaving(false);
     setEditing(false);
     router.refresh();
@@ -297,9 +299,7 @@ export function RequestDetail({
           </Link>
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-semibold text-gray-900">{request.title}</h1>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadgeColors[request.status]}`}>
-              {statusOptions.find((s) => s.value === request.status)?.label ?? request.status}
-            </span>
+            <StatusBadge status={request.status} />
           </div>
           <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500">
             <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{request.contact.companyName}</span>
@@ -311,9 +311,9 @@ export function RequestDetail({
           {editing ? (
             <>
               <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
-              <Button className="rounded-lg bg-blue-600 hover:bg-blue-700" onClick={handleSave} disabled={saving}>
-                {saving ? "Speichert..." : "Speichern"}
-              </Button>
+              <LoadingButton className="rounded-lg" onClick={handleSave} loading={saving}>
+                Speichern
+              </LoadingButton>
             </>
           ) : (
             <>
@@ -322,13 +322,13 @@ export function RequestDetail({
               </Button>
               {request.quotes.length === 0 ? (
                 <Link href={`/angebote/neu?requestId=${request.id}&contactId=${request.contact.id}`}>
-                  <Button className="rounded-lg bg-blue-600 hover:bg-blue-700 gap-1.5">
+                  <Button className="rounded-lg gap-1.5">
                     <FileText className="h-3.5 w-3.5" />Angebot erstellen
                   </Button>
                 </Link>
               ) : (
                 <Link href={`/angebote/${request.quotes[0].id}`}>
-                  <Button className="rounded-lg bg-blue-600 hover:bg-blue-700 gap-1.5">
+                  <Button className="rounded-lg gap-1.5">
                     <FileText className="h-3.5 w-3.5" />Zum Angebot
                   </Button>
                 </Link>
@@ -426,9 +426,7 @@ export function RequestDetail({
                   </div>
                   <div className="grid grid-cols-2 gap-6">
                     <InfoRow label="Status">
-                      <span className={`inline-flex text-xs font-medium px-2.5 py-0.5 rounded-full ${statusBadgeColors[request.status]}`}>
-                        {statusOptions.find((s) => s.value === request.status)?.label ?? request.status}
-                      </span>
+                      <StatusBadge status={request.status} />
                     </InfoRow>
                     <InfoRow label="Priorität">
                       <span className={priorityColors[request.priority ?? "NORMAL"]}>
@@ -517,7 +515,7 @@ export function RequestDetail({
                         />
                         <Button
                           size="sm"
-                          className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white h-9 px-3"
+                          className="rounded-lg h-9 px-3"
                           onClick={handleSaveInspection}
                           disabled={inspectionSaving || !inspectionDateEdit}
                         >
@@ -614,7 +612,7 @@ export function RequestDetail({
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      className="rounded-lg bg-blue-600 hover:bg-blue-700 text-white"
+                      className="rounded-lg"
                       onClick={handleSaveNote}
                       disabled={noteSaving || !noteText.trim()}
                     >
@@ -645,7 +643,7 @@ export function RequestDetail({
                         <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">{note.content}</p>
                         <button
                           onClick={() => handleDeleteNote(note.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500 flex-shrink-0 mt-0.5"
+                          className="text-gray-300 hover:text-red-500 flex-shrink-0 mt-0.5"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -748,7 +746,7 @@ export function RequestDetail({
                         </div>
                         <button
                           onClick={() => handleDeleteAttachment(att.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500"
+                          className="text-gray-300 hover:text-red-500"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>

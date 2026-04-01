@@ -34,11 +34,7 @@ export function CreateDeliveryButton({ defaultOrderId, allItemsCovered }: Create
         onMouseEnter={() => allItemsCovered && setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
         disabled={allItemsCovered}
-        className={`rounded-lg gap-1.5 ${
-          allItemsCovered
-            ? "bg-gray-100 text-gray-400"
-            : "bg-blue-600 hover:bg-blue-700 text-white"
-        }`}
+        className="rounded-lg gap-1.5"
       >
         <Plus className="h-4 w-4" />
         Neuer Lieferschein

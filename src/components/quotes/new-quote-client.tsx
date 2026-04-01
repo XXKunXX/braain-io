@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Plus, Trash2, ChevronDown, X, Package, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -399,12 +400,11 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                   <div key={idx} className="group border-b border-gray-100 py-3 space-y-1.5">
                     {/* Eingabe-Zeile */}
                     <div className="grid grid-cols-[32px_1fr_100px_100px_100px_112px] gap-x-3 items-center">
-                      <div className="relative h-9 flex items-center justify-center">
-                        <span className="text-xs font-mono text-gray-400 group-hover:opacity-0 transition-opacity select-none">{idx + 1}.</span>
+                      <div className="h-9 flex items-center justify-center">
                         <button
                           type="button"
                           onClick={() => removeItem(idx)}
-                          className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-gray-300 hover:text-red-500"
+                          className="flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -582,9 +582,9 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
           {/* Actions */}
           <div className="flex justify-end gap-2 pb-6">
             <Button type="button" variant="outline" className="rounded-lg" onClick={() => router.back()}>Abbrechen</Button>
-            <Button type="submit" disabled={loading || !contactId || !title} className="rounded-lg bg-blue-600 hover:bg-blue-700">
-              {loading ? "Erstelle..." : "Angebot erstellen"}
-            </Button>
+            <LoadingButton type="submit" loading={loading} disabled={!contactId || !title} className="rounded-lg">
+              Angebot erstellen
+            </LoadingButton>
           </div>
         </div>
       </form>
@@ -635,7 +635,7 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
               <Button type="button" variant="outline" onClick={() => setShowNewContact(false)}>Abbrechen</Button>
               <Button type="button" onClick={handleCreateContact} disabled={creatingContact || !newName.trim()}>
-                {creatingContact ? "Erstelle..." : "Kontakt erstellen"}
+                {creatingContact ? "Erstellt..." : "Kontakt erstellen"}
               </Button>
             </div>
           </div>

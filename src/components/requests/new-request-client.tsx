@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import {
   Select,
   SelectContent,
@@ -140,13 +141,14 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
           <Link href="/anfragen">
             <Button variant="outline" className="rounded-lg">Abbrechen</Button>
           </Link>
-          <Button
+          <LoadingButton
             onClick={handleSubmit as unknown as React.MouseEventHandler}
-            disabled={loading || !contactId || !title}
-            className="rounded-lg bg-blue-600 hover:bg-blue-700"
+            loading={loading}
+            disabled={!contactId || !title}
+            className="rounded-lg"
           >
-            {loading ? "Speichert..." : "Anfrage speichern"}
-          </Button>
+            Anfrage speichern
+          </LoadingButton>
         </div>
       </div>
 

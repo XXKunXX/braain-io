@@ -39,7 +39,9 @@ export function NotificationBell() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 5000);
+    const interval = setInterval(() => {
+      if (!document.hidden) load();
+    }, 60000);
     window.addEventListener("focus", load);
     return () => {
       clearInterval(interval);

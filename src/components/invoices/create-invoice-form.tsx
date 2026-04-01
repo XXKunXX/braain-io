@@ -434,9 +434,9 @@ export function CreateInvoiceForm({
           <Button
             type="submit"
             disabled={loading || !contactId}
-            className="bg-blue-600 hover:bg-blue-700 text-white min-w-44"
+            className="min-w-44"
           >
-            {loading ? "Wird erstellt..." : "Rechnung erstellen"}
+            {loading ? "Erstellt..." : "Rechnung erstellen"}
           </Button>
         </div>
       </form>

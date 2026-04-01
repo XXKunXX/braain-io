@@ -47,7 +47,7 @@ export function DeliveryDetail({
               </Button>
             </Link>
             <Link href={`/lieferscheine/${dn.id}/ausfuellen`}>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button size="sm">
                 <PenLine className="h-4 w-4 mr-1" />
                 Ausfüllen
               </Button>

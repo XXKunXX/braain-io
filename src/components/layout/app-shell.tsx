@@ -11,11 +11,13 @@ import { cn } from "@/lib/utils";
 interface AppShellProps {
   children: React.ReactNode;
   openTaskCount: number;
+  newRequestCount?: number;
+  overduePaymentCount?: number;
   userRole?: string;
   showFahrerApp?: boolean;
 }
 
-export function AppShell({ children, openTaskCount, userRole, showFahrerApp }: AppShellProps) {
+export function AppShell({ children, openTaskCount, newRequestCount = 0, overduePaymentCount = 0, userRole, showFahrerApp }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
 
@@ -38,6 +40,8 @@ export function AppShell({ children, openTaskCount, userRole, showFahrerApp }: A
       >
         <Sidebar
           openTaskCount={openTaskCount}
+          newRequestCount={newRequestCount}
+          overduePaymentCount={overduePaymentCount}
           onClose={() => setSidebarOpen(false)}
           onSearchOpen={() => setSearchOpen(true)}
           userRole={userRole}

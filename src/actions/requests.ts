@@ -133,6 +133,10 @@ export async function deleteRequest(id: string) {
   return { success: true };
 }
 
+export async function getNewRequestCount() {
+  return prisma.request.count({ where: { status: "NEU" } });
+}
+
 export async function getRequests(status?: string) {
   return prisma.request.findMany({
     where: status ? { status: status as "OPEN" | "NEU" | "BESICHTIGUNG_GEPLANT" | "ANGEBOT_ERSTELLT" | "IN_PROGRESS" | "DONE" } : undefined,

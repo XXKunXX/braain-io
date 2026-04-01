@@ -202,7 +202,7 @@ export function ContactForm({
           </Button>
         )}
         <Button type="submit" disabled={isLoading} className="rounded-lg">
-          {isLoading ? "Speichere..." : "Speichern"}
+          {isLoading ? "Speichert..." : "Speichern"}
         </Button>
       </div>
     </form>

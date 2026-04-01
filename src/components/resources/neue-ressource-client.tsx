@@ -277,8 +277,8 @@ export function NeueRessourceClient({ prefillType, fahrer }: Props) {
           {/* Actions */}
           <div className="flex justify-end gap-2 pb-6">
             <Button type="button" variant="outline" className="rounded-lg" onClick={() => router.back()}>Abbrechen</Button>
-            <Button type="submit" disabled={loading || !name.trim()} className="rounded-lg bg-blue-600 hover:bg-blue-700">
-              {loading ? "Erstelle..." : "Ressource erstellen"}
+            <Button type="submit" disabled={loading || !name.trim()} className="rounded-lg">
+              {loading ? "Erstellt..." : "Ressource erstellen"}
             </Button>
           </div>
         </div>

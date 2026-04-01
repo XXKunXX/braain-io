@@ -307,7 +307,7 @@ export function EditDeliveryForm({ deliveryNote: dn, drivers, vehicles }: Props)
             disabled={loading}
             className="bg-amber-500 hover:bg-amber-600 text-white min-w-36"
           >
-            {loading ? "Wird gespeichert..." : "Speichern"}
+            {loading ? "Speichert..." : "Speichern"}
           </Button>
         </div>
       </form>

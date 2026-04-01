@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -302,13 +303,14 @@ export function CreateOrderForm({ contacts }: { contacts: Contact[] }) {
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Abbrechen
           </Button>
-          <Button
+          <LoadingButton
             type="submit"
-            disabled={loading || !contactId}
-            className="bg-blue-600 hover:bg-blue-700 text-white min-w-36"
+            loading={loading}
+            disabled={!contactId}
+            className="min-w-36"
           >
-            {loading ? "Wird erstellt..." : "Auftrag erstellen"}
-          </Button>
+            Auftrag erstellen
+          </LoadingButton>
         </div>
       </form>
     </div>

@@ -3,6 +3,13 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 
+export async function getOverduePaymentCount() {
+  const now = new Date();
+  return prisma.paymentMilestone.count({
+    where: { status: "OFFEN", dueDate: { lt: now } },
+  });
+}
+
 export async function getPaymentMilestones() {
   return prisma.paymentMilestone.findMany({
     orderBy: { dueDate: "asc" },

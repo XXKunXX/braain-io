@@ -35,6 +35,38 @@ export async function updateUser(userId: string, data: { firstName: string; last
   revalidatePath("/benutzer");
 }
 
+export async function updateUserAdmin(
+  userId: string,
+  data: { firstName: string; lastName: string; email: string; role: string }
+) {
+  const client = await clerkClient();
+  // Update name
+  await client.users.updateUser(userId, {
+    firstName: data.firstName,
+    lastName: data.lastName,
+  });
+  // Update role
+  await client.users.updateUserMetadata(userId, {
+    publicMetadata: { role: data.role },
+  });
+  // Update email if changed
+  const user = await client.users.getUser(userId);
+  const currentEmail = user.emailAddresses[0]?.emailAddress ?? "";
+  if (data.email && data.email !== currentEmail) {
+    const newAddr = await client.emailAddresses.createEmailAddress({
+      userId,
+      emailAddress: data.email,
+      verified: true,
+      primary: true,
+    });
+    await client.users.updateUser(userId, { primaryEmailAddressId: newAddr.id });
+    if (user.emailAddresses[0]?.id) {
+      await client.emailAddresses.deleteEmailAddress(user.emailAddresses[0].id);
+    }
+  }
+  revalidatePath("/benutzer");
+}
+
 export async function deleteUser(userId: string) {
   const client = await clerkClient();
   await client.users.deleteUser(userId);

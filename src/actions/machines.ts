@@ -135,12 +135,6 @@ export async function getMachine(id: string) {
   const machine = await db.machine.findUnique({
     where: { id },
     include: {
-      usages: {
-        orderBy: { startDate: "desc" },
-        include: {
-          order: { select: { id: true, orderNumber: true, title: true } },
-        },
-      },
       maintenances: { orderBy: { date: "desc" } },
     },
   });
@@ -151,7 +145,6 @@ export async function getMachine(id: string) {
     hasOverdueMaintenance: machine.maintenances.some(
       (m: any) => m.nextServiceDate && new Date(m.nextServiceDate) < new Date()
     ),
-    usages: machine.usages.map(mapUsage) as MachineUsageRow[],
     maintenances: machine.maintenances.map(mapMaintenance) as MachineMaintenanceRow[],
   };
 }
