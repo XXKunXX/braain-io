@@ -15,6 +15,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { deleteInvoice } from "@/actions/invoices";
 import { toast } from "sonner";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -65,13 +66,8 @@ export function InvoiceList({ invoices }: { invoices: InvoiceRow[] }) {
   const filtered = useMemo(() => {
     const base = invoices.filter((inv) => {
       const matchesStatus = activeTab === "ALL" || inv.status === activeTab;
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        inv.invoiceNumber.toLowerCase().includes(q) ||
-        inv.contact.companyName.toLowerCase().includes(q) ||
-        (inv.order?.title ?? "").toLowerCase().includes(q);
-      return matchesStatus && matchesSearch;
+      const matchesText = matchesSearch(search, inv.invoiceNumber, inv.contact.companyName, inv.order?.title);
+      return matchesStatus && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "invoiceNumber") return item.invoiceNumber;

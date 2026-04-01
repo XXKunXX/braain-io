@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ContactCombobox } from "@/components/requests/contact-combobox";
 import { toast } from "sonner";
 import { createBaustelle } from "@/actions/baustellen";
-import { createContact } from "@/actions/contacts";
 import type { BaustelleStatusType } from "@/actions/baustellen";
+import type { Contact } from "@prisma/client";
 
 type OrderOption = {
   id: string;
@@ -52,82 +53,23 @@ function toDateInput(d: Date | null | undefined) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
-const INP = "w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
-
 export function NeueBaustelleClient({ orders, userNames, contacts: initialContacts, prefillOrder }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // ── Contact combobox ─────────────────────────────────────────────────────────
-  const [contacts, setContacts] = useState<ContactOption[]>(initialContacts);
+  // ── Contact ───────────────────────────────────────────────────────────────────
   const [contactId, setContactId] = useState("");
-  const [contactSearch, setContactSearch] = useState("");
-  const [contactOpen, setContactOpen] = useState(false);
-  const contactRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onMouseDown(e: MouseEvent) {
-      if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
-        setContactOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onMouseDown);
-    return () => document.removeEventListener("mousedown", onMouseDown);
-  }, []);
-
-  const filteredContacts = contacts.filter(
-    (c) =>
-      c.companyName.toLowerCase().includes(contactSearch.toLowerCase()) ||
-      ([c.firstName, c.lastName].filter(Boolean).join(" ")).toLowerCase().includes(contactSearch.toLowerCase()) ||
-      (c.city ?? "").toLowerCase().includes(contactSearch.toLowerCase())
-  );
-
-  function selectContact(c: ContactOption) {
-    setContactId(c.id);
-    setContactSearch(c.companyName);
-    setContactOpen(false);
+  function handleContactChange(id: string) {
+    setContactId(id);
+    const c = initialContacts.find((c) => c.id === id);
+    if (!c) return;
     const fullName = [c.firstName, c.lastName].filter(Boolean).join(" ");
     if (fullName) setContactPerson(fullName);
     if (c.phone) setPhone(c.phone);
     if (c.address) setAddress(c.address);
     if (c.postalCode) setPostalCode(c.postalCode);
     if (c.city) setCity(c.city);
-  }
-
-  // ── Quick-create contact modal ────────────────────────────────────────────────
-  const [showNewContact, setShowNewContact] = useState(false);
-  const [newContactForm, setNewContactForm] = useState({
-    companyName: "", contactPerson: "", phone: "", city: "",
-  });
-  const [newContactLoading, setNewContactLoading] = useState(false);
-
-  async function handleCreateContact() {
-    if (!newContactForm.companyName.trim()) { toast.error("Firmenname ist erforderlich"); return; }
-    setNewContactLoading(true);
-    const result = await createContact({
-      companyName: newContactForm.companyName.trim(),
-      type: "COMPANY",
-      phone: newContactForm.phone || undefined,
-      city: newContactForm.city || undefined,
-    });
-    setNewContactLoading(false);
-    if ("error" in result && result.error) { toast.error("Fehler beim Erstellen"); return; }
-    const c = result.contact!;
-    const newOpt: ContactOption = {
-      id: c.id, companyName: c.companyName,
-      firstName: null,
-      lastName: null,
-      phone: c.phone ?? null,
-      address: c.address ?? null,
-      postalCode: c.postalCode ?? null,
-      city: c.city ?? null,
-    };
-    setContacts(prev => [...prev, newOpt].sort((a, b) => a.companyName.localeCompare(b.companyName)));
-    selectContact(newOpt);
-    if (newContactForm.contactPerson) setContactPerson(newContactForm.contactPerson);
-    setShowNewContact(false);
-    setNewContactForm({ companyName: "", contactPerson: "", phone: "", city: "" });
-    toast.success("Kontakt erstellt");
   }
 
   // ── Order combobox ───────────────────────────────────────────────────────────
@@ -300,52 +242,14 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
               {/* Kontakt combobox */}
               <div className="space-y-1.5">
                 <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kunde / Kontakt</Label>
-                <div ref={contactRef} className="relative">
-                  <input
-                    type="text"
-                    className="w-full h-10 rounded-lg border border-gray-200 px-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Firma oder Kontaktperson suchen..."
-                    value={contactSearch}
-                    onChange={(e) => { setContactSearch(e.target.value); setContactId(""); setContactOpen(true); }}
-                    onFocus={() => setContactOpen(true)}
-                  />
-                  {contactId ? (
-                    <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      onClick={() => { setContactId(""); setContactSearch(""); setContactOpen(false); }}>
-                      <X className="h-4 w-4" />
-                    </button>
-                  ) : (
-                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                  )}
-                  {contactOpen && (
-                    <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {filteredContacts.map((c) => (
-                        <button key={c.id} type="button"
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col border-b border-gray-50 last:border-0"
-                          onMouseDown={() => selectContact(c)}>
-                          <span className="font-medium text-gray-900">{c.companyName}</span>
-                          {([c.firstName, c.lastName].filter(Boolean).join(" ") || c.city) && (
-                            <span className="text-xs text-gray-400">
-                              {[[c.firstName, c.lastName].filter(Boolean).join(" "), c.city].filter(Boolean).join(" · ")}
-                            </span>
-                          )}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="w-full text-left px-3 py-2.5 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2 border-t border-gray-100 font-medium"
-                        onMouseDown={() => {
-                          setContactOpen(false);
-                          setNewContactForm(f => ({ ...f, companyName: contactSearch }));
-                          setShowNewContact(true);
-                        }}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        {contactSearch.trim() ? `"${contactSearch}" erstellen` : "Neuen Kontakt erstellen"}
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <ContactCombobox contacts={initialContacts as unknown as Contact[]} value={contactId} onChange={handleContactChange} />
+                <Link
+                  href="/kontakte/neu?returnTo=/baustellen/neu"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium mt-1"
+                >
+                  <Plus className="h-3 w-3" />
+                  Neuer Kontakt anlegen
+                </Link>
               </div>
 
               <div className="space-y-1.5">
@@ -443,48 +347,6 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
         </div>
       </form>
 
-      {/* ── Modal: Neuen Kontakt erstellen ──────────────────────────────────── */}
-      {showNewContact && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Neuer Kontakt</h2>
-              <button onClick={() => setShowNewContact(false)} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
-            </div>
-            <div className="px-6 py-4 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Firma / Name *</label>
-                <input className={INP} placeholder="Mustermann GmbH" value={newContactForm.companyName}
-                  onChange={(e) => setNewContactForm(f => ({ ...f, companyName: e.target.value }))}
-                  autoFocus onKeyDown={(e) => e.key === "Enter" && handleCreateContact()} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Kontaktperson</label>
-                <input className={INP} placeholder="Max Mustermann" value={newContactForm.contactPerson}
-                  onChange={(e) => setNewContactForm(f => ({ ...f, contactPerson: e.target.value }))} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Telefon</label>
-                  <input className={INP} placeholder="+43 1 234 567" value={newContactForm.phone}
-                    onChange={(e) => setNewContactForm(f => ({ ...f, phone: e.target.value }))} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Ort</label>
-                  <input className={INP} placeholder="Wien" value={newContactForm.city}
-                    onChange={(e) => setNewContactForm(f => ({ ...f, city: e.target.value }))} />
-                </div>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowNewContact(false)}>Abbrechen</Button>
-              <Button onClick={handleCreateContact} disabled={newContactLoading}>
-                {newContactLoading ? "Erstellt..." : "Kontakt erstellen"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

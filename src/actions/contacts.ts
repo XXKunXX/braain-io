@@ -62,18 +62,8 @@ export async function deleteContact(id: string) {
   return { success: true };
 }
 
-export async function getContacts(search?: string) {
+export async function getContacts() {
   return prisma.contact.findMany({
-    where: search
-      ? {
-          OR: [
-            { companyName: { contains: search, mode: "insensitive" } },
-            { firstName: { contains: search, mode: "insensitive" } },
-            { lastName: { contains: search, mode: "insensitive" } },
-            { city: { contains: search, mode: "insensitive" } },
-          ],
-        }
-      : undefined,
     orderBy: { companyName: "asc" },
   });
 }

@@ -22,6 +22,7 @@ import type { ResourceFormData } from "@/actions/resources";
 import { MachineTab } from "@/components/machines/machine-tab";
 import type { MachineRow } from "@/actions/machines";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { formatLicensePlate } from "@/lib/license-plate";
 
@@ -101,14 +102,10 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
   }
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
     const base = resources.filter(
       (r) =>
         r.type === activeTab &&
-        (!q ||
-          r.name.toLowerCase().includes(q) ||
-          (r.email ?? "").toLowerCase().includes(q) ||
-          (r.phone ?? "").toLowerCase().includes(q))
+        matchesSearch(search, r.name, r.email, r.phone)
     );
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "name") return item.name;

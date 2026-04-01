@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { deleteRequest } from "@/actions/requests";
 import { toast } from "sonner";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -62,13 +63,8 @@ export function RequestList({ requests, initialStatus }: RequestListProps) {
   const filtered = useMemo(() => {
     const base = requests.filter((r) => {
       const matchesStatus = activeTab === "ALL" || r.status === activeTab;
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        r.title.toLowerCase().includes(q) ||
-        r.contact.companyName.toLowerCase().includes(q) ||
-        (r.description ?? "").toLowerCase().includes(q);
-      return matchesStatus && matchesSearch;
+      const matchesText = matchesSearch(search, r.title, r.contact.companyName, r.description);
+      return matchesStatus && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "title") return item.title;

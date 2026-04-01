@@ -20,6 +20,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { deleteDeliveryNote } from "@/actions/delivery-notes";
 import { toast } from "sonner";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -50,14 +51,8 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
   const filtered = useMemo(() => {
     const base = deliveryNotes.filter((dn) => {
       const matchesContact = contactFilter === "ALL" || dn.contactId === contactFilter;
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        dn.deliveryNumber.toLowerCase().includes(q) ||
-        dn.contact.companyName.toLowerCase().includes(q) ||
-        dn.material.toLowerCase().includes(q) ||
-        (dn.driver ?? "").toLowerCase().includes(q);
-      return matchesContact && matchesSearch;
+      const matchesText = matchesSearch(search, dn.deliveryNumber, dn.contact.companyName, dn.material, dn.driver);
+      return matchesContact && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "number") return item.deliveryNumber;

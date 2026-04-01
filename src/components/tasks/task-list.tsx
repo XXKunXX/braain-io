@@ -1,26 +1,19 @@
 "use client";
 
 import { useState, useMemo, useTransition } from "react";
-import { format } from "date-fns";
-import { de } from "date-fns/locale";
 import { RelativeDate } from "@/components/ui/relative-date";
-import { Search, Trash2, ChevronRight, CheckSquare, AlertCircle, Clock } from "lucide-react";
+import { Search, Trash2, ChevronRight, CheckSquare, AlertCircle, Clock, Circle, CheckCircle2, LayoutList } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { updateTaskStatus, deleteTask } from "@/actions/tasks";
 import { toast } from "sonner";
 import type { Task, Contact, Request, DeliveryNote } from "@prisma/client";
 import { TaskDetailDrawer } from "./task-detail-drawer";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { CreateTaskDialog } from "./create-task-dialog";
 
 type TaskWithContact = Task & { contact: Contact | null; request: Request | null; deliveryNote: (Omit<DeliveryNote, "quantity"> & { quantity: number }) | null };
 
@@ -43,6 +36,21 @@ const statusLabels: Record<string, string> = {
   IN_PROGRESS: "In Bearbeitung",
   DONE: "Erledigt",
 };
+
+const STATUS_TABS = [
+  { key: "OPEN_AND_IN_PROGRESS", label: "Offen", icon: Circle },
+  { key: "IN_PROGRESS", label: "In Bearbeitung", icon: Clock },
+  { key: "DONE", label: "Erledigt", icon: CheckCircle2 },
+  { key: "ALL", label: "Alle", icon: LayoutList },
+] as const;
+
+const PRIORITY_TABS = [
+  { key: "ALL", label: "Alle" },
+  { key: "URGENT", label: "Dringend" },
+  { key: "HIGH", label: "Hoch" },
+  { key: "NORMAL", label: "Normal" },
+  { key: "LOW", label: "Niedrig" },
+] as const;
 
 function isOverdue(task: Task) {
   return task.dueDate && new Date(task.dueDate) < new Date() && task.status !== "DONE";
@@ -73,7 +81,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
       if (statusFilter === "OPEN_AND_IN_PROGRESS" && t.status === "DONE") return false;
       if (statusFilter !== "ALL" && statusFilter !== "OPEN_AND_IN_PROGRESS" && t.status !== statusFilter) return false;
       if (priorityFilter !== "ALL" && t.priority !== priorityFilter) return false;
-      if (search && !t.title.toLowerCase().includes(search.toLowerCase())) return false;
+      if (!matchesSearch(search, t.title)) return false;
       return true;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
@@ -86,6 +94,24 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
       return (item as Record<string, unknown>)[key];
     });
   }, [tasks, search, statusFilter, priorityFilter, sortKey, sortDir]);
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { ALL: tasks.length };
+    for (const t of tasks) counts[t.status] = (counts[t.status] ?? 0) + 1;
+    counts["OPEN_AND_IN_PROGRESS"] = (counts["OPEN"] ?? 0) + (counts["IN_PROGRESS"] ?? 0);
+    return counts;
+  }, [tasks]);
+
+  const priorityCounts = useMemo(() => {
+    const statusFiltered = tasks.filter((t) => {
+      if (statusFilter === "OPEN_AND_IN_PROGRESS") return t.status === "OPEN" || t.status === "IN_PROGRESS";
+      if (statusFilter !== "ALL") return t.status === statusFilter;
+      return true;
+    });
+    const counts: Record<string, number> = { ALL: statusFiltered.length };
+    for (const t of statusFiltered) counts[t.priority] = (counts[t.priority] ?? 0) + 1;
+    return counts;
+  }, [tasks, statusFilter]);
 
   const openCount = tasks.filter((t) => t.status === "OPEN").length;
   const overdueCount = tasks.filter((t) => isOverdue(t)).length;
@@ -154,7 +180,48 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
         />
       </div>
 
-      {/* Filters */}
+      {/* Status filter tabs */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {STATUS_TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setStatusFilter(key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
+              statusFilter === key
+                ? "bg-white border-gray-300 text-gray-900 shadow-sm"
+                : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+            }`}
+          >
+            <Icon className="h-4 w-4 shrink-0" />
+            {label}
+            {(statusCounts[key] ?? 0) > 0 && (
+              <span className="text-xs text-gray-400">({statusCounts[key]})</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Priority filter tabs */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {PRIORITY_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setPriorityFilter(key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
+              priorityFilter === key
+                ? "bg-white border-gray-300 text-gray-900 shadow-sm"
+                : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+            }`}
+          >
+            {label}
+            {(priorityCounts[key] ?? 0) > 0 && (
+              <span className="text-xs text-gray-400">({priorityCounts[key]})</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Search + CTA */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
@@ -165,34 +232,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
             className="pl-9 bg-white"
           />
         </div>
-        <div className="flex gap-3">
-          <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-            <SelectTrigger className="flex-1 sm:w-44 bg-white">
-              <SelectValue>
-                {statusFilter === "OPEN_AND_IN_PROGRESS" ? "Offen" : statusFilter === "ALL" ? "Alle Status" : statusLabels[statusFilter]}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="OPEN_AND_IN_PROGRESS">Offen</SelectItem>
-              <SelectItem value="ALL">Alle Status</SelectItem>
-              <SelectItem value="OPEN">Nur Offen</SelectItem>
-              <SelectItem value="IN_PROGRESS">In Bearbeitung</SelectItem>
-              <SelectItem value="DONE">Erledigt</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={priorityFilter} onValueChange={(v) => v && setPriorityFilter(v)}>
-            <SelectTrigger className="flex-1 sm:w-44 bg-white">
-              <SelectValue>{priorityFilter === "ALL" ? "Alle Prioritäten" : priorityLabels[priorityFilter]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Alle Prioritäten</SelectItem>
-              <SelectItem value="LOW">Niedrig</SelectItem>
-              <SelectItem value="NORMAL">Normal</SelectItem>
-              <SelectItem value="HIGH">Hoch</SelectItem>
-              <SelectItem value="URGENT">Dringend</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <CreateTaskDialog />
       </div>
 
       {/* Table */}
@@ -225,17 +265,9 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                       {done && <span className="text-white text-xs">✓</span>}
                     </button>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className={`text-sm font-medium ${done ? "line-through text-gray-400" : "text-gray-900"}`}>
-                          {task.title}
-                        </p>
-                        <button
-                          onClick={(e) => handleDelete(e, task.id)}
-                          className="text-gray-300 hover:text-red-400 transition-colors p-0.5 flex-shrink-0"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
+                      <p className={`text-sm font-medium mb-1 ${done ? "line-through text-gray-400" : "text-gray-900"}`}>
+                        {task.title}
+                      </p>
                       {task.description && (
                         <p className="text-xs text-gray-400 mb-2">{task.description}</p>
                       )}
@@ -258,7 +290,15 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                         )}
                       </div>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0 mt-1" />
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={(e) => handleDelete(e, task.id)}
+                        className="p-2 text-gray-300 hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                      <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
+                    </div>
                   </div>
                 </div>
               );
@@ -268,7 +308,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
           {/* Desktop Table Layout */}
           <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_80px_48px] gap-3 px-4 py-2.5 border-b border-gray-100 bg-gray-50/80">
+            <div className="grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_80px_64px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
               <span />
               <SortHeader label="Titel" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
@@ -287,7 +327,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                 <div
                   key={task.id}
                   onClick={() => setSelectedTask(task)}
-                  className={`grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_80px_48px] gap-3 px-4 py-3 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
+                  className={`grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_80px_64px] gap-3 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
                     i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                   }`}
                 >
@@ -343,10 +383,10 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                   <span className="text-xs text-gray-500">{statusLabels[task.status]}</span>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-1 justify-end">
+                  <div className="flex items-center justify-end gap-1">
                     <button
                       onClick={(e) => handleDelete(e, task.id)}
-                      className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
+                      className="p-1.5 text-gray-300 hover:text-red-400 transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

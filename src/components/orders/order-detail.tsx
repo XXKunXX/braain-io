@@ -556,12 +556,12 @@ export function OrderDetail({
               <h3 className="text-base font-semibold text-gray-900">
                 Baustellen ({order.baustellen.length})
               </h3>
-              <Button asChild className="gap-1.5">
-                <Link href={`/baustellen/neu?orderId=${order.id}`}>
+              <Link href={`/baustellen/neu?orderId=${order.id}`}>
+                <Button className="gap-1.5">
                   <Plus className="h-4 w-4" />
                   Neue Baustelle
-                </Link>
-              </Button>
+                </Button>
+              </Link>
             </div>
             {order.baustellen.length === 0 ? (
               <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">

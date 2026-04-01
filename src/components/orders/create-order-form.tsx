@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ContactCombobox } from "@/components/requests/contact-combobox";
 import { createOrderWithDetails } from "@/actions/orders";
 import { toast } from "sonner";
 import type { Contact } from "@prisma/client";
@@ -138,18 +139,7 @@ export function CreateOrderForm({ contacts }: { contacts: Contact[] }) {
 
           <div className="space-y-1.5">
             <Label className="text-xs font-medium text-gray-700">Kontakt *</Label>
-            <Select value={contactId} onValueChange={(v) => v && setContactId(v)}>
-              <SelectTrigger className="h-10">
-                <SelectValue>
-                  {contactId ? contacts.find(c => c.id === contactId)?.companyName : <span className="text-gray-400">Kontakt wählen...</span>}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {contacts.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>{c.companyName}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ContactCombobox contacts={contacts} value={contactId} onChange={setContactId} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">

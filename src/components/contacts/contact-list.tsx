@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Building2, User, Package2, Files, ChevronRight, Search, Plus, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { deleteContact } from "@/actions/contacts";
 import { toast } from "sonner";
@@ -42,12 +43,11 @@ const typeBadgeColors: Record<string, string> = {
 
 interface ContactListProps {
   contacts: Contact[];
-  search?: string;
 }
 
-export function ContactList({ contacts, search: initialSearch }: ContactListProps) {
+export function ContactList({ contacts }: ContactListProps) {
   const router = useRouter();
-  const [search, setSearch] = useState(initialSearch ?? "");
+  const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("ALL");
   const [ownerFilter, setOwnerFilter] = useState("ALL");
   const [sortKey, setSortKey] = useState<string | null>("name");
@@ -69,9 +69,6 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
 
   function handleSearch(value: string) {
     setSearch(value);
-    const params = new URLSearchParams();
-    if (value) params.set("q", value);
-    router.push(`/kontakte?${params.toString()}`);
   }
 
   function handleSort(key: string) {
@@ -80,10 +77,12 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
   }
 
   const filtered = useMemo(() => {
-    const base = contacts.filter((c) =>
-      (activeTab === "ALL" || c.type === activeTab) &&
-      (ownerFilter === "ALL" || c.owner === ownerFilter)
-    );
+    const base = contacts.filter((c) => {
+      if (activeTab !== "ALL" && c.type !== activeTab) return false;
+      if (ownerFilter !== "ALL" && c.owner !== ownerFilter) return false;
+      if (!matchesSearch(search, c.companyName, c.firstName, c.lastName, c.city)) return false;
+      return true;
+    });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "name") return item.type === "PRIVATE"
         ? `${item.lastName ?? ""} ${item.firstName ?? ""}`.trim()
@@ -93,7 +92,7 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
       if (key === "owner") return (item as Contact & { owner?: string }).owner ?? "";
       return (item as Record<string, unknown>)[key];
     });
-  }, [contacts, activeTab, ownerFilter, sortKey, sortDir]);
+  }, [contacts, search, activeTab, ownerFilter, sortKey, sortDir]);
 
   function handleDelete(e: React.MouseEvent, id: string) {
     e.preventDefault();
@@ -151,6 +150,7 @@ export function ContactList({ contacts, search: initialSearch }: ContactListProp
               value={search}
               onChange={(e) => handleSearch(e.target.value)}
               className="pl-9 bg-white"
+              autoFocus
             />
           </div>
           {ownerNames.length > 0 && (

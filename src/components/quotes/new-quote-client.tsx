@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, ChevronDown, X, Package, Wrench } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, X, Package, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { Input } from "@/components/ui/input";
@@ -16,8 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ContactCombobox } from "@/components/requests/contact-combobox";
 import { createQuote } from "@/actions/quotes";
-import { createContact } from "@/actions/contacts";
 import { toast } from "sonner";
 import type { Contact, Request, ContactNote } from "@prisma/client";
 import type { MachineRow } from "@/actions/machines";
@@ -49,72 +49,21 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  // ── Contact combobox ──────────────────────────────────────────────────────
-  const [localContacts, setLocalContacts] = useState<Contact[]>(contacts);
+  // ── Contact ───────────────────────────────────────────────────────────────
   const [contactId, setContactId] = useState(prefillContactId ?? prefillRequest?.contactId ?? "");
-  const [contactSearch, setContactSearch] = useState(() => {
-    const pre = prefillContactId ?? prefillRequest?.contactId;
-    return pre ? (contacts.find((c) => c.id === pre)?.companyName ?? "") : "";
-  });
-  const [contactOpen, setContactOpen] = useState(false);
-  const contactRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (contactRef.current && !contactRef.current.contains(e.target as Node)) {
-        setContactOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  const filteredContacts = localContacts.filter((c) =>
-    c.companyName.toLowerCase().includes(contactSearch.toLowerCase())
-  );
-
-  function selectContact(c: Contact) {
-    setContactId(c.id);
-    setContactSearch(c.companyName);
-    setContactOpen(false);
+  function handleContactChange(id: string) {
+    setContactId(id);
+    const c = contacts.find((c) => c.id === id);
+    if (!c) return;
     if (!prefillRequest?.siteAddress && !siteAddress) {
-      const addr = [
-        c.address,
-        [c.postalCode, c.city].filter(Boolean).join(" "),
-      ]
-        .filter(Boolean)
-        .join(", ");
+      const addr = [c.address, [c.postalCode, c.city].filter(Boolean).join(" ")]
+        .filter(Boolean).join(", ");
       if (addr) setSiteAddress(addr);
     }
-    if (!prefillRequest?.assignedTo && !assignedTo && c.owner) {
-      setAssignedTo(c.owner);
+    if (!prefillRequest?.assignedTo && !assignedTo && (c as Contact & { owner?: string }).owner) {
+      setAssignedTo((c as Contact & { owner?: string }).owner!);
     }
-  }
-
-  // ── New contact quick-create ──────────────────────────────────────────────
-  const [showNewContact, setShowNewContact] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [creatingContact, setCreatingContact] = useState(false);
-
-  async function handleCreateContact() {
-    if (!newName.trim()) { toast.error("Name ist erforderlich"); return; }
-    setCreatingContact(true);
-    const result = await createContact({
-      companyName: newName.trim(),
-      phone: newPhone || undefined,
-      email: newEmail || undefined,
-      type: "COMPANY",
-    });
-    setCreatingContact(false);
-    if (!result.contact) { toast.error("Fehler beim Erstellen"); return; }
-    const c = result.contact as Contact;
-    setLocalContacts((prev) => [...prev, c]);
-    selectContact(c);
-    setShowNewContact(false);
-    setNewName(""); setNewPhone(""); setNewEmail("");
-    toast.success("Kontakt erstellt");
   }
 
   // ── Other form fields ─────────────────────────────────────────────────────
@@ -278,53 +227,14 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
                 {/* Contact combobox */}
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt *</Label>
-                  <div ref={contactRef} className="relative">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        className="w-full h-10 rounded-lg border border-gray-200 px-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Kontakt suchen..."
-                        value={contactSearch}
-                        onChange={(e) => {
-                          setContactSearch(e.target.value);
-                          setContactId("");
-                          setContactOpen(true);
-                        }}
-                        onFocus={() => setContactOpen(true)}
-                      />
-                      <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                    </div>
-                    {contactOpen && (
-                      <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {filteredContacts.length === 0 && contactSearch && (
-                          <div className="px-3 py-2 text-sm text-gray-400">Kein Treffer</div>
-                        )}
-                        {filteredContacts.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col"
-                            onMouseDown={() => selectContact(c)}
-                          >
-                            <span className="font-medium text-gray-900">{c.companyName}</span>
-                            {(c.postalCode || c.city) && <span className="text-xs text-gray-400">{[c.postalCode, c.city].filter(Boolean).join(" ")}</span>}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          className="w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 font-medium flex items-center gap-1.5 border-t border-gray-100"
-                          onMouseDown={() => {
-                            setContactOpen(false);
-                            setShowNewContact(true);
-                            setNewName(contactSearch);
-                          }}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Neuen Kontakt erstellen
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <ContactCombobox contacts={contacts} value={contactId} onChange={handleContactChange} />
+                  <Link
+                    href="/kontakte/neu?returnTo=/angebote/neu"
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium mt-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Neuer Kontakt anlegen
+                  </Link>
                 </div>
               </div>
 
@@ -589,58 +499,6 @@ export function NewQuoteClient({ contacts, userNames, products, machines, prefil
         </div>
       </form>
 
-      {/* New Contact Modal */}
-      {showNewContact && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm">
-            <div className="px-6 py-4 border-b flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Neuen Kontakt erstellen</h2>
-              <button type="button" onClick={() => setShowNewContact(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="px-6 py-4 space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Firma / Name *</label>
-                <input
-                  type="text"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Mustermann GmbH"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Telefon</label>
-                <input
-                  type="tel"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Optional"
-                  value={newPhone}
-                  onChange={(e) => setNewPhone(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">E-Mail</label>
-                <input
-                  type="email"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Optional"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => setShowNewContact(false)}>Abbrechen</Button>
-              <Button type="button" onClick={handleCreateContact} disabled={creatingContact || !newName.trim()}>
-                {creatingContact ? "Erstellt..." : "Kontakt erstellen"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

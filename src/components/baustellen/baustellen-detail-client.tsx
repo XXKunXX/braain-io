@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import {
   updateBaustelle,
   deleteBaustelleDispositionEntry,
-  createTagesrapport,
   deleteTagesrapport,
 } from "@/actions/baustellen";
 import { deleteDeliveryNote } from "@/actions/delivery-notes";
@@ -160,36 +159,15 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
     router.refresh();
   }
 
-  // ── Rapport modal ──────────────────────────────────────────────────────────
+  // ── Rapport ────────────────────────────────────────────────────────────────
   const [deleteRapportId, setDeleteRapportId] = useState<string | null>(null);
   const [deleteLieferscheinId, setDeleteLieferscheinId] = useState<string | null>(null);
-  const [rapOpen, setRapOpen] = useState(false);
-  const [rf, setRf] = useState({ date: "", driverName: "", machineName: "", hours: "", employees: "", description: "" });
-  const [savingRap, setSavingRap] = useState(false);
-
-  async function handleCreateRapport() {
-    if (!rf.date) { toast.error("Datum erforderlich"); return; }
-    setSavingRap(true);
-    const r = await createTagesrapport({
-      baustelleId: b.id, date: rf.date,
-      driverName: rf.driverName || undefined, machineName: rf.machineName || undefined,
-      hours: rf.hours ? parseFloat(rf.hours) : null,
-      employees: rf.employees ? parseInt(rf.employees) : null,
-      description: rf.description || undefined,
-    });
-    setSavingRap(false);
-    if ("error" in r) { toast.error("Fehler"); return; }
-    setB(prev => ({ ...prev, rapporte: [r.rapport, ...prev.rapporte] }));
-    setRapOpen(false);
-    setRf({ date: "", driverName: "", machineName: "", hours: "", employees: "", description: "" });
-    toast.success("Rapport erstellt");
-  }
 
   async function confirmDeleteRapport() {
     if (!deleteRapportId) return;
     await deleteTagesrapport(deleteRapportId, b.id);
     setB(prev => ({ ...prev, rapporte: prev.rapporte.filter(r => r.id !== deleteRapportId) }));
-    toast.success("Tagesbericht gelöscht");
+    toast.success("Eintrag gelöscht");
     router.refresh();
   }
 
@@ -213,7 +191,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
   const TABS = [
     { key: "overview" as const, label: "Übersicht", icon: Info },
     { key: "dispo" as const, label: "Disposition", icon: CalendarDays, count: b.dispositionEntries.length },
-    { key: "rapporte" as const, label: "Tagesberichte", icon: FileText, count: b.rapporte.length },
+    { key: "rapporte" as const, label: "Bautagebuch", icon: FileText, count: b.rapporte.length },
     { key: "lieferscheine" as const, label: "Lieferscheine", icon: Truck, count: b.deliveryNotes.length },
     { key: "dokumente" as const, label: "Dokumente", icon: FolderOpen },
   ];
@@ -495,17 +473,14 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
           </div>
         )}
 
-        {/* ── TAB: Tagesberichte ─────────────────────────────────────────── */}
+        {/* ── TAB: Bautagebuch ──────────────────────────────────────────── */}
         {tab === "rapporte" && (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Tagesberichte</h2>
-              <Button onClick={() => setRapOpen(true)} size="sm" className="gap-1.5">
-                <Plus className="h-4 w-4" />Tagesbericht erstellen
-              </Button>
+              <h2 className="text-base font-semibold text-gray-900">Bautagebuch</h2>
             </div>
             {b.rapporte.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Tagesberichte erfasst</div>
+              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Einträge vorhanden</div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <div className="grid grid-cols-[1fr_1.5fr_1.5fr_0.7fr_0.7fr_2fr_56px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
@@ -606,8 +581,8 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
       <ConfirmDialog
         open={!!deleteRapportId}
         onOpenChange={(open) => { if (!open) setDeleteRapportId(null); }}
-        title="Tagesbericht löschen"
-        description="Dieser Tagesbericht wird unwiderruflich gelöscht."
+        title="Eintrag löschen"
+        description="Dieser Bautagebuch-Eintrag wird unwiderruflich gelöscht."
         onConfirm={confirmDeleteRapport}
       />
 
@@ -629,27 +604,6 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
         onConfirm={confirmDeleteLieferschein}
       />
 
-      {/* ── Modal: Tagesbericht erstellen ─────────────────────────────────────── */}
-      {rapOpen && (
-        <Modal title="Tagesbericht erstellen" onClose={() => setRapOpen(false)}>
-          <div className="space-y-3">
-            <Field label="Datum *"><input type="date" className={IC} value={rf.date} onChange={e => setRf(f => ({ ...f, date: e.target.value }))} /></Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Fahrer"><input type="text" className={IC} value={rf.driverName} onChange={e => setRf(f => ({ ...f, driverName: e.target.value }))} /></Field>
-              <Field label="Maschine"><input type="text" className={IC} value={rf.machineName} onChange={e => setRf(f => ({ ...f, machineName: e.target.value }))} /></Field>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Stunden"><input type="number" min="0" step="0.5" className={IC} value={rf.hours} onChange={e => setRf(f => ({ ...f, hours: e.target.value }))} /></Field>
-              <Field label="Mitarbeiter (Anzahl)"><input type="number" min="0" step="1" className={IC} value={rf.employees} onChange={e => setRf(f => ({ ...f, employees: e.target.value }))} /></Field>
-            </div>
-            <Field label="Beschreibung"><textarea rows={3} className={`${IC} resize-none`} value={rf.description} onChange={e => setRf(f => ({ ...f, description: e.target.value }))} /></Field>
-          </div>
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-100 mt-4">
-            <Button variant="outline" onClick={() => setRapOpen(false)}>Abbrechen</Button>
-            <Button onClick={handleCreateRapport} disabled={savingRap}>{savingRap ? "Speichert..." : "Bericht speichern"}</Button>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

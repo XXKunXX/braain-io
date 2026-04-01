@@ -12,8 +12,14 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { sortItems } from "@/lib/sort";
 import { SortHeader } from "@/components/ui/sort-header";
 
@@ -64,7 +70,7 @@ export function ZahlungenList({ milestones, orders }: { milestones: Milestone[],
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("ALL");
-  const [showOrderSelect, setShowOrderSelect] = useState(false);
+  const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState("");
   const [sortKey, setSortKey] = useState<string | null>("dueDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -163,38 +169,54 @@ export function ZahlungenList({ milestones, orders }: { milestones: Milestone[],
             className="pl-9 bg-white"
           />
         </div>
-        {showOrderSelect ? (
-          <div className="flex items-center gap-2">
-            <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
-              <SelectTrigger className="h-9 w-56 bg-white">
-                <SelectValue placeholder="Auftrag wählen..." />
-              </SelectTrigger>
-              <SelectContent>
-                {orders.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>{o.orderNumber} – {o.title}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={() => { if (selectedOrderId) router.push(`/auftraege/${selectedOrderId}?tab=Zahlungen&neu=1`); }}
-              disabled={!selectedOrderId}
-              className="h-9 px-3.5"
-            >
-              Weiter
-            </Button>
-            <Button variant="outline" onClick={() => { setShowOrderSelect(false); setSelectedOrderId(""); }} className="h-9 px-3">
-              Abbrechen
-            </Button>
-          </div>
-        ) : (
-          <Button
-            onClick={() => setShowOrderSelect(true)}
-            className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
-          >
-            <Plus className="h-4 w-4" />
-            Neue Zahlung
-          </Button>
-        )}
+        <Button
+          onClick={() => { setSelectedOrderId(""); setShowOrderModal(true); }}
+          className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+        >
+          <Plus className="h-4 w-4" />
+          Neue Zahlung
+        </Button>
+
+        <Dialog open={showOrderModal} onOpenChange={(open) => { setShowOrderModal(open); if (!open) setSelectedOrderId(""); }}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader className="text-left">
+              <DialogTitle>Neue Zahlung erstellen</DialogTitle>
+              <DialogDescription>
+                Wähle den Auftrag, für den du eine Zahlung anlegen möchtest.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
+                <SelectTrigger className="w-full bg-white text-left">
+                  {selectedOrderId ? (
+                    <span className="flex-1 truncate text-sm text-left">
+                      {(() => { const o = orders.find(x => x.id === selectedOrderId); return o ? `${o.orderNumber} – ${o.title}` : selectedOrderId; })()}
+                    </span>
+                  ) : (
+                    <span className="flex-1 text-sm text-muted-foreground text-left">Auftrag wählen...</span>
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {orders.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>{o.orderNumber} – {o.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => { setShowOrderModal(false); setSelectedOrderId(""); }}>
+                  Abbrechen
+                </Button>
+                <Button
+                  disabled={!selectedOrderId}
+                  onClick={() => { if (selectedOrderId) router.push(`/auftraege/${selectedOrderId}?tab=Zahlungen&neu=1`); }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  Weiter
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* List */}

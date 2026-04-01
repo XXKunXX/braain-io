@@ -14,6 +14,7 @@ import { deleteQuote } from "@/actions/quotes";
 import { toast } from "sonner";
 import type { Contact, Quote, QuoteItem } from "@prisma/client";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -74,13 +75,9 @@ export function QuoteList({
 
   const filtered = useMemo(() => {
     const base = quotes.filter((q) => {
-      const matchesSearch =
-        !search ||
-        q.title.toLowerCase().includes(search.toLowerCase()) ||
-        q.contact.companyName.toLowerCase().includes(search.toLowerCase()) ||
-        q.quoteNumber.toLowerCase().includes(search.toLowerCase());
+      const matchesText = matchesSearch(search, q.title, q.contact.companyName, q.quoteNumber);
       const matchesStatus = activeTab === "ALL" || q.status === activeTab;
-      return matchesSearch && matchesStatus;
+      return matchesText && matchesStatus;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "title") return item.title;

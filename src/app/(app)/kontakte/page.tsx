@@ -3,13 +3,8 @@ import { ContactList } from "@/components/contacts/contact-list";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default async function KontaktePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string }>;
-}) {
-  const params = await searchParams;
-  const contacts = await getContacts(params.q);
+export default async function KontaktePage() {
+  const contacts = await getContacts();
 
   return (
     <div className="p-4 md:p-6 space-y-5">
@@ -25,7 +20,7 @@ export default async function KontaktePage({
         </Button>
       </div>
 
-      <ContactList contacts={contacts} search={params.q} />
+      <ContactList contacts={contacts} />
     </div>
   );
 }

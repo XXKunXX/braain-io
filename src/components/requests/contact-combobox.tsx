@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Check, Search } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, Check, Search, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Contact } from "@prisma/client";
 
@@ -71,11 +72,18 @@ export function ContactCombobox({ contacts, value, onChange }: ContactComboboxPr
 
   useEffect(() => {
     if (open) {
-      setTimeout(() => inputRef.current?.focus(), 50);
+      requestAnimationFrame(() => inputRef.current?.focus());
     } else {
       setQuery("");
     }
   }, [open]);
+
+  function handleTriggerKeyDown(e: React.KeyboardEvent) {
+    if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      setQuery(e.key);
+      setOpen(true);
+    }
+  }
 
   function handleSelect(id: string) {
     onChange(id);
@@ -89,7 +97,7 @@ export function ContactCombobox({ contacts, value, onChange }: ContactComboboxPr
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="flex h-10 w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <PopoverTrigger className="flex h-10 w-full items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" onKeyDown={handleTriggerKeyDown}>
         <span className={selected ? "text-gray-900" : "text-gray-400"}>
           {selected ? selected.companyName || [selected.firstName, selected.lastName].filter(Boolean).join(" ") : "Wählen..."}
         </span>
@@ -124,9 +132,13 @@ export function ContactCombobox({ contacts, value, onChange }: ContactComboboxPr
         {/* Results */}
         <div className="max-h-[260px] overflow-y-auto py-1">
           {filtered.length === 0 ? (
-            <p className="px-3 py-4 text-center text-sm text-gray-400">
-              Kein Kontakt gefunden
-            </p>
+            <Link
+              href={`/kontakte/neu?returnTo=${typeof window !== "undefined" ? window.location.pathname : ""}`}
+              className="flex items-center gap-2 px-3 py-3 text-sm text-blue-600 hover:bg-blue-50 w-full"
+            >
+              <Plus className="h-4 w-4 shrink-0" />
+              Neuer Kontakt anlegen
+            </Link>
           ) : (
             filtered.map((c) => (
               <button

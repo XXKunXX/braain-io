@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 
 export interface UnifiedDocument {
@@ -89,14 +90,10 @@ export function DocumentList({ documents, contacts }: DocumentListProps) {
   }
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase();
     const base = documents.filter((d) => {
       if (typeFilter !== "ALL" && d.type !== typeFilter) return false;
       if (contactFilter !== "ALL" && d.contactId !== contactFilter) return false;
-      if (q) {
-        const haystack = [d.title, d.number, d.contactName, d.meta].join(" ").toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
+      if (!matchesSearch(search, d.title, d.number, d.contactName, d.meta)) return false;
       return true;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {

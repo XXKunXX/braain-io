@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { deleteOrder } from "@/actions/orders";
 import { toast } from "sonner";
 import { sortItems } from "@/lib/sort";
+import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -55,13 +56,8 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
   const filtered = useMemo(() => {
     const base = orders.filter((o) => {
       const matchesStatus = activeTab === "ALL" || o.status === activeTab;
-      const q = search.toLowerCase();
-      const matchesSearch =
-        !q ||
-        o.title.toLowerCase().includes(q) ||
-        o.contact.companyName.toLowerCase().includes(q) ||
-        (o.quote?.siteAddress ?? "").toLowerCase().includes(q);
-      return matchesStatus && matchesSearch;
+      const matchesText = matchesSearch(search, o.title, o.contact.companyName, o.quote?.siteAddress);
+      return matchesStatus && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "title") return item.title;
