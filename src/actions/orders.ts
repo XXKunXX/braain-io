@@ -151,7 +151,14 @@ export async function getOrder(id: string) {
           city: true,
         },
       },
-      paymentMilestones: { orderBy: { createdAt: "asc" } },
+      deliveryNotes: {
+        orderBy: { date: "desc" },
+        include: { invoice: { select: { id: true, invoiceNumber: true } } },
+      },
+      invoices: {
+        orderBy: { invoiceDate: "desc" },
+        select: { id: true, invoiceNumber: true, invoiceDate: true, totalAmount: true, status: true },
+      },
     },
   });
 }

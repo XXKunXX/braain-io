@@ -24,15 +24,10 @@ export default async function RechnungDetailPage({
       total: Number(item.total),
       vatRate: Number(item.vatRate),
     })),
-    paymentMilestone: invoice.paymentMilestone
-      ? {
-          ...invoice.paymentMilestone,
-          amount: Number(invoice.paymentMilestone.amount),
-          skontoPercent: invoice.paymentMilestone.skontoPercent
-            ? Number(invoice.paymentMilestone.skontoPercent)
-            : null,
-        }
-      : null,
+    deliveryNotes: (invoice.deliveryNotes ?? []).map((dn) => ({
+      ...dn,
+      quantity: Number(dn.quantity),
+    })),
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

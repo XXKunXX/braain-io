@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState } from "react";
 import { useTabLabels } from "@/hooks/use-tab-labels";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, FileUp, Receipt, User, MapPin, Euro, CalendarDays, ClipboardList, HardHat, Plus, CheckCircle, Trash2, Activity, FileText } from "lucide-react";
+import { ArrowLeft, Pencil, FileUp, Receipt, User, MapPin, Euro, ClipboardList, HardHat, Plus, Trash2, Activity, FileText, ChevronLeft, ChevronRight, Square, CheckSquare, Truck } from "lucide-react";
 import { OrderActivityTab } from "./order-activity-tab";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -22,7 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { updateOrderStatus, updateOrder } from "@/actions/orders";
-import { createPaymentMilestone, updatePaymentMilestone, markPaymentMilestonePaid, markPaymentMilestoneUnpaid, deletePaymentMilestone } from "@/actions/payment-milestones";
+import { createInvoiceFromDeliveryNotes, deleteInvoice } from "@/actions/invoices";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Contact, Order, Quote, QuoteItem } from "@prisma/client";
 
 type BaustelleSummary = {
@@ -35,26 +36,31 @@ type BaustelleSummary = {
   city: string | null;
 };
 
-type PaymentMilestoneSummary = {
+type OrderDeliveryNote = {
   id: string;
-  title: string;
-  type: string;
-  amount: number;
-  dueDate: Date | null;
+  deliveryNumber: string;
+  date: Date;
+  material: string;
+  quantity: number | null;
+  unit: string;
+  driver: string | null;
+  invoice: { id: string; invoiceNumber: string } | null;
+};
+
+type OrderInvoice = {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: Date;
+  totalAmount: number;
   status: string;
-  paidAt: Date | null;
-  assignedTo: string | null;
-  notes: string | null;
-  invoiceNumber: string | null;
-  skontoPercent: number | null;
-  skontoDays: number | null;
 };
 
 type OrderWithRelations = Order & {
   contact: Contact;
   quote: (Quote & { items: QuoteItem[] }) | null;
   baustellen: BaustelleSummary[];
-  paymentMilestones: PaymentMilestoneSummary[];
+  deliveryNotes: OrderDeliveryNote[];
+  invoices: OrderInvoice[];
 };
 
 const statusLabels: Record<string, string> = {
@@ -76,46 +82,11 @@ const statusColors: Record<string, string> = {
 const TABS = [
   { key: "Details" as const, label: "Details", icon: ClipboardList },
   { key: "Baustellen" as const, label: "Baustellen", icon: HardHat },
-  { key: "Leistungen" as const, label: "Leistungen", icon: Receipt },
-  { key: "Zahlungen" as const, label: "Zahlungen", icon: Euro },
+  { key: "Lieferscheine" as const, label: "Lieferscheine", icon: Truck },
+  { key: "Rechnungen" as const, label: "Rechnungen", icon: Receipt },
   { key: "Aktivität" as const, label: "Aktivität", icon: Activity },
 ];
 
-function getEasterSunday(year: number): Date {
-  const a = year % 19, b = Math.floor(year / 100), c = year % 100;
-  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
-  const g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
-  const i = Math.floor(c / 4), k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7;
-  const m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const month = Math.floor((h + l - 7 * m + 114) / 31);
-  const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(year, month - 1, day);
-}
-
-function isAustrianHoliday(date: Date): boolean {
-  const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
-  const fixed = [[1,1],[1,6],[5,1],[8,15],[10,26],[11,1],[12,8],[12,25],[12,26]];
-  if (fixed.some(([fm, fd]) => m === fm && d === fd)) return true;
-  const easter = getEasterSunday(y);
-  const addDays = (base: Date, n: number) => new Date(base.getFullYear(), base.getMonth(), base.getDate() + n);
-  const movable = [addDays(easter, 1), addDays(easter, 39), addDays(easter, 49), addDays(easter, 60)];
-  return movable.some(md => md.getFullYear() === y && md.getMonth() + 1 === m && md.getDate() === d);
-}
-
-function nextWorkingDay(date: Date): Date {
-  const d = new Date(date);
-  while (d.getDay() === 0 || d.getDay() === 6 || isAustrianHoliday(d)) {
-    d.setDate(d.getDate() + 1);
-  }
-  return d;
-}
-
-const typeLabels: Record<string, string> = {
-  ANZAHLUNG: "Anzahlung",
-  ZWISCHENRECHNUNG: "Zwischenrechnung",
-  SCHLUSSRECHNUNG: "Schlussrechnung",
-};
 type Tab = typeof TABS[number]["key"];
 
 function StatCard({ label, children }: { label: string; children: React.ReactNode }) {
@@ -159,7 +130,7 @@ export function OrderDetail({
   const { containerRef: tabContainerRef, showLabels } = useTabLabels();
   const [activeTab, setActiveTab] = useState<Tab>(() => {
     const tab = searchParams.get("tab");
-    const tabs: Tab[] = ["Details", "Leistungen", "Baustellen", "Zahlungen", "Aktivität"];
+    const tabs: Tab[] = ["Details", "Baustellen", "Lieferscheine", "Rechnungen", "Aktivität"];
     return (tabs.includes(tab as Tab) ? tab : "Details") as Tab;
   });
   const [editing, setEditing] = useState(false);
@@ -170,35 +141,44 @@ export function OrderDetail({
   const [editNotes, setEditNotes] = useState(order.notes ?? "");
   const [editStatus, setEditStatus] = useState(order.status);
 
-  // Payment milestone state
-  const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(null);
-  const [editMilestone, setEditMilestone] = useState<{ title: string; type: "ANZAHLUNG" | "ZWISCHENRECHNUNG" | "SCHLUSSRECHNUNG"; amount: string; dueDate: string; assignedTo: string; notes: string; invoiceNumber: string; skontoPercent: string; skontoDays: string } | null>(null);
-  const [savingMilestone, setSavingMilestone] = useState(false);
-  const [showAddMilestone, setShowAddMilestone] = useState(() => searchParams.get("neu") === "1");
-  const [milestoneTitle, setMilestoneTitle] = useState("");
-  const [milestoneType, setMilestoneType] = useState<"ANZAHLUNG" | "ZWISCHENRECHNUNG" | "SCHLUSSRECHNUNG">("ANZAHLUNG");
-  const [milestoneAmount, setMilestoneAmount] = useState("");
-  const [milestoneDueDate, setMilestoneDueDate] = useState("");
-  const [milestoneAssignedTo, setMilestoneAssignedTo] = useState("");
-  const [milestoneNotes, setMilestoneNotes] = useState("");
-  const [addingMilestone, setAddingMilestone] = useState(false);
-  const [milestonePercent, setMilestonePercent] = useState("");
-  const [milestoneInvoiceNumber, setMilestoneInvoiceNumber] = useState("");
-  const [milestoneSkontoPercent, setMilestoneSkontoPercent] = useState("");
-  const [milestoneSkontoDays, setMilestoneSkontoDays] = useState("");
-  const [addingTemplate, setAddingTemplate] = useState(false);
-  const [payingMilestoneId, setPayingMilestoneId] = useState<string | null>(null);
-  const [payingDate, setPayingDate] = useState("");
+  // Lieferschein selection state
+  const openDeliveryNotes = order.deliveryNotes.filter((dn) => !dn.invoice);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedDnIds, setSelectedDnIds] = useState<Set<string>>(new Set());
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [dnFilter, setDnFilter] = useState<"all" | "open" | "billed">("all");
+  const [confirmDeleteInvoiceId, setConfirmDeleteInvoiceId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (searchParams.get("neu") === "1" && totalPrice) {
-      setMilestoneAmount(String(Math.round(totalPrice * 0.2 * 100) / 100));
-      setMilestonePercent("20");
-      const base = new Date();
-      base.setDate(base.getDate() + 14);
-      setMilestoneDueDate(format(nextWorkingDay(base), "yyyy-MM-dd"));
+  function toggleDn(id: string) {
+    setSelectedDnIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+  function toggleAllDn() {
+    setSelectedDnIds((prev) => openDeliveryNotes.every((dn) => prev.has(dn.id)) ? new Set() : new Set(openDeliveryNotes.map((dn) => dn.id)));
+  }
+  function enterSelectionMode() { setSelectionMode(true); setSelectedDnIds(new Set(openDeliveryNotes.map((dn) => dn.id))); }
+  function exitSelectionMode() { setSelectionMode(false); setSelectedDnIds(new Set()); }
+
+  async function handleCreateInvoiceFromDns() {
+    const ids = Array.from(selectedDnIds);
+    if (ids.length === 0) { toast.error("Keine Lieferscheine ausgewählt"); return; }
+    setCreatingInvoice(true);
+    const result = await createInvoiceFromDeliveryNotes(order.contactId, ids, order.id);
+    setCreatingInvoice(false);
+    if ("invoice" in result && result.invoice) {
+      toast.success("Sammelrechnung erstellt");
+      router.push(`/rechnungen/${result.invoice.id}?orderId=${order.id}`);
+    } else {
+      toast.error("Fehler beim Erstellen der Rechnung");
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }
+
+  async function handleDeleteInvoice() {
+    if (!confirmDeleteInvoiceId) return;
+    await deleteInvoice(confirmDeleteInvoiceId);
+    toast.success("Rechnung gelöscht");
+    setConfirmDeleteInvoiceId(null);
+    router.refresh();
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -218,126 +198,7 @@ export function OrderDetail({
     router.refresh();
   }
 
-  async function handleAddMilestone() {
-    if (!milestoneTitle || !milestoneAmount) return;
-    setAddingMilestone(true);
-    await createPaymentMilestone(order.id, {
-      title: milestoneTitle,
-      type: milestoneType,
-      amount: parseFloat(milestoneAmount.replace(",", ".")),
-      dueDate: milestoneDueDate || undefined,
-      notes: milestoneNotes || undefined,
-      invoiceNumber: milestoneInvoiceNumber || undefined,
-      skontoPercent: milestoneSkontoPercent ? parseFloat(milestoneSkontoPercent) : undefined,
-      skontoDays: milestoneSkontoDays ? parseInt(milestoneSkontoDays) : undefined,
-    });
-    toast.success("Zahlungsmeilenstein hinzugefügt");
-    setMilestoneTitle("");
-    setMilestoneAmount("");
-    setMilestoneDueDate("");
-    setMilestoneAssignedTo("");
-    setMilestoneNotes("");
-    setMilestoneType("ANZAHLUNG");
-    setMilestonePercent("");
-    setMilestoneInvoiceNumber("");
-    setMilestoneSkontoPercent("");
-    setMilestoneSkontoDays("");
-    setShowAddMilestone(false);
-    setAddingMilestone(false);
-    router.refresh();
-  }
-
-  function startEditMilestone(m: PaymentMilestoneSummary) {
-    setEditingMilestoneId(m.id);
-    setEditMilestone({
-      title: m.title,
-      type: m.type as "ANZAHLUNG" | "ZWISCHENRECHNUNG" | "SCHLUSSRECHNUNG",
-      amount: String(m.amount),
-      dueDate: m.dueDate ? format(new Date(m.dueDate), "yyyy-MM-dd") : "",
-      assignedTo: m.assignedTo ?? "",
-      notes: m.notes ?? "",
-      invoiceNumber: m.invoiceNumber ?? "",
-      skontoPercent: m.skontoPercent != null ? String(m.skontoPercent) : "",
-      skontoDays: m.skontoDays != null ? String(m.skontoDays) : "",
-    });
-  }
-
-  async function handleSaveMilestone(milestoneId: string) {
-    if (!editMilestone) return;
-    setSavingMilestone(true);
-    await updatePaymentMilestone(milestoneId, order.id, {
-      title: editMilestone.title,
-      type: editMilestone.type,
-      amount: parseFloat(editMilestone.amount.replace(",", ".")),
-      dueDate: editMilestone.dueDate || undefined,
-      assignedTo: editMilestone.assignedTo || undefined,
-      notes: editMilestone.notes || undefined,
-      invoiceNumber: editMilestone.invoiceNumber || undefined,
-      skontoPercent: editMilestone.skontoPercent ? parseFloat(editMilestone.skontoPercent) : undefined,
-      skontoDays: editMilestone.skontoDays ? parseInt(editMilestone.skontoDays) : undefined,
-    });
-    toast.success("Meilenstein gespeichert");
-    setEditingMilestoneId(null);
-    setEditMilestone(null);
-    setSavingMilestone(false);
-    router.refresh();
-  }
-
-  async function handleMarkPaid(milestoneId: string, date: string) {
-    await markPaymentMilestonePaid(milestoneId, order.id, date);
-    toast.success("Als bezahlt markiert");
-    setPayingMilestoneId(null);
-    setPayingDate("");
-    router.refresh();
-  }
-
-  async function handleMarkUnpaid(milestoneId: string) {
-    await markPaymentMilestoneUnpaid(milestoneId, order.id);
-    toast.success("Status auf Offen zurückgesetzt");
-    router.refresh();
-  }
-
-  async function handleDeleteMilestone(milestoneId: string) {
-    await deletePaymentMilestone(milestoneId, order.id);
-    toast.success("Meilenstein gelöscht");
-    router.refresh();
-  }
-
-  async function handleApplyTemplate(template: "30/70" | "30/40/30") {
-    if (!totalPrice) return;
-    setAddingTemplate(true);
-    const today = new Date();
-    const addDays = (n: number) => { const d = new Date(today); d.setDate(d.getDate() + n); return d; };
-    const due1 = format(nextWorkingDay(addDays(14)), "yyyy-MM-dd");
-    const due2 = format(nextWorkingDay(addDays(45)), "yyyy-MM-dd");
-    const due3 = format(nextWorkingDay(addDays(90)), "yyyy-MM-dd");
-    if (template === "30/70") {
-      await createPaymentMilestone(order.id, { title: "Anzahlung 30%", type: "ANZAHLUNG", amount: Math.round(totalPrice * 0.3 * 100) / 100, dueDate: due1 });
-      await createPaymentMilestone(order.id, { title: "Schlussrechnung 70%", type: "SCHLUSSRECHNUNG", amount: Math.round(totalPrice * 0.7 * 100) / 100, dueDate: due3 });
-    } else {
-      await createPaymentMilestone(order.id, { title: "Anzahlung 30%", type: "ANZAHLUNG", amount: Math.round(totalPrice * 0.3 * 100) / 100, dueDate: due1 });
-      await createPaymentMilestone(order.id, { title: "Zwischenrechnung 40%", type: "ZWISCHENRECHNUNG", amount: Math.round(totalPrice * 0.4 * 100) / 100, dueDate: due2 });
-      await createPaymentMilestone(order.id, { title: "Schlussrechnung 30%", type: "SCHLUSSRECHNUNG", amount: Math.round(totalPrice * 0.3 * 100) / 100, dueDate: due3 });
-    }
-    toast.success("Zahlungsplan angelegt");
-    setAddingTemplate(false);
-    router.refresh();
-  }
-
   const totalPrice = order.quote ? Number(order.quote.totalPrice) : null;
-  const paidAmount = order.paymentMilestones.filter(m => m.status === "BEZAHLT").reduce((s, m) => s + m.amount, 0);
-  const milestoneTotal = order.paymentMilestones.reduce((s, m) => s + m.amount, 0);
-  const openAmount = milestoneTotal - paidAmount;
-  const unplannedAmount = totalPrice != null ? totalPrice - milestoneTotal : null;
-  const sortedMilestones = [...order.paymentMilestones].sort((a, b) => {
-    if (!a.dueDate && !b.dueDate) return 0;
-    if (!a.dueDate) return 1;
-    if (!b.dueDate) return -1;
-    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-  });
-  const overdueCount = order.paymentMilestones.filter(m => m.status === "OFFEN" && m.dueDate && new Date(m.dueDate) < new Date()).length;
-
-  const quoteItems = order.quote?.items ?? [];
 
   return (
     <div className="flex flex-col min-h-full">
@@ -347,9 +208,9 @@ export function OrderDetail({
           <ArrowLeft className="h-3.5 w-3.5" />Zurück zu Aufträge
         </Link>
 
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold text-gray-900">{order.title}</h1>
               <StatusBadge status={order.status} />
             </div>
@@ -359,7 +220,7 @@ export function OrderDetail({
             </Link>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {editing && (
               <>
                 <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
@@ -378,13 +239,6 @@ export function OrderDetail({
               </Button>
             )}
             <Button
-              variant="outline"
-              className="rounded-lg gap-1.5"
-              onClick={() => { setActiveTab("Zahlungen"); setShowAddMilestone(true); }}
-            >
-              <Receipt className="h-3.5 w-3.5" />Zahlungsplan
-            </Button>
-            <Button
               className="rounded-lg gap-1.5"
               onClick={() => router.push(`/rechnungen/neu?orderId=${order.id}`)}
             >
@@ -395,7 +249,7 @@ export function OrderDetail({
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="px-6 py-4 grid grid-cols-4 gap-4 border-b border-gray-100 bg-gray-50/60">
+      <div className="px-4 sm:px-6 py-4 grid grid-cols-2 gap-3 sm:gap-4 border-b border-gray-100 bg-gray-50/60">
         <StatCard label="Status">
           <StatusBadge status={order.status} />
         </StatCard>
@@ -424,9 +278,6 @@ export function OrderDetail({
           >
             <Icon className="h-3.5 w-3.5 shrink-0" />
             <span data-tab-label className={showLabels ? "inline" : "hidden"}>{label}</span>
-            {key === "Zahlungen" && overdueCount > 0 && (
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
-            )}
           </button>
         ))}
       </div>
@@ -504,47 +355,175 @@ export function OrderDetail({
           </div>
         )}
 
-        {activeTab === "Leistungen" && (
+        {activeTab === "Lieferscheine" && (
+          <div className="max-w-4xl space-y-3">
+            {selectionMode ? (
+              <>
+                <div className="flex items-center gap-3 bg-white border border-blue-200 rounded-xl px-4 py-3 shadow-sm">
+                  <button onClick={exitSelectionMode} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0">
+                    <ChevronLeft className="h-4 w-4" />Abbrechen
+                  </button>
+                  <div className="flex-1 text-center">
+                    <span className="text-sm font-medium text-gray-700">
+                      {selectedDnIds.size === 0 ? "Keine Lieferscheine ausgewählt" : `${selectedDnIds.size} von ${openDeliveryNotes.length} ausgewählt`}
+                    </span>
+                  </div>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 flex-shrink-0"
+                    onClick={handleCreateInvoiceFromDns} disabled={creatingInvoice || selectedDnIds.size === 0}>
+                    <Receipt className="h-3.5 w-3.5" />
+                    {creatingInvoice ? "Wird erstellt…" : `Rechnung erstellen (${selectedDnIds.size})`}
+                  </Button>
+                </div>
+                {openDeliveryNotes.length === 0 ? (
+                  <div className="bg-white border border-gray-200 rounded-xl px-5 py-14 flex flex-col items-center gap-2 text-center">
+                    <Truck className="h-8 w-8 text-gray-200" />
+                    <p className="text-sm text-gray-400">Keine offenen Lieferscheine</p>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div className="divide-y divide-gray-100">
+                      {openDeliveryNotes.map((dn) => {
+                        const isSelected = selectedDnIds.has(dn.id);
+                        return (
+                          <div key={dn.id}
+                            className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors ${isSelected ? "bg-blue-50/40" : "hover:bg-gray-50"}`}
+                            onClick={() => toggleDn(dn.id)}>
+                            <div className="flex-shrink-0">
+                              {isSelected ? <CheckSquare className="h-4 w-4 text-blue-500" /> : <Square className="h-4 w-4 text-gray-300" />}
+                            </div>
+                            <div className="flex-1 min-w-0 grid grid-cols-[80px_1fr_100px_90px] gap-3 items-center">
+                              <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
+                              <span className="text-sm text-gray-700 truncate">{dn.material}</span>
+                              <span className="text-xs text-gray-400">{format(new Date(dn.date), "dd.MM.yyyy", { locale: de })}</span>
+                              <span className="text-sm font-semibold text-gray-900 text-right tabular-nums">{dn.quantity != null ? dn.quantity.toLocaleString("de-DE") : "–"} {dn.unit}</span>
+                            </div>
+                            <Link href={`/lieferscheine/${dn.id}?orderId=${order.id}`} onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                              <ChevronRight className="h-4 w-4 text-gray-200" />
+                            </Link>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/30">
+                      <button onClick={toggleAllDn} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        {openDeliveryNotes.every((dn) => selectedDnIds.has(dn.id)) ? "Alle abwählen" : "Alle auswählen"}
+                      </button>
+                      <span className="text-xs text-gray-400">{selectedDnIds.size} von {openDeliveryNotes.length} ausgewählt</span>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex-1" />
+                  {(["all", "open", "billed"] as const).map((f) => {
+                    const openCount = order.deliveryNotes.filter((dn) => !dn.invoice).length;
+                    const billedCount = order.deliveryNotes.filter((dn) => dn.invoice).length;
+                    const labels = { all: `Alle (${order.deliveryNotes.length})`, open: `Offen (${openCount})`, billed: `Verrechnet (${billedCount})` };
+                    return (
+                      <button key={f} onClick={() => setDnFilter(f)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${dnFilter === f ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                        {labels[f]}
+                      </button>
+                    );
+                  })}
+                  {openDeliveryNotes.length > 0 && (
+                    <button onClick={enterSelectionMode}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors">
+                      <Receipt className="h-3.5 w-3.5" />Rechnung erstellen
+                    </button>
+                  )}
+                </div>
+                {order.deliveryNotes.length === 0 ? (
+                  <div className="bg-white border border-gray-200 rounded-xl px-5 py-14 flex flex-col items-center gap-2 text-center">
+                    <Truck className="h-8 w-8 text-gray-200" />
+                    <p className="text-sm text-gray-400">Noch keine Lieferscheine</p>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                    <div className="grid grid-cols-[80px_1fr_110px_100px_90px_56px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                      {["Nr.", "Material", "Datum", "Menge", "Status", ""].map((h) => (
+                        <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+                      ))}
+                    </div>
+                    {(() => {
+                      const filtered = dnFilter === "open"
+                        ? order.deliveryNotes.filter((dn) => !dn.invoice)
+                        : dnFilter === "billed"
+                        ? order.deliveryNotes.filter((dn) => dn.invoice)
+                        : order.deliveryNotes;
+                      return filtered.map((dn, i) => (
+                        <Link key={dn.id} href={`/lieferscheine/${dn.id}?orderId=${order.id}`}
+                          className={`grid grid-cols-[80px_1fr_110px_100px_90px_56px] px-5 py-3.5 items-center hover:bg-gray-50 transition-colors group ${i < filtered.length - 1 ? "border-b border-gray-100" : ""}`}>
+                          <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
+                          <span className="text-sm font-medium text-gray-900 truncate pr-3">{dn.material}</span>
+                          <span className="text-sm text-gray-400">{format(new Date(dn.date), "dd.MM.yyyy", { locale: de })}</span>
+                          <span className="text-sm text-gray-500 font-mono">{dn.quantity != null ? dn.quantity.toLocaleString("de-DE") : "–"} {dn.unit}</span>
+                          {dn.invoice
+                            ? <span className="text-xs font-medium text-green-600 truncate">{dn.invoice.invoiceNumber}</span>
+                            : <span className="text-xs font-medium text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full w-fit">Offen</span>
+                          }
+                          <div className="flex items-center justify-end">
+                            <ChevronRight className="h-4 w-4 text-gray-200 group-hover:text-gray-400 transition-colors" />
+                          </div>
+                        </Link>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {activeTab === "Rechnungen" && (
           <div className="max-w-4xl">
-            {order.quote && order.quote.items.length > 0 ? (
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-[11px] text-gray-400 font-semibold uppercase tracking-wider border-b border-gray-100 bg-gray-50/80">
-                      <th className="text-left px-5 py-2.5">Pos.</th>
-                      <th className="text-left px-5 py-2.5">Beschreibung</th>
-                      <th className="text-right px-5 py-2.5">Menge</th>
-                      <th className="text-left px-5 py-2.5">Einh.</th>
-                      <th className="text-right px-5 py-2.5">EP €</th>
-                      <th className="text-right px-5 py-2.5">GP €</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {order.quote.items.map((item) => (
-                      <tr key={item.id} className="hover:bg-gray-50">
-                        <td className="px-5 py-3 text-gray-400 font-mono text-xs">{item.position}</td>
-                        <td className="px-5 py-3 font-medium text-gray-900">{item.description}</td>
-                        <td className="px-5 py-3 text-right font-mono">{Number(item.quantity).toLocaleString("de-DE")}</td>
-                        <td className="px-5 py-3 text-gray-500">{item.unit}</td>
-                        <td className="px-5 py-3 text-right font-mono">{Number(item.unitPrice).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</td>
-                        <td className="px-5 py-3 text-right font-mono font-semibold">{Number(item.total).toLocaleString("de-DE", { minimumFractionDigits: 2 })}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-gray-200 bg-gray-50">
-                      <td colSpan={4} />
-                      <td className="px-5 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Gesamt (netto)</td>
-                      <td className="px-5 py-3 text-right font-mono font-bold text-gray-900">
-                        {Number(order.quote.totalPrice).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+            {order.invoices.length === 0 ? (
+              <div className="bg-white border border-gray-200 rounded-xl px-5 py-14 flex flex-col items-center gap-2 text-center">
+                <Receipt className="h-8 w-8 text-gray-200" />
+                <p className="text-sm text-gray-400">Noch keine Rechnungen vorhanden</p>
               </div>
             ) : (
-              <div className="text-center py-20 text-gray-400">
-                <p className="text-sm">Keine Leistungen verknüpft</p>
+              <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                <div className="grid grid-cols-[100px_120px_1fr_100px_56px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                  {["Nr.", "Datum", "Betrag", "Status", ""].map((h) => (
+                    <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+                  ))}
+                </div>
+                {order.invoices.map((inv, i) => {
+                  const invStatusColors: Record<string, string> = {
+                    ENTWURF: "bg-gray-100 text-gray-600",
+                    VERSENDET: "bg-blue-50 text-blue-700",
+                    BEZAHLT: "bg-green-50 text-green-700",
+                    STORNIERT: "bg-red-50 text-red-600",
+                  };
+                  const invStatusLabels: Record<string, string> = {
+                    ENTWURF: "Entwurf", VERSENDET: "Versendet", BEZAHLT: "Bezahlt", STORNIERT: "Storniert",
+                  };
+                  return (
+                    <Link key={inv.id} href={`/rechnungen/${inv.id}?orderId=${order.id}`}
+                      className={`grid grid-cols-[100px_120px_1fr_100px_56px] px-5 py-3.5 items-center hover:bg-gray-50 transition-colors group ${i < order.invoices.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <span className="font-mono text-xs text-gray-400">{inv.invoiceNumber}</span>
+                      <span className="text-sm text-gray-400">{format(new Date(inv.invoiceDate), "dd.MM.yyyy", { locale: de })}</span>
+                      <span className="text-sm font-medium text-gray-900">{inv.totalAmount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-fit ${invStatusColors[inv.status] ?? "bg-gray-100 text-gray-600"}`}>
+                        {invStatusLabels[inv.status] ?? inv.status}
+                      </span>
+                      <div className="flex items-center justify-end gap-1">
+                        {inv.status === "ENTWURF" ? (
+                          <button onClick={(e) => { e.preventDefault(); setConfirmDeleteInvoiceId(inv.id); }}
+                            className="text-gray-300 hover:text-red-500 transition-colors p-1" title="Rechnung löschen">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <span className="p-1"><Trash2 className="h-3.5 w-3.5 text-gray-200" /></span>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-gray-200 group-hover:text-gray-400 transition-colors" />
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -613,434 +592,19 @@ export function OrderDetail({
           </div>
         )}
 
-        {activeTab === "Zahlungen" && (
-          <div className="max-w-4xl space-y-5">
-
-            {/* ── Summary ── */}
-            {order.paymentMilestones.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-xl p-5">
-                <div className="grid grid-cols-3 gap-6 mb-4">
-                  <div>
-                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-1">Geplant</p>
-                    <p className="text-2xl font-bold text-gray-900">{milestoneTotal.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-1">Eingegangen</p>
-                    <p className="text-2xl font-bold text-green-600">{paidAmount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</p>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-1">Ausstehend</p>
-                    <p className="text-2xl font-bold text-amber-500">{openAmount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</p>
-                  </div>
-                </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-green-500 rounded-full transition-all duration-500"
-                    style={{ width: milestoneTotal > 0 ? `${Math.round((paidAmount / milestoneTotal) * 100)}%` : "0%" }}
-                  />
-                </div>
-                <p className="text-xs text-gray-400 mt-1.5">
-                  {milestoneTotal > 0 ? Math.round((paidAmount / milestoneTotal) * 100) : 0}% bezahlt
-                </p>
-                {totalPrice != null && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-400 rounded-full transition-all duration-500"
-                        style={{ width: totalPrice > 0 ? `${Math.min(Math.round((milestoneTotal / totalPrice) * 100), 100)}%` : "0%" }}
-                      />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {milestoneTotal.toLocaleString("de-DE", { style: "currency", currency: "EUR" })} von {totalPrice.toLocaleString("de-DE", { style: "currency", currency: "EUR" })} Auftragswert verplant ({totalPrice > 0 ? Math.round((milestoneTotal / totalPrice) * 100) : 0}%)
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {order.paymentMilestones.length === 0 && totalPrice != null && (
-              <div className="bg-blue-50/60 border border-blue-100 rounded-xl px-5 py-3.5 flex items-center gap-3">
-                <Euro className="h-4 w-4 text-blue-400 flex-shrink-0" />
-                <p className="text-sm text-gray-700">
-                  Auftragswert: <span className="font-semibold text-gray-900">{totalPrice.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
-                  <span className="text-gray-400 ml-2">· Noch nichts verplant</span>
-                </p>
-              </div>
-            )}
-
-            {/* ── Card ── */}
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-
-              {/* Header */}
-              <div className="px-6 py-4 flex items-center justify-between border-b border-gray-100">
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900">Zahlungsplan</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">{order.paymentMilestones.length} Meilenstein{order.paymentMilestones.length !== 1 ? "e" : ""}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {totalPrice && (
-                    <>
-                      <button
-                        onClick={() => handleApplyTemplate("30/70")}
-                        disabled={addingTemplate}
-                        className="text-xs font-medium text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-2 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
-                      >
-                        30/70 ⚡
-                      </button>
-                      <button
-                        onClick={() => handleApplyTemplate("30/40/30")}
-                        disabled={addingTemplate}
-                        className="text-xs font-medium text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg px-3 py-2 bg-white hover:bg-gray-50 transition-colors disabled:opacity-50"
-                      >
-                        30/40/30 ⚡
-                      </button>
-                      <div className="w-px h-4 bg-gray-200" />
-                    </>
-                  )}
-                  <Button
-                    size="sm"
-                    className="rounded-lg gap-1.5 bg-yellow-400 hover:bg-yellow-500 text-gray-900 h-9 px-3.5 text-sm font-semibold shadow-sm"
-                    onClick={() => {
-                      if (!showAddMilestone) {
-                        if (totalPrice) {
-                          setMilestoneAmount(String(Math.round(totalPrice * 0.2 * 100) / 100));
-                          setMilestonePercent("20");
-                        }
-                        const base = new Date();
-                        base.setDate(base.getDate() + 14);
-                        setMilestoneDueDate(format(nextWorkingDay(base), "yyyy-MM-dd"));
-                      }
-                      setShowAddMilestone(!showAddMilestone);
-                    }}
-                  >
-                    <Plus className="h-4 w-4" />Hinzufügen
-                  </Button>
-                </div>
-              </div>
-
-              {/* Add form */}
-              {showAddMilestone && (
-                <div className="px-6 py-5 border-b border-gray-100 bg-gray-50/40 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bezeichnung *</Label>
-                      <Input value={milestoneTitle} onChange={(e) => setMilestoneTitle(e.target.value)} placeholder="z.B. Anzahlung 30%" className="h-10 rounded-lg border-gray-200 bg-white" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Typ</Label>
-                      <Select value={milestoneType} onValueChange={(v) => {
-                        const t = v as typeof milestoneType;
-                        setMilestoneType(t);
-                        if (t === "ANZAHLUNG" && totalPrice) {
-                          setMilestoneAmount(String(Math.round(totalPrice * 0.2 * 100) / 100));
-                          setMilestonePercent("20");
-                        } else if ((t === "ZWISCHENRECHNUNG" || t === "SCHLUSSRECHNUNG") && unplannedAmount != null && unplannedAmount > 0) {
-                          setMilestoneAmount(String(Math.round(unplannedAmount * 100) / 100));
-                          if (totalPrice) setMilestonePercent(String(Math.round(unplannedAmount / totalPrice * 1000) / 10));
-                        }
-                      }}>
-                        <SelectTrigger className="h-10 rounded-lg border-gray-200 bg-white w-full"><SelectValue>{typeLabels[milestoneType]}</SelectValue></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="ANZAHLUNG">Anzahlung</SelectItem>
-                          <SelectItem value="ZWISCHENRECHNUNG">Zwischenrechnung</SelectItem>
-                          <SelectItem value="SCHLUSSRECHNUNG">Schlussrechnung</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Betrag *</Label>
-                      <div className="flex h-10 rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
-                        <input
-                          type="number"
-                          value={milestoneAmount}
-                          onChange={(e) => {
-                            setMilestoneAmount(e.target.value);
-                            if (totalPrice && e.target.value) setMilestonePercent(String(Math.round(parseFloat(e.target.value) / totalPrice * 1000) / 10));
-                            else setMilestonePercent("");
-                          }}
-                          placeholder="0.00"
-                          className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        {totalPrice && (
-                          <div className="flex items-center border-l border-gray-200 px-2.5 gap-1 flex-shrink-0">
-                            <input
-                              type="number"
-                              value={milestonePercent}
-                              onChange={(e) => {
-                                setMilestonePercent(e.target.value);
-                                if (totalPrice && e.target.value) setMilestoneAmount(String(Math.round(totalPrice * parseFloat(e.target.value) / 100 * 100) / 100));
-                              }}
-                              placeholder="—"
-                              className="w-9 text-sm text-gray-500 bg-transparent outline-none text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                            />
-                            <span className="text-sm text-gray-400">%</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fällig am</Label>
-                      <Input type="date" value={milestoneDueDate} onChange={(e) => setMilestoneDueDate(e.target.value)} className="h-10 rounded-lg border-gray-200 bg-white" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
-                      <Select value={milestoneAssignedTo} onValueChange={(v) => setMilestoneAssignedTo(v === "_none" ? "" : (v ?? ""))}>
-                        <SelectTrigger className="h-10 rounded-lg border-gray-200 bg-white w-full"><SelectValue placeholder="Niemand" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="_none">Niemand</SelectItem>
-                          {users.map((u) => (
-                            <SelectItem key={u.id} value={`${u.firstName} ${u.lastName}`.trim()}>{u.firstName} {u.lastName}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Rechnungs-Nr.</Label>
-                      <Input value={milestoneInvoiceNumber} onChange={(e) => setMilestoneInvoiceNumber(e.target.value)} placeholder="z.B. RE-2024-001" className="h-10 rounded-lg border-gray-200 bg-white" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto</Label>
-                      <div className="flex h-10 rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
-                        <input type="number" value={milestoneSkontoPercent} onChange={(e) => setMilestoneSkontoPercent(e.target.value)} placeholder="z.B. 2" className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                        <span className="flex items-center pr-3 text-sm text-gray-400 flex-shrink-0">%</span>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto Frist</Label>
-                      <div className="flex h-10 rounded-lg border border-gray-200 bg-white overflow-hidden focus-within:ring-1 focus-within:ring-ring">
-                        <input type="number" value={milestoneSkontoDays} onChange={(e) => setMilestoneSkontoDays(e.target.value)} placeholder="z.B. 10" className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                        <span className="flex items-center pr-3 text-sm text-gray-400 flex-shrink-0 whitespace-nowrap">Tage</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notiz</Label>
-                    <Input value={milestoneNotes} onChange={(e) => setMilestoneNotes(e.target.value)} placeholder="Optionale Anmerkung zur Zahlung..." className="h-10 rounded-lg border-gray-200 bg-white" />
-                  </div>
-                  <div className="flex gap-2 pt-1">
-                    <Button className="rounded-lg h-10 px-4" onClick={handleAddMilestone} disabled={addingMilestone || !milestoneTitle || !milestoneAmount}>
-                      {addingMilestone ? "Speichert..." : "Meilenstein speichern"}
-                    </Button>
-                    <Button variant="outline" className="rounded-lg h-10 px-4" onClick={() => setShowAddMilestone(false)}>Abbrechen</Button>
-                  </div>
-                </div>
-              )}
-
-              {/* Empty state */}
-              {order.paymentMilestones.length === 0 && !showAddMilestone && (
-                <div className="py-16 text-center">
-                  <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-                    <Euro className="h-6 w-6 text-gray-300" />
-                  </div>
-                  <p className="text-sm font-medium text-gray-500">Kein Zahlungsplan</p>
-                  <p className="text-xs text-gray-400 mt-1">Füge Anzahlungen, Zwischenrechnungen oder eine Schlussrechnung hinzu.</p>
-                </div>
-              )}
-
-              {/* Milestone list */}
-              {order.paymentMilestones.length > 0 && (
-                <div className="divide-y divide-gray-100">
-                  {sortedMilestones.map((m) => {
-                    const isOverdue = m.status === "OFFEN" && m.dueDate && new Date(m.dueDate) < new Date();
-                    return (
-                      <div key={m.id} className="px-6 py-4">
-                        {editingMilestoneId === m.id && editMilestone ? (
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bezeichnung</Label>
-                                <Input value={editMilestone.title} onChange={(e) => setEditMilestone({ ...editMilestone, title: e.target.value })} className="h-10 rounded-lg border-gray-200" />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Typ</Label>
-                                <Select value={editMilestone.type} onValueChange={(v) => setEditMilestone({ ...editMilestone, type: v as typeof editMilestone.type })}>
-                                  <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full"><SelectValue>{typeLabels[editMilestone.type]}</SelectValue></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="ANZAHLUNG">Anzahlung</SelectItem>
-                                    <SelectItem value="ZWISCHENRECHNUNG">Zwischenrechnung</SelectItem>
-                                    <SelectItem value="SCHLUSSRECHNUNG">Schlussrechnung</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Betrag €</Label>
-                                <Input type="number" value={editMilestone.amount} onChange={(e) => setEditMilestone({ ...editMilestone, amount: e.target.value })} className="h-10 rounded-lg border-gray-200" />
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Fällig am</Label>
-                                <Input type="date" value={editMilestone.dueDate} onChange={(e) => setEditMilestone({ ...editMilestone, dueDate: e.target.value })} className="h-10 rounded-lg border-gray-200" />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Zugewiesen an</Label>
-                                <Select value={editMilestone.assignedTo} onValueChange={(v) => setEditMilestone({ ...editMilestone, assignedTo: v === "_none" ? "" : (v ?? "") })}>
-                                  <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full"><SelectValue placeholder="Niemand" /></SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="_none">Niemand</SelectItem>
-                                    {users.map((u) => (
-                                      <SelectItem key={u.id} value={`${u.firstName} ${u.lastName}`.trim()}>{u.firstName} {u.lastName}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Rechnungs-Nr.</Label>
-                                <Input value={editMilestone.invoiceNumber} onChange={(e) => setEditMilestone({ ...editMilestone, invoiceNumber: e.target.value })} placeholder="z.B. RE-2024-001" className="h-10 rounded-lg border-gray-200" />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto</Label>
-                                <div className="flex h-10 rounded-lg border border-gray-200 overflow-hidden focus-within:ring-1 focus-within:ring-ring">
-                                  <input type="number" value={editMilestone.skontoPercent} onChange={(e) => setEditMilestone({ ...editMilestone, skontoPercent: e.target.value })} placeholder="z.B. 2" className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                  <span className="flex items-center pr-3 text-sm text-gray-400 flex-shrink-0">%</span>
-                                </div>
-                              </div>
-                              <div className="space-y-1.5">
-                                <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Skonto Frist</Label>
-                                <div className="flex h-10 rounded-lg border border-gray-200 overflow-hidden focus-within:ring-1 focus-within:ring-ring">
-                                  <input type="number" value={editMilestone.skontoDays} onChange={(e) => setEditMilestone({ ...editMilestone, skontoDays: e.target.value })} placeholder="z.B. 10" className="flex-1 min-w-0 px-3 text-sm bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
-                                  <span className="flex items-center pr-3 text-sm text-gray-400 flex-shrink-0 whitespace-nowrap">Tage</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Notiz</Label>
-                              <Input value={editMilestone.notes} onChange={(e) => setEditMilestone({ ...editMilestone, notes: e.target.value })} placeholder="Optionale Anmerkung..." className="h-10 rounded-lg border-gray-200" />
-                            </div>
-                            <div className="flex gap-2">
-                              <Button className="rounded-lg h-10 px-4" onClick={() => handleSaveMilestone(m.id)} disabled={savingMilestone}>
-                                {savingMilestone ? "Speichert..." : "Änderungen speichern"}
-                              </Button>
-                              <Button variant="outline" className="rounded-lg h-10 px-4" onClick={() => { setEditingMilestoneId(null); setEditMilestone(null); }}>Abbrechen</Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-start gap-4">
-                            {/* Status dot */}
-                            <div className={`mt-1 w-2.5 h-2.5 rounded-full flex-shrink-0 ${m.status === "BEZAHLT" ? "bg-green-500" : isOverdue ? "bg-red-500" : "bg-amber-400"}`} />
-
-                            {/* Content */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-4">
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-sm font-semibold text-gray-900">{m.title}</p>
-                                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
-                                      m.type === "ANZAHLUNG" ? "bg-blue-50 text-blue-700 border-blue-200" :
-                                      m.type === "ZWISCHENRECHNUNG" ? "bg-purple-50 text-purple-700 border-purple-200" :
-                                      "bg-gray-50 text-gray-600 border-gray-200"
-                                    }`}>{typeLabels[m.type]}</span>
-                                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
-                                      m.status === "BEZAHLT" ? "bg-green-50 text-green-700 border-green-200" :
-                                      isOverdue ? "bg-red-50 text-red-700 border-red-200" :
-                                      "bg-amber-50 text-amber-700 border-amber-200"
-                                    }`}>
-                                      {m.status === "BEZAHLT" ? "✓ Bezahlt" : isOverdue ? "Überfällig" : "Offen"}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                    {m.dueDate && (
-                                      <span className={`text-xs ${isOverdue ? "text-red-500 font-medium" : "text-gray-400"}`}>
-                                        Fällig: {format(new Date(m.dueDate), "dd. MMMM yyyy", { locale: de })}
-                                      </span>
-                                    )}
-                                    {m.assignedTo && (
-                                      <span className="text-xs text-gray-400">· {m.assignedTo}</span>
-                                    )}
-                                    {m.paidAt && (
-                                      <span className="text-xs text-gray-400">· Bezahlt am {format(new Date(m.paidAt), "dd.MM.yyyy", { locale: de })}</span>
-                                    )}
-                                  </div>
-                                  {m.notes && (
-                                    <p className="text-xs text-gray-500 mt-1.5 bg-gray-50 rounded-lg px-3 py-1.5 italic">{m.notes}</p>
-                                  )}
-                                  {(m.invoiceNumber || (m.skontoPercent && m.skontoDays)) && (
-                                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                      {m.invoiceNumber && (
-                                        <span className="text-xs text-gray-500 font-mono">#{m.invoiceNumber}</span>
-                                      )}
-                                      {m.skontoPercent && m.skontoDays && (
-                                        <span className="text-xs text-blue-600">{m.skontoPercent}% Skonto / {m.skontoDays} Tage</span>
-                                      )}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-3 flex-shrink-0">
-                                  <p className="text-base font-bold text-gray-900 font-mono">{m.amount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</p>
-                                  <div className="flex items-center gap-1.5">
-                                    <button onClick={() => startEditMilestone(m)} className="w-7 h-7 rounded-lg hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors" title="Bearbeiten">
-                                      <Pencil className="h-3.5 w-3.5" />
-                                    </button>
-                                    {!m.invoiceNumber && (
-                                      <Link href={`/rechnungen/neu?orderId=${order.id}&milestoneId=${m.id}`} className="w-7 h-7 rounded-lg hover:bg-blue-50 flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors" title="Rechnung erstellen">
-                                        <FileText className="h-3.5 w-3.5" />
-                                      </Link>
-                                    )}
-                                    {m.status === "OFFEN" ? (
-                                      <button onClick={() => { setPayingMilestoneId(m.id); setPayingDate(format(new Date(), "yyyy-MM-dd")); }} className="w-7 h-7 rounded-lg hover:bg-green-50 flex items-center justify-center text-gray-400 hover:text-green-600 transition-colors" title="Als bezahlt markieren">
-                                        <CheckCircle className="h-4 w-4" />
-                                      </button>
-                                    ) : (
-                                      <button onClick={() => handleMarkUnpaid(m.id)} className="w-7 h-7 rounded-lg hover:bg-amber-50 flex items-center justify-center text-green-500 hover:text-amber-600 transition-colors" title="Zahlung rückgängig">
-                                        <CheckCircle className="h-4 w-4" />
-                                      </button>
-                                    )}
-                                    <button onClick={() => handleDeleteMilestone(m.id)} className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors" title="Löschen">
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                              {payingMilestoneId === m.id && (
-                                <div className="mt-3 flex items-center gap-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                                  <span className="text-xs font-medium text-green-800">Zahlungseingang:</span>
-                                  <Input
-                                    type="date"
-                                    value={payingDate}
-                                    onChange={(e) => setPayingDate(e.target.value)}
-                                    className="h-8 rounded-lg border-gray-200 bg-white w-40 text-sm"
-                                  />
-                                  <Button
-                                    size="sm"
-                                    className="rounded-lg bg-green-600 hover:bg-green-700 text-white h-8 px-3 text-xs"
-                                    onClick={() => handleMarkPaid(m.id, payingDate)}
-                                  >
-                                    Bestätigen
-                                  </Button>
-                                  <button
-                                    onClick={() => { setPayingMilestoneId(null); setPayingDate(""); }}
-                                    className="text-xs text-gray-400 hover:text-gray-600"
-                                  >
-                                    Abbrechen
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {activeTab === "Aktivität" && (
           <OrderActivityTab events={activity} />
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!confirmDeleteInvoiceId}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteInvoiceId(null); }}
+        title="Rechnung löschen"
+        description="Die Rechnung wird unwiderruflich gelöscht. Alle verknüpften Lieferscheine werden wieder auf offen gesetzt."
+        onConfirm={handleDeleteInvoice}
+      />
     </div>
   );
 }

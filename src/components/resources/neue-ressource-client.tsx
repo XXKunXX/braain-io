@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ const SELECT = "w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus
 export function NeueRessourceClient({ prefillType, fahrer }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  useEscapeKey(() => router.back(), true);
 
   const validType = TYPE_OPTIONS.some((t) => t.value === prefillType)
     ? (prefillType as ResourceFormData["type"])

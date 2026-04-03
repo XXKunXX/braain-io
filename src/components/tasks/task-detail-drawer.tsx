@@ -70,7 +70,7 @@ export function TaskDetailDrawer({ task, fallbackRequest, onClose }: TaskDetailD
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[420px] bg-white shadow-xl z-50 flex flex-col">
+      <div className="fixed right-0 top-0 h-full w-full sm:w-[420px] bg-white shadow-xl z-50 flex flex-col">
         {/* Header */}
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200">
           <div className="flex-1 min-w-0 pr-4">

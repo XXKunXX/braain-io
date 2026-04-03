@@ -13,9 +13,11 @@ import {
 import { ContactForm } from "./contact-form";
 import { updateContact, type ContactFormData } from "@/actions/contacts";
 import { toast } from "sonner";
-import type { Contact } from "@prisma/client";
+import type { BillingMode, Contact } from "@prisma/client";
 
-export function EditContactButton({ contact, userNames = [] }: { contact: Contact; userNames?: string[] }) {
+type ContactWithBilling = Contact & { billingMode?: BillingMode; billingIntervalDays?: number | null };
+
+export function EditContactButton({ contact, userNames = [] }: { contact: ContactWithBilling; userNames?: string[] }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -41,7 +43,7 @@ export function EditContactButton({ contact, userNames = [] }: { contact: Contac
         Bearbeiten
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="sm:max-w-3xl overflow-y-auto max-h-[90vh]">
           <DialogHeader>
             <DialogTitle>Kontakt bearbeiten</DialogTitle>
           </DialogHeader>
@@ -58,6 +60,8 @@ export function EditContactButton({ contact, userNames = [] }: { contact: Contac
               city: contact.city ?? "",
               notes: contact.notes ?? "",
               owner: contact.owner ?? "",
+              billingMode: contact.billingMode ?? "MANUELL",
+              billingIntervalDays: contact.billingIntervalDays ?? null,
             }}
             onSubmit={handleSubmit}
             onCancel={() => setOpen(false)}

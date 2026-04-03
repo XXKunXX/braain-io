@@ -149,7 +149,22 @@ export async function fillDeliveryNote(id: string, data: {
   });
 
   if (data.signatureUrl) {
-    await createInvoiceTaskForDeliveryNote(id);
+    // Check billing mode of the contact
+    const noteForBilling = await prisma.deliveryNote.findUnique({
+      where: { id },
+      select: { contactId: true, orderId: true, contact: { select: { billingMode: true } } },
+    });
+
+    if (noteForBilling?.contact.billingMode === "PRO_LIEFERSCHEIN") {
+      const { createInvoiceFromDeliveryNotes } = await import("@/actions/invoices");
+      await createInvoiceFromDeliveryNotes(
+        noteForBilling.contactId,
+        [id],
+        noteForBilling.orderId ?? undefined
+      );
+    } else {
+      await createInvoiceTaskForDeliveryNote(id);
+    }
 
     // Notify non-driver users about the signed delivery note
     try {
@@ -179,6 +194,13 @@ export async function updateDeliveryNotePdfUrl(id: string, pdfUrl: string) {
 }
 
 export async function deleteDeliveryNote(id: string) {
+  const note = await prisma.deliveryNote.findUnique({
+    where: { id },
+    select: { invoice: { select: { status: true } } },
+  });
+  if (note?.invoice?.status === "VERSENDET" || note?.invoice?.status === "BEZAHLT") {
+    return { success: false, error: "Lieferschein kann nicht gelöscht werden, da die verknüpfte Rechnung bereits versendet oder bezahlt ist." };
+  }
   await prisma.deliveryNote.delete({ where: { id } });
   revalidatePath("/lieferscheine");
   return { success: true };
@@ -188,7 +210,33 @@ export async function getDeliveryNotes(contactId?: string) {
   return prisma.deliveryNote.findMany({
     where: contactId ? { contactId } : undefined,
     orderBy: { date: "desc" },
-    include: { contact: true, baustelle: true },
+    include: {
+      contact: true,
+      baustelle: true,
+      invoice: { select: { id: true, invoiceNumber: true, status: true } },
+    },
+  });
+}
+
+export async function getUnbilledDeliveryNotesForOrder(orderId: string) {
+  return prisma.deliveryNote.findMany({
+    where: { orderId, invoiceId: null },
+    orderBy: { date: "asc" },
+    select: { id: true, deliveryNumber: true, date: true, material: true, quantity: true, unit: true },
+  });
+}
+
+export async function getUnbilledDeliveryNotesForContact(contactId: string, olderThanDays?: number) {
+  const where: Record<string, unknown> = { contactId, invoiceId: null };
+  if (olderThanDays) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - olderThanDays);
+    where.date = { lte: cutoff };
+  }
+  return prisma.deliveryNote.findMany({
+    where,
+    orderBy: { date: "asc" },
+    select: { id: true, deliveryNumber: true, date: true, material: true, quantity: true, unit: true, orderId: true },
   });
 }
 

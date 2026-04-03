@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ export function ProgrammeinstellungenClient({ settings }: Props) {
   const [form, setForm] = useState<AppSettingsData>(initial);
   const [saving, setSaving] = useState(false);
   const router = useRouter();
+  useEscapeKey(() => router.back(), true);
 
   function set(field: keyof AppSettingsData, value: string | number) {
     setForm((prev) => ({ ...prev, [field]: value }));

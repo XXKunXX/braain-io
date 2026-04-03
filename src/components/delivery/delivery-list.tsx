@@ -27,6 +27,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 type DeliveryWithRelations = Omit<DeliveryNote, "quantity"> & {
   quantity: number;
   contact: Contact;
+  invoice: { id: string; invoiceNumber: string; status: string } | null;
 };
 
 export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRelations[] }) {
@@ -70,7 +71,11 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
 
   async function confirmDelete() {
     if (!deleteId) return;
-    await deleteDeliveryNote(deleteId);
+    const result = await deleteDeliveryNote(deleteId);
+    if (!result.success) {
+      toast.error(result.error ?? "Lieferschein konnte nicht gelöscht werden.");
+      return;
+    }
     toast.success("Lieferschein gelöscht");
     router.refresh();
   }
@@ -98,7 +103,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
           </div>
           {contacts.length > 1 && (
             <Select value={contactFilter} onValueChange={(v) => v && setContactFilter(v)}>
-              <SelectTrigger className="w-52 bg-white">
+              <SelectTrigger className="w-full sm:w-52 bg-white">
                 <SelectValue>
                   {contactFilter === "ALL"
                     ? "Alle Kontakte"
@@ -142,7 +147,18 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900">{dn.deliveryNumber}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-900">{dn.deliveryNumber}</p>
+                        {dn.invoice ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 border border-green-200">
+                            verrechnet
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-200">
+                            offen
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-400 truncate mt-0.5">{dn.contact.companyName}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
                         <span className="text-xs text-gray-600 truncate">{dn.material}</span>
@@ -155,12 +171,18 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
                       </div>
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={(e) => handleDelete(e, dn.id)}
-                        className="p-2 text-gray-300 hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      {(() => {
+                        const blocked = dn.invoice?.status === "VERSENDET" || dn.invoice?.status === "BEZAHLT";
+                        return (
+                          <button
+                            onClick={(e) => { if (!blocked) handleDelete(e, dn.id); else { e.preventDefault(); e.stopPropagation(); } }}
+                            className={`p-2 transition-colors ${blocked ? "text-gray-200 cursor-not-allowed" : "text-gray-300 hover:text-red-400"}`}
+                            title={blocked ? "Rechnung bereits versendet oder bezahlt" : "Löschen"}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        );
+                      })()}
                       <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
                     </div>
                   </div>
@@ -188,7 +210,18 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
                   }`}
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{dn.deliveryNumber}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{dn.deliveryNumber}</p>
+                      {dn.invoice ? (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 border border-green-200 whitespace-nowrap">
+                          verrechnet
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-200 whitespace-nowrap">
+                          offen
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-gray-400 truncate mt-0.5">{dn.contact.companyName}</p>
                   </div>
                   <span className="text-sm text-gray-600 truncate">{dn.material}</span>
@@ -200,13 +233,18 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
                   </span>
                   <span className="text-sm text-gray-500 truncate">{dn.driver ?? "–"}</span>
                   <div className="flex items-center justify-end gap-1" onClick={(e) => e.preventDefault()}>
-                    <button
-                      onClick={(e) => handleDelete(e, dn.id)}
-                      className="p-1.5 text-gray-300 hover:text-red-400 transition-colors"
-                      title="Löschen"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {(() => {
+                      const blocked = dn.invoice?.status === "VERSENDET" || dn.invoice?.status === "BEZAHLT";
+                      return (
+                        <button
+                          onClick={(e) => { if (!blocked) handleDelete(e, dn.id); else { e.preventDefault(); e.stopPropagation(); } }}
+                          className={`p-1.5 transition-colors ${blocked ? "text-gray-200 cursor-not-allowed" : "text-gray-300 hover:text-red-400"}`}
+                          title={blocked ? "Rechnung bereits versendet oder bezahlt" : "Löschen"}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      );
+                    })()}
                     <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
                   </div>
                 </Link>

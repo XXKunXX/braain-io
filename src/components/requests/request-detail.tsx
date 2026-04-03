@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -86,6 +87,7 @@ export function RequestDetail({
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  useEscapeKey(() => setEditing(false), editing);
   const [saving, setSaving] = useState(false);
 
   const [title, setTitle] = useState(request.title);

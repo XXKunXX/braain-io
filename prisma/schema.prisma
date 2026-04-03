@@ -23,7 +23,11 @@ model Contact {
   type                   ContactType @default(COMPANY)
   owner                  String?
   notes                  String?
-  autoInvoicePerDelivery Boolean     @default(false)
+  billingMode            BillingMode @default(MANUELL)
+  billingIntervalDays    Int?
+  paymentTermDays        Int?
+  paymentTermSkonto      Json?
+  paymentTermCustom      String?
   createdAt              DateTime    @default(now())
   updatedAt              DateTime    @updatedAt
 
@@ -42,6 +46,13 @@ enum ContactType {
   COMPANY
   PRIVATE
   SUPPLIER
+}
+
+enum BillingMode {
+  PRO_LIEFERSCHEIN
+  NACH_PROJEKTENDE
+  PERIODISCH
+  MANUELL
 }
 
 // ─── Requests (Anfragen / Leads) ─────────────────────────────────────────────
@@ -144,7 +155,6 @@ model Order {
   dispositionEntries DispositionEntry[]
   machineUsages      MachineUsage[]
   baustellen         Baustelle[]
-  paymentMilestones  PaymentMilestone[]
   invoices           Invoice[]
 }
 
@@ -156,39 +166,6 @@ enum OrderStatus {
   COMPLETED
 }
 
-// ─── Payment Milestones (Zahlungsmeilensteine) ────────────────────────────────
-
-enum PaymentMilestoneType {
-  ANZAHLUNG
-  ZWISCHENRECHNUNG
-  SCHLUSSRECHNUNG
-}
-
-enum PaymentMilestoneStatus {
-  OFFEN
-  BEZAHLT
-}
-
-model PaymentMilestone {
-  id            String                 @id @default(cuid())
-  orderId       String
-  title         String
-  type          PaymentMilestoneType   @default(ANZAHLUNG)
-  amount        Decimal                @db.Decimal(12, 2)
-  dueDate       DateTime?
-  status        PaymentMilestoneStatus @default(OFFEN)
-  paidAt        DateTime?
-  assignedTo    String?
-  notes         String?
-  invoiceNumber String?
-  skontoPercent Decimal?               @db.Decimal(5, 2)
-  skontoDays    Int?
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-
-  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  invoice Invoice?
-}
 
 // ─── Disposition ─────────────────────────────────────────────────────────────
 
@@ -272,12 +249,14 @@ model DeliveryNote {
   notes          String?
   pdfUrl         String?
   signatureUrl   String?
+  invoiceId      String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   order     Order?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
   contact   Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
   baustelle Baustelle? @relation(fields: [baustelleId], references: [id], onDelete: SetNull)
+  invoice   Invoice?   @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
   tasks     Task[]
 }
 
@@ -445,8 +424,7 @@ model Invoice {
   order              Order?            @relation(fields: [orderId], references: [id], onDelete: SetNull)
   contact            Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
   items              InvoiceItem[]
-  paymentMilestone   PaymentMilestone? @relation(fields: [paymentMilestoneId], references: [id])
-  paymentMilestoneId String?           @unique
+  deliveryNotes      DeliveryNote[]
 }
 
 model InvoiceItem {

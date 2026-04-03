@@ -64,33 +64,22 @@ async function getDashboardData() {
       orderBy: { createdAt: "desc" },
       include: { contact: { select: { companyName: true } } },
     }),
-    // Überfällige Zahlungsmeilensteine
-    prisma.paymentMilestone.findMany({
-      where: { status: "OFFEN", dueDate: { lt: new Date() } },
-      include: { order: { include: { contact: { select: { companyName: true } } } } },
+    // Überfällige Rechnungen (VERSENDET + dueDate < heute)
+    prisma.invoice.findMany({
+      where: { status: "VERSENDET", dueDate: { lt: new Date() } },
+      include: { contact: { select: { companyName: true } }, order: { select: { id: true, title: true } } },
       orderBy: { dueDate: "asc" },
       take: 5,
     }),
-    // Anzahl überfälliger Zahlungen
-    prisma.paymentMilestone.count({
-      where: { status: "OFFEN", dueDate: { lt: new Date() } },
-    }),
-    // Zahlungen fällig diese Woche
-    prisma.paymentMilestone.findMany({
-      where: {
-        status: "OFFEN",
-        dueDate: { gte: new Date(), lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
-      },
-      include: { order: { include: { contact: { select: { companyName: true } } } } },
+    prisma.invoice.count({ where: { status: "VERSENDET", dueDate: { lt: new Date() } } }),
+    // Rechnungen fällig diese Woche
+    prisma.invoice.findMany({
+      where: { status: "VERSENDET", dueDate: { gte: new Date(), lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } },
+      include: { contact: { select: { companyName: true } }, order: { select: { id: true, title: true } } },
       orderBy: { dueDate: "asc" },
       take: 5,
     }),
-    prisma.paymentMilestone.count({
-      where: {
-        status: "OFFEN",
-        dueDate: { gte: new Date(), lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
-      },
-    }),
+    prisma.invoice.count({ where: { status: "VERSENDET", dueDate: { gte: new Date(), lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } } }),
   ]);
 
   return { openTasks, newRequestsToday, openQuotes, activeOrders, todayOrders, recentRequests, overduePayments, overduePaymentsCount, upcomingPayments, upcomingPaymentsCount };
@@ -174,46 +163,48 @@ export default async function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {statCards.map(({ label, value, href, numColor, iconBg, icon, border }) => (
           <Link
             key={label}
             href={href}
-            className={`bg-white border rounded-xl p-4 md:p-5 hover:shadow-sm transition-shadow flex flex-col gap-3 ${border || "border-gray-200"}`}
+            className={`bg-white border rounded-xl p-3 sm:p-4 md:p-5 hover:shadow-sm transition-shadow flex flex-col gap-2 sm:gap-3 ${border || "border-gray-200"}`}
           >
-            <div className="flex items-start justify-between">
-              <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase leading-tight">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[10px] sm:text-[11px] font-semibold tracking-wider text-gray-400 uppercase leading-tight">
                 {label}
               </p>
-              <div className={`w-9 h-9 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0`}>
+              <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full ${iconBg} flex items-center justify-center flex-shrink-0`}>
                 {icon}
               </div>
             </div>
-            <p className={`text-4xl font-bold ${numColor}`}>{value}</p>
+            <p className={`text-3xl sm:text-4xl font-bold ${numColor}`}>{value}</p>
           </Link>
         ))}
       </div>
 
-      {/* Überfällige Zahlungen */}
+      {/* Überfällige Rechnungen */}
       {data.overduePaymentsCount > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-5">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-red-500" />
-              <h3 className="text-sm font-semibold text-red-800">Überfällige Zahlungen ({data.overduePaymentsCount})</h3>
+              <h3 className="text-sm font-semibold text-red-800">Überfällige Rechnungen ({data.overduePaymentsCount})</h3>
             </div>
+            <Link href="/zahlungen" className="text-xs text-red-600 hover:underline flex items-center gap-0.5">
+              Alle <ChevronRight className="h-3 w-3" />
+            </Link>
           </div>
           <div className="space-y-2">
-            {data.overduePayments.map((m) => (
-              <Link key={m.id} href={`/auftraege/${m.orderId}?tab=Zahlungen`} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 hover:shadow-sm transition-shadow">
+            {data.overduePayments.map((inv) => (
+              <Link key={inv.id} href={`/rechnungen/${inv.id}`} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 hover:shadow-sm transition-shadow">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
-                  <p className="text-xs text-gray-400">{m.order.contact.companyName} · {m.order.title}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{inv.invoiceNumber}</p>
+                  <p className="text-xs text-gray-400">{inv.contact.companyName}{inv.order ? ` · ${inv.order.title}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                  {m.assignedTo && <span className="text-xs text-gray-400">{m.assignedTo}</span>}
-                  <span className="text-sm font-semibold text-red-600">{Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
-                  <span className="text-xs text-red-400">{m.dueDate ? format(new Date(m.dueDate), "dd.MM.yy", { locale: de }) : ""}</span>
+                  <span className="text-sm font-semibold text-red-600">{Number(inv.totalAmount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                  <span className="text-xs text-red-400">{inv.dueDate ? format(new Date(inv.dueDate), "dd.MM.yy", { locale: de }) : ""}</span>
                 </div>
               </Link>
             ))}
@@ -234,15 +225,15 @@ export default async function DashboardPage() {
             </Link>
           </div>
           <div className="space-y-2">
-            {data.upcomingPayments.map((m) => (
-              <Link key={m.id} href={`/auftraege/${m.orderId}?tab=Zahlungen`} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 hover:shadow-sm transition-shadow">
+            {data.upcomingPayments.map((inv) => (
+              <Link key={inv.id} href={`/rechnungen/${inv.id}`} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 hover:shadow-sm transition-shadow">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{m.title}</p>
-                  <p className="text-xs text-gray-400">{m.order.contact.companyName} · {m.order.title}</p>
+                  <p className="text-sm font-medium text-gray-900 truncate">{inv.invoiceNumber}</p>
+                  <p className="text-xs text-gray-400">{inv.contact.companyName}{inv.order ? ` · ${inv.order.title}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0 ml-4">
-                  <span className="text-sm font-semibold text-amber-700">{Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
-                  <span className="text-xs text-amber-500">{m.dueDate ? format(new Date(m.dueDate), "dd.MM.yy", { locale: de }) : ""}</span>
+                  <span className="text-sm font-semibold text-amber-700">{Number(inv.totalAmount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                  <span className="text-xs text-amber-500">{inv.dueDate ? format(new Date(inv.dueDate), "dd.MM.yy", { locale: de }) : ""}</span>
                 </div>
               </Link>
             ))}

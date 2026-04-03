@@ -32,6 +32,14 @@ export default async function AuftragDetailPage({
       amount: m.amount.toNumber(),
       skontoPercent: m.skontoPercent ? m.skontoPercent.toNumber() : null,
     })),
+    deliveryNotes: (order.deliveryNotes ?? []).map((dn) => ({
+      ...dn,
+      quantity: dn.quantity != null ? Number(dn.quantity) : null,
+    })),
+    invoices: (order.invoices ?? []).map((inv) => ({
+      ...inv,
+      totalAmount: Number(inv.totalAmount),
+    })),
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 

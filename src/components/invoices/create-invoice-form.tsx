@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,7 @@ import {
 import { createInvoice } from "@/actions/invoices";
 import { toast } from "sonner";
 import type { Contact } from "@prisma/client";
+import { generatePaymentTermText, parseSkontoFromJson } from "@/lib/payment-terms";
 
 const UNITS = ["Stk", "t", "m³", "m²", "m", "Std", "Psch", "Pos"];
 
@@ -35,12 +37,6 @@ type OrderOption = {
   orderNumber: string;
   title: string;
   contactId: string;
-  paymentMilestones: {
-    id: string;
-    title: string;
-    amount: number;
-    type: string;
-  }[];
 };
 
 let nextId = 1;
@@ -74,57 +70,48 @@ export function CreateInvoiceForm({
   defaultVatRate,
   prefillOrderId,
   prefillContactId,
-  prefillMilestoneId,
-  prefillMilestoneAmount,
-  prefillMilestoneTitle,
 }: {
   contacts: Contact[];
   orders: OrderOption[];
   defaultVatRate: number;
   prefillOrderId?: string;
   prefillContactId?: string;
-  prefillMilestoneId?: string;
-  prefillMilestoneAmount?: number;
-  prefillMilestoneTitle?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  useEscapeKey(() => router.back(), true);
 
   const [contactId, setContactId] = useState(prefillContactId ?? "");
   const [orderId, setOrderId] = useState(prefillOrderId ?? "");
-  const [milestoneId, setMilestoneId] = useState(prefillMilestoneId ?? "");
   const [invoiceDate, setInvoiceDate] = useState(today());
   const [dueDate, setDueDate] = useState(addDays(today(), 14));
   const [headerText, setHeaderText] = useState("");
-  const [footerText, setFooterText] = useState("Zahlbar netto innerhalb von 14 Tagen nach Rechnungserhalt.");
+
+  function getContactFooterText(cId: string): string {
+    const c = contacts.find((x) => x.id === cId) as (Contact & { paymentTermDays?: number | null; paymentTermSkonto?: unknown; paymentTermCustom?: string | null }) | undefined;
+    if (!c) return "Zahlbar netto innerhalb von 30 Tagen nach Rechnungserhalt.";
+    return generatePaymentTermText({
+      paymentTermDays: c.paymentTermDays ?? 30,
+      paymentTermSkonto: parseSkontoFromJson(c.paymentTermSkonto),
+      paymentTermCustom: c.paymentTermCustom ?? null,
+    });
+  }
+
+  const [footerText, setFooterText] = useState(() => getContactFooterText(prefillContactId ?? ""));
+
+  useEffect(() => {
+    if (contactId) setFooterText(getContactFooterText(contactId));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contactId]);
   const [notes, setNotes] = useState("");
   const [vatRate, setVatRate] = useState(String(Math.round(defaultVatRate * 100)));
 
-  // If prefill milestone, start with one item from milestone amount
-  const [items, setItems] = useState<Item[]>(() => {
-    if (prefillMilestoneAmount && prefillMilestoneTitle) {
-      return [{ id: nextId++, description: prefillMilestoneTitle, note: "", quantity: "1", unit: "Psch", unitPrice: String(prefillMilestoneAmount) }];
-    }
-    return [newItem()];
-  });
-
-  const selectedOrder = orders.find((o) => o.id === orderId);
-  const availableMilestones = selectedOrder?.paymentMilestones ?? [];
+  const [items, setItems] = useState<Item[]>([newItem()]);
 
   function handleOrderChange(val: string) {
     setOrderId(val);
-    setMilestoneId("");
-    // Auto-fill contact
     const order = orders.find((o) => o.id === val);
     if (order) setContactId(order.contactId);
-  }
-
-  function handleMilestoneChange(val: string) {
-    setMilestoneId(val);
-    const ms = availableMilestones.find((m) => m.id === val);
-    if (ms) {
-      setItems([{ id: nextId++, description: ms.title, note: "", quantity: "1", unit: "Psch", unitPrice: String(ms.amount) }]);
-    }
   }
 
   function addItem() {
@@ -166,7 +153,6 @@ export function CreateInvoiceForm({
       footerText: footerText || undefined,
       notes: notes || undefined,
       vatRate: vatRateNum,
-      paymentMilestoneId: milestoneId || undefined,
       items: validItems.map((i) => ({
         description: i.description,
         note: i.note || undefined,
@@ -235,32 +221,13 @@ export function CreateInvoiceForm({
             </div>
           </div>
 
-          {availableMilestones.length > 0 && (
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-gray-700">Zahlungsmeilenstein (optional)</Label>
-              <Select value={milestoneId} onValueChange={(v) => handleMilestoneChange(v ?? "")}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Meilenstein wählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">– Keinen Meilenstein –</SelectItem>
-                  {availableMilestones.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.title} ({Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-400">Die Rechnungsnummer wird automatisch im Zahlungsplan eingetragen.</p>
-            </div>
-          )}
         </div>
 
         {/* Rechnungsdetails */}
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
           <h3 className="text-sm font-semibold text-gray-900">Rechnungsdetails</h3>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-700">Rechnungsdatum *</Label>
               <Input

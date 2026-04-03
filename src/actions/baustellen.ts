@@ -155,7 +155,18 @@ export async function getBaustelle(id: string) {
   const rawDeliveryNotes = await db.deliveryNote.findMany({
     where: { OR: orConditions },
     orderBy: { date: "desc" },
+    include: { invoice: { select: { id: true, invoiceNumber: true, status: true } } },
   });
+
+  // Load invoices for this baustelle (via contactId of the linked order/contact)
+  const contactId = b.contactId ?? b.order?.contact?.id ?? null;
+  const rawInvoices = contactId
+    ? await db.invoice.findMany({
+        where: { contactId, ...(b.orderId ? { orderId: b.orderId } : {}) },
+        orderBy: { invoiceDate: "desc" },
+        select: { id: true, invoiceNumber: true, invoiceDate: true, totalAmount: true, status: true },
+      })
+    : [];
 
   return {
     ...b,
@@ -171,6 +182,11 @@ export async function getBaustelle(id: string) {
       ...dn,
       quantity: dn.quantity != null ? Number(dn.quantity) : null,
     })),
+    invoices: rawInvoices.map((inv: any) => ({
+      ...inv,
+      totalAmount: Number(inv.totalAmount),
+    })),
+    contactId,
   };
 }
 

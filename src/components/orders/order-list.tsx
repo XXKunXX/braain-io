@@ -92,24 +92,25 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
         onConfirm={confirmDelete}
       />
       <div className="space-y-5">
-        {/* Status Tabs */}
-        <div className="overflow-hidden">
-          <div className="flex items-center gap-1 flex-wrap">
+        {/* Status Chips — horizontal scrollable (native app style) */}
+        <div className="-mx-4 sm:mx-0">
+          <div className="flex items-center gap-2 overflow-x-auto px-4 sm:px-0 pb-0.5 scrollbar-hide">
             {STATUS_TABS.filter(({ key }) => key === "ALL" || (tabCounts[key] ?? 0) > 0).map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
-                title={label}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap flex-shrink-0 ${
                   activeTab === key
-                    ? "bg-white border-gray-300 text-gray-900 shadow-sm"
-                    : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                    ? "bg-gray-900 border-gray-900 text-white"
+                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-800"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{label}</span>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                {label}
                 {(tabCounts[key] ?? 0) > 0 && (
-                  <span className="text-xs text-gray-400">({tabCounts[key]})</span>
+                  <span className={`text-xs ${activeTab === key ? "text-gray-300" : "text-gray-400"}`}>
+                    {tabCounts[key]}
+                  </span>
                 )}
               </button>
             ))}

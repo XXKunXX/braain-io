@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/hooks/use-escape-key";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
@@ -18,6 +19,7 @@ import {
   X,
   Clock,
   XCircle,
+  FileBox,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,6 +57,15 @@ type InvoiceItem = {
   total: number;
 };
 
+type LinkedDeliveryNote = {
+  id: string;
+  deliveryNumber: string;
+  date: Date | string;
+  material: string;
+  quantity: number | { toNumber: () => number };
+  unit: string;
+};
+
 type Invoice = {
   id: string;
   invoiceNumber: string;
@@ -81,12 +92,7 @@ type Invoice = {
     city?: string | null;
   };
   order?: { id: string; orderNumber: string; title: string } | null;
-  paymentMilestone?: {
-    id: string;
-    title: string;
-    amount: number;
-    status: string;
-  } | null;
+  deliveryNotes?: LinkedDeliveryNote[];
   items: InvoiceItem[];
 };
 
@@ -97,10 +103,10 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
   STORNIERT: { label: "Storniert", color: "border border-red-200 text-red-600 bg-red-50",       icon: XCircle },
 };
 
-function fmt(n: number, decimals = 2) {
+function fmt(n: number, maxDecimals = 2) {
   return n.toLocaleString("de-DE", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxDecimals,
   });
 }
 
@@ -111,6 +117,13 @@ function newEditItem() {
 
 export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const contactId = searchParams.get("contactId");
+  const contactName = searchParams.get("contactName");
+  const backHref = contactId ? `/kontakte/${contactId}?tab=rechnungen` : "/rechnungen";
+  const backLabel = contactId
+    ? `Zurück zu ${contactName ?? "Kontakt"}`
+    : "Zurück zu Rechnungen";
   const [editingDetails, setEditingDetails] = useState(false);
   const [editingItems, setEditingItems] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -144,6 +157,8 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
 
   // Delete confirm
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEscapeKey(() => { if (confirmDelete) { setConfirmDelete(false); return; } if (showEmailDialog) { setShowEmailDialog(false); return; } if (editingItems) { setEditingItems(false); return; } if (editingDetails) { setEditingDetails(false); } }, confirmDelete || showEmailDialog || editingItems || editingDetails);
 
   const vatRate = invoice.vatRate;
   const editTotal = editItems.reduce((sum, i) => {
@@ -225,11 +240,11 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
       {/* Back + header */}
       <div>
         <Link
-          href="/rechnungen"
+          href={backHref}
           className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Zurück zu Rechnungen
+          {backLabel}
         </Link>
 
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -341,14 +356,38 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
         </div>
       )}
 
-      {/* Payment milestone info */}
-      {invoice.paymentMilestone && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <p className="text-xs font-semibold text-amber-800 mb-0.5">Verknüpfter Zahlungsmeilenstein</p>
-          <p className="text-sm text-amber-700">
-            {invoice.paymentMilestone.title} –{" "}
-            {Number(invoice.paymentMilestone.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
-          </p>
+
+      {/* Linked delivery notes */}
+      {invoice.deliveryNotes && invoice.deliveryNotes.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div className="flex items-center gap-2 px-5 py-4 border-b border-gray-100">
+            <FileBox className="h-4 w-4 text-gray-400" />
+            <h2 className="text-sm font-semibold text-gray-900">
+              Enthaltene Lieferscheine ({invoice.deliveryNotes.length})
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-100">
+            {invoice.deliveryNotes.map((dn) => (
+              <Link
+                key={dn.id}
+                href={`/lieferscheine/${dn.id}?invoiceId=${invoice.id}`}
+                className="flex items-center justify-between px-5 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-4 min-w-0">
+                  <span className="text-sm font-medium text-gray-900 whitespace-nowrap">{dn.deliveryNumber}</span>
+                  <span className="text-sm text-gray-500 truncate">{dn.material}</span>
+                </div>
+                <div className="flex items-center gap-4 flex-shrink-0 ml-4">
+                  <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">
+                    {typeof dn.quantity === "object" ? dn.quantity.toNumber().toLocaleString("de-DE") : dn.quantity.toLocaleString("de-DE")} {dn.unit}
+                  </span>
+                  <span className="text-xs text-gray-400 whitespace-nowrap">
+                    {format(new Date(dn.date), "dd.MM.yy", { locale: de })}
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
@@ -546,65 +585,48 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
           </div>
         ) : (
           <>
-            {/* Mobile: Stacked card layout */}
-            <div className="md:hidden divide-y divide-gray-100">
-              {invoice.items.map((item) => (
-                <div key={item.id} className="px-5 py-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="text-xs text-gray-400 mr-2">Pos. {item.position}</span>
-                      <span className="text-sm font-medium text-gray-900">{item.description}</span>
+            {/* Table header */}
+            <div className="grid grid-cols-[1fr_80px_56px_110px_110px] px-5 py-2.5 bg-gray-50 border-b border-gray-100">
+              <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">Bezeichnung</span>
+              <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase text-right">Menge</span>
+              <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase text-center">Einh.</span>
+              <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase text-right">Einzelpreis</span>
+              <span className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase text-right">Gesamt</span>
+            </div>
+
+            {/* Rows */}
+            <div className="divide-y divide-gray-100">
+              {invoice.items.map((item, idx) => (
+                <div key={item.id} className={`grid grid-cols-[1fr_80px_56px_110px_110px] px-5 py-3.5 items-baseline gap-x-2 ${idx % 2 === 1 ? "bg-gray-50/40" : ""}`}>
+                  <div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] font-medium text-gray-300 tabular-nums w-4 shrink-0">{item.position}.</span>
+                      <p className="text-sm font-medium text-gray-900 leading-snug">{item.description}</p>
                     </div>
-                    <span className="text-sm font-semibold text-gray-900 whitespace-nowrap">{fmt(item.total)} €</span>
+                    {item.note && <p className="text-xs text-gray-400 mt-0.5 ml-6">{item.note}</p>}
                   </div>
-                  {item.note && <p className="text-xs text-gray-400">{item.note}</p>}
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span>{fmt(item.quantity, 3).replace(/\.?0+$/, "")} {item.unit}</span>
-                    <span>×</span>
-                    <span>{fmt(item.unitPrice)} € / {item.unit}</span>
-                  </div>
+                  <span className="text-sm text-gray-700 text-right tabular-nums">{fmt(item.quantity, 3).replace(/\.?0+$/, "")}</span>
+                  <span className="text-xs text-gray-400 text-center">{item.unit}</span>
+                  <span className="text-sm text-gray-600 text-right tabular-nums">{fmt(item.unitPrice)} €</span>
+                  <span className="text-sm font-semibold text-gray-900 text-right tabular-nums">{fmt(item.total)} €</span>
                 </div>
               ))}
             </div>
 
-            {/* Desktop: Table layout */}
-            <div className="hidden md:block">
-              <div className="grid grid-cols-[40px_1fr_80px_70px_110px_110px] gap-2 px-5 py-2 bg-gray-50 border-b border-gray-100">
-                {["Pos", "Beschreibung", "Menge", "Einh.", "Einzelpreis", "Gesamt"].map((h) => (
-                  <span key={h} className="text-[10px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
-                ))}
-              </div>
-              <div className="divide-y divide-gray-50">
-                {invoice.items.map((item) => (
-                  <div key={item.id} className="grid grid-cols-[40px_1fr_80px_70px_110px_110px] gap-2 px-5 py-3 items-start">
-                    <span className="text-xs text-gray-400 pt-0.5">{item.position}</span>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{item.description}</p>
-                      {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
-                    </div>
-                    <span className="text-sm text-gray-700 text-right">{fmt(item.quantity, 3).replace(/\.?0+$/, "")}</span>
-                    <span className="text-sm text-gray-500 text-center">{item.unit}</span>
-                    <span className="text-sm text-gray-700 text-right">{fmt(item.unitPrice)} €</span>
-                    <span className="text-sm font-semibold text-gray-900 text-right">{fmt(item.total)} €</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* Totals */}
-            <div className="flex justify-end px-5 py-4 border-t border-gray-100 bg-gray-50/30">
-              <div className="w-56 space-y-1.5">
-                <div className="flex justify-between text-sm text-gray-600">
+            <div className="flex justify-end px-5 py-5 border-t border-gray-100">
+              <div className="w-64 space-y-2">
+                <div className="flex justify-between text-sm text-gray-500">
                   <span>Nettobetrag</span>
-                  <span className="font-medium">{fmt(invoice.subtotal)} €</span>
+                  <span className="tabular-nums">{fmt(invoice.subtotal)} €</span>
                 </div>
-                <div className="flex justify-between text-sm text-gray-600">
-                  <span>MwSt. ({Math.round(invoice.vatRate * 100)} %)</span>
-                  <span className="font-medium">{fmt(invoice.vatAmount)} €</span>
+                <div className="flex justify-between text-sm text-gray-500 pb-3 border-b border-gray-100">
+                  <span>MwSt. {Math.round(invoice.vatRate * 100)} %</span>
+                  <span className="tabular-nums">{fmt(invoice.vatAmount)} €</span>
                 </div>
-                <div className="flex justify-between text-sm font-bold text-gray-900 pt-1 border-t border-gray-200">
-                  <span>Gesamtbetrag</span>
-                  <span>{fmt(invoice.totalAmount)} €</span>
+                <div className="flex justify-between items-baseline pt-1">
+                  <span className="text-sm font-semibold text-gray-900">Gesamtbetrag</span>
+                  <span className="text-lg font-bold text-gray-900 tabular-nums">{fmt(invoice.totalAmount)} €</span>
                 </div>
               </div>
             </div>

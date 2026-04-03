@@ -13,6 +13,7 @@ export default async function LieferscheinePage() {
   const serialized = deliveryNotes.map((dn) => ({
     ...dn,
     quantity: Number(dn.quantity),
+    invoice: dn.invoice ?? null,
   }));
 
   return (

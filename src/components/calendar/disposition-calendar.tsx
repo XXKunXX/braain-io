@@ -768,7 +768,7 @@ export function DispositionCalendar({
       description="Dieser Dispositionseintrag wird unwiderruflich gelöscht."
       onConfirm={confirmDeleteEntry}
     />
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-[100dvh] bg-gray-50 overflow-hidden">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="px-4 md:px-6 py-3 md:py-3.5 bg-white border-b border-gray-200 flex items-center justify-between flex-shrink-0 gap-2">

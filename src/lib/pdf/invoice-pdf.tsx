@@ -58,7 +58,7 @@ const s = StyleSheet.create({
     fontSize: 9,
     color: "#1a1a1a",
     paddingTop: 0,
-    paddingBottom: 56,
+    paddingBottom: 64,
     paddingHorizontal: 0,
   },
 
@@ -140,6 +140,7 @@ const s = StyleSheet.create({
     lineHeight: 1.5,
   },
 
+  // ── Table ─────────────────────────────────────────────────────────────────
   tableWrap: {
     paddingHorizontal: 40,
     marginTop: 12,
@@ -165,19 +166,34 @@ const s = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
 
-  colPos:   { width: "5%",  fontSize: 8, color: "#777" },
-  colDesc:  { width: "43%", fontFamily: "Helvetica-Bold" },
-  colDescH: { width: "43%" },
-  colQty:   { width: "12%", textAlign: "right" },
-  colUnit:  { width: "8%",  textAlign: "center", color: "#555" },
-  colEP:    { width: "16%", textAlign: "right" },
-  colGP:    { width: "16%", textAlign: "right", fontFamily: "Helvetica-Bold" },
+  // Columns: Pos | Bezeichnung | Menge Eh | Einzelpreis | Betrag
+  colPos:      { width: "5%",  fontSize: 8, color: "#777" },
+  colDesc:     { width: "45%", fontFamily: "Helvetica-Bold" },
+  colDescH:    { width: "45%" },
+  colQtyUnit:  { width: "18%", textAlign: "right" },
+  colEP:       { width: "16%", textAlign: "right" },
+  colGP:       { width: "16%", textAlign: "right", fontFamily: "Helvetica-Bold" },
 
   headText: { fontSize: 8, color: "#555" },
 
-  totalsWrap: {
+  // ── Payment term line ──────────────────────────────────────────────────────
+  paymentLine: {
     paddingHorizontal: 40,
     marginTop: 10,
+    paddingTop: 8,
+    paddingBottom: 6,
+    borderTop: "1 solid #e8e8e8",
+  },
+  paymentLineText: {
+    fontSize: 8.5,
+    color: "#555",
+    fontFamily: "Helvetica-Bold",
+  },
+
+  // ── Totals ─────────────────────────────────────────────────────────────────
+  totalsWrap: {
+    paddingHorizontal: 40,
+    marginTop: 6,
     alignItems: "flex-end",
   },
   totalsTable: {
@@ -197,7 +213,6 @@ const s = StyleSheet.create({
     paddingHorizontal: 8,
   },
   totalsLabel: {
-    flex: 1,
     fontSize: 8.5,
     color: "#555",
   },
@@ -205,15 +220,16 @@ const s = StyleSheet.create({
     fontSize: 8.5,
     fontFamily: "Helvetica-Bold",
     textAlign: "right",
-    minWidth: 70,
+    flex: 1,
   },
   totalsValueFinal: {
     fontSize: 10,
     fontFamily: "Helvetica-Bold",
     textAlign: "right",
-    minWidth: 70,
+    flex: 1,
   },
 
+  // ── Notes ──────────────────────────────────────────────────────────────────
   notesWrap: {
     paddingHorizontal: 40,
     marginTop: 16,
@@ -232,18 +248,41 @@ const s = StyleSheet.create({
     lineHeight: 1.5,
   },
 
+  // ── Footer text (bank + legal) ─────────────────────────────────────────────
   footerTextBlock: {
     paddingHorizontal: 40,
     marginTop: 20,
     paddingTop: 10,
     borderTop: "1 solid #ddd",
   },
-  footerTextContent: {
-    fontSize: 8,
-    color: "#555",
-    lineHeight: 1.55,
-    textAlign: "center",
+  footerBankRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 4,
   },
+  footerBankLabel: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#444",
+    width: 60,
+  },
+  footerBankValue: {
+    fontSize: 7.5,
+    color: "#555",
+    flex: 1,
+  },
+  footerDivider: {
+    borderTop: "0.5 solid #ddd",
+    marginVertical: 5,
+  },
+  footerLegalText: {
+    fontSize: 7,
+    color: "#888",
+    textAlign: "center",
+    lineHeight: 1.5,
+  },
+
+  // ── Bottom strip ───────────────────────────────────────────────────────────
   footerStrip: {
     position: "absolute",
     bottom: 0,
@@ -288,6 +327,7 @@ export function InvoicePDF({
   const vatPct = Math.round(n(invoice.vatRate) * 100);
 
   const dateStr = format(new Date(invoice.invoiceDate), "dd.MM.yyyy", { locale: de });
+  const paymentText = invoice.footerText ?? company.defaultPaymentTerms;
 
   return (
     <Document>
@@ -355,12 +395,11 @@ export function InvoicePDF({
         <View style={s.tableWrap}>
           <View style={s.tableOuter}>
             <View style={s.tableHead}>
-              <Text style={[s.colPos,   s.headText]}>Pos</Text>
-              <Text style={[s.colDescH, s.headText]}>Beschreibung</Text>
-              <Text style={[s.colQty,   s.headText]}>Menge</Text>
-              <Text style={[s.colUnit,  s.headText]}>Einh.</Text>
-              <Text style={[s.colEP,    s.headText]}>EP €</Text>
-              <Text style={[s.colGP,    s.headText]}>GP €</Text>
+              <Text style={[s.colPos,      s.headText]}>Pos</Text>
+              <Text style={[s.colDescH,    s.headText]}>Produkt-Bezeichnung</Text>
+              <Text style={[s.colQtyUnit,  s.headText]}>Menge Eh</Text>
+              <Text style={[s.colEP,       s.headText]}>Einzelpreis</Text>
+              <Text style={[s.colGP,       s.headText]}>Betrag</Text>
             </View>
 
             {items.map((item, idx) => (
@@ -370,8 +409,9 @@ export function InvoicePDF({
                   <Text>{item.description}</Text>
                   {item.note ? <Text style={{ fontSize: 8, color: "#6b7280", marginTop: 2 }}>{item.note}</Text> : null}
                 </View>
-                <Text style={s.colQty}>{fmt(item.quantity, 3).replace(/\.?0+$/, "")}</Text>
-                <Text style={s.colUnit}>{item.unit}</Text>
+                <Text style={s.colQtyUnit}>
+                  {fmt(item.quantity, 2).replace(/\.?0+$/, "")} {item.unit}
+                </Text>
                 <Text style={s.colEP}>{fmt(item.unitPrice)}</Text>
                 <Text style={s.colGP}>{fmt(item.total)}</Text>
               </View>
@@ -379,19 +419,24 @@ export function InvoicePDF({
           </View>
         </View>
 
+        {/* Payment term line */}
+        <View style={s.paymentLine}>
+          <Text style={s.paymentLineText}>{paymentText}</Text>
+        </View>
+
         {/* Totals */}
         <View style={s.totalsWrap}>
           <View style={s.totalsTable}>
             <View style={s.totalsRow}>
-              <Text style={s.totalsLabel}>Nettobetrag</Text>
+              <Text style={s.totalsLabel}>Netto</Text>
               <Text style={s.totalsValue}>{fmt(net)} €</Text>
             </View>
             <View style={s.totalsRow}>
-              <Text style={s.totalsLabel}>+ {vatPct} % MwSt.</Text>
+              <Text style={s.totalsLabel}>MwSt {vatPct} %</Text>
               <Text style={s.totalsValue}>{fmt(vat)} €</Text>
             </View>
             <View style={s.totalsRowFinal}>
-              <Text style={[s.totalsLabel, { fontFamily: "Helvetica-Bold", fontSize: 9 }]}>Gesamtbetrag</Text>
+              <Text style={[s.totalsLabel, { fontFamily: "Helvetica-Bold", fontSize: 9 }]}>Brutto</Text>
               <Text style={s.totalsValueFinal}>{fmt(gross)} €</Text>
             </View>
           </View>
@@ -405,14 +450,17 @@ export function InvoicePDF({
           </View>
         ) : null}
 
-        {/* Footer text (payment terms) */}
+        {/* Footer: bank info + legal */}
         <View style={s.footerTextBlock}>
-          <Text style={s.footerTextContent}>
-            {invoice.footerText ?? company.defaultPaymentTerms}{"\n"}
-            {company.bankName}: IBAN: {company.iban}, BIC: {company.bic}
-          </Text>
-          <Text style={[s.footerTextContent, { marginTop: 5 }]}>
-            Wir danken für Ihr Vertrauen und freuen uns auf eine gute Zusammenarbeit!
+          <View style={s.footerBankRow}>
+            <Text style={s.footerBankLabel}>{company.bankName}</Text>
+            <Text style={s.footerBankValue}>
+              IBAN: {company.iban}{"   "}BIC: {company.bic}{"   "}BLZ: {company.blz}{"   "}Kto.Nr.: {company.kto}
+            </Text>
+          </View>
+          <View style={s.footerDivider} />
+          <Text style={s.footerLegalText}>
+            {company.fn ? `${company.fn} | ` : ""}{company.court ? `${company.court} | ` : ""}UID-Nr.: {company.uid}
           </Text>
         </View>
 
@@ -420,8 +468,6 @@ export function InvoicePDF({
         <View style={s.footerStrip} fixed>
           <Text style={s.footerText}>
             {company.companyName} | {company.street} | {company.postalCode} {company.city} | Tel.: {company.phone} | {company.email} | {company.website}
-            {"\n"}
-            {company.court} | {company.fn} | {company.bankName}: IBAN: {company.iban}, BIC: {company.bic}, BLZ: {company.blz}, Kto.Nr.: {company.kto}
           </Text>
         </View>
 

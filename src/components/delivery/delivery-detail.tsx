@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileText, Pencil, PenLine } from "lucide-react";
+import { ArrowLeft, FileText, Pencil, PenLine, Receipt } from "lucide-react";
 import type { Contact, DeliveryNote } from "@prisma/client";
 
 type DeliveryWithRelations = DeliveryNote & {
@@ -13,11 +14,32 @@ type DeliveryWithRelations = DeliveryNote & {
 
 export function DeliveryDetail({
   deliveryNote: dn,
+  contactId,
+  baustelleId,
+  baustelleName,
+  invoiceId,
 }: {
   deliveryNote: DeliveryWithRelations;
+  contactId?: string;
+  baustelleId?: string;
+  baustelleName?: string;
+  invoiceId?: string;
 }) {
-  const backHref = "/lieferscheine";
-  const backLabel = "Zurück zu Lieferscheine";
+  const router = useRouter();
+  const backHref = invoiceId
+    ? `/rechnungen/${invoiceId}`
+    : baustelleId
+    ? `/baustellen/${baustelleId}?tab=lieferscheine`
+    : contactId
+    ? `/kontakte/${contactId}?tab=lieferscheine`
+    : "/lieferscheine";
+  const backLabel = invoiceId
+    ? "Zurück zur Rechnung"
+    : baustelleId
+    ? `Zurück zu ${baustelleName ?? "Baustelle"}`
+    : contactId
+    ? `Zurück zu ${dn.contact.companyName}`
+    : "Zurück zu Lieferscheine";
 
   return (
     <div className="max-w-2xl space-y-5">
@@ -60,6 +82,16 @@ export function DeliveryDetail({
               <FileText className="h-4 w-4 mr-1" />
               PDF
             </Button>
+            {!invoiceId && (
+              <Button
+                size="sm"
+                className="gap-1.5"
+                onClick={() => router.push(`/rechnungen/neu?contactId=${dn.contact.id}`)}
+              >
+                <Receipt className="h-3.5 w-3.5" />
+                Rechnung erstellen
+              </Button>
+            )}
           </div>
         </div>
 

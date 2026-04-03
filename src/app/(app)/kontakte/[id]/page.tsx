@@ -21,8 +21,17 @@ export default async function KontaktDetailPage({
   const serializedContact = {
     ...contact,
     quotes: contact.quotes.map((q) => ({ ...q, totalPrice: q.totalPrice.toNumber() })),
-    deliveryNotes: contact.deliveryNotes.map((dn) => ({ ...dn, quantity: dn.quantity.toNumber() })),
-  } as unknown as typeof contact;
+    deliveryNotes: contact.deliveryNotes.map((dn) => ({
+      ...dn,
+      quantity: dn.quantity.toNumber(),
+      invoice: dn.invoice ?? null,
+    })),
+    invoices: contact.invoices.map((inv) => ({
+      ...inv,
+      totalAmount: inv.totalAmount.toNumber(),
+    })),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
 
   return <ContactDetail contact={serializedContact} userNames={userNames} currentUserName={currentUserName} activity={activity} />;
 }

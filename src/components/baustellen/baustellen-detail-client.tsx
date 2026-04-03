@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { useTabLabels } from "@/hooks/use-tab-labels";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { format } from "date-fns";
+import { de } from "date-fns/locale";
 import {
-  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, FileText, FolderOpen, User, Truck, ChevronRight,
+  ArrowLeft, Pencil, Plus, Trash2, X, Info, CalendarDays, FileText, FolderOpen, User, Truck, ChevronRight, ChevronLeft, Receipt, Square, CheckSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -16,6 +19,7 @@ import {
   deleteTagesrapport,
 } from "@/actions/baustellen";
 import { deleteDeliveryNote } from "@/actions/delivery-notes";
+import { createInvoiceFromDeliveryNotes, deleteInvoice } from "@/actions/invoices";
 import type { BaustelleStatusType } from "@/actions/baustellen";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -101,7 +105,12 @@ type Baustelle = {
     id: string; deliveryNumber: string; date: Date; material: string;
     quantity: number | null; unit: string; driver: string | null;
     signatureUrl: string | null;
+    invoice: { id: string; invoiceNumber: string; status: string } | null;
   }>;
+  invoices: Array<{
+    id: string; invoiceNumber: string; invoiceDate: Date; totalAmount: number; status: string;
+  }>;
+  contactId: string | null;
 };
 
 interface Props {
@@ -114,12 +123,15 @@ interface Props {
 
 export function BaustellenDetailClient({ baustelle: init, orders, userNames }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [b, setB] = useState(init);
-  const [tab, setTab] = useState<"overview" | "dispo" | "rapporte" | "lieferscheine" | "dokumente">("overview");
+  const initialTab = (searchParams.get("tab") as "overview" | "dispo" | "rapporte" | "lieferscheine" | "rechnungen" | "dokumente" | null) ?? "overview";
+  const [tab, setTab] = useState<"overview" | "dispo" | "rapporte" | "lieferscheine" | "rechnungen" | "dokumente">(initialTab);
   const { containerRef: tabContainerRef, showLabels } = useTabLabels();
 
   // ── Overview edit ──────────────────────────────────────────────────────────
   const [editMode, setEditMode] = useState(false);
+  useEscapeKey(() => setEditMode(false), editMode);
   const [ef, setEf] = useState({
     orderId: b.orderId ?? "",
     name: b.name,
@@ -163,6 +175,45 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
   const [deleteRapportId, setDeleteRapportId] = useState<string | null>(null);
   const [deleteLieferscheinId, setDeleteLieferscheinId] = useState<string | null>(null);
 
+  // ── Lieferschein selection / invoice creation ──────────────────────────────
+  const openDeliveryNotes = b.deliveryNotes.filter((dn) => !dn.invoice);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedDnIds, setSelectedDnIds] = useState<Set<string>>(new Set());
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [dnFilter, setDnFilter] = useState<"all" | "open" | "billed">("all");
+  const [confirmDeleteInvoiceId, setConfirmDeleteInvoiceId] = useState<string | null>(null);
+
+  function toggleDn(id: string) {
+    setSelectedDnIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  }
+  function toggleAllDn() {
+    setSelectedDnIds((prev) => openDeliveryNotes.every((dn) => prev.has(dn.id)) ? new Set() : new Set(openDeliveryNotes.map((dn) => dn.id)));
+  }
+  function enterSelectionMode() { setSelectionMode(true); setSelectedDnIds(new Set(openDeliveryNotes.map((dn) => dn.id))); }
+  function exitSelectionMode() { setSelectionMode(false); setSelectedDnIds(new Set()); }
+
+  async function handleCreateInvoiceFromDns() {
+    const ids = Array.from(selectedDnIds);
+    if (!b.contactId || ids.length === 0) { toast.error("Keine Lieferscheine ausgewählt"); return; }
+    setCreatingInvoice(true);
+    const result = await createInvoiceFromDeliveryNotes(b.contactId, ids, b.orderId ?? undefined);
+    setCreatingInvoice(false);
+    if ("invoice" in result && result.invoice) {
+      toast.success("Sammelrechnung erstellt");
+      router.push(`/rechnungen/${result.invoice.id}?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`);
+    } else {
+      toast.error("Fehler beim Erstellen der Rechnung");
+    }
+  }
+
+  async function handleDeleteInvoice() {
+    if (!confirmDeleteInvoiceId) return;
+    await deleteInvoice(confirmDeleteInvoiceId);
+    toast.success("Rechnung gelöscht");
+    setConfirmDeleteInvoiceId(null);
+    router.refresh();
+  }
+
   async function confirmDeleteRapport() {
     if (!deleteRapportId) return;
     await deleteTagesrapport(deleteRapportId, b.id);
@@ -173,7 +224,12 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
 
   async function confirmDeleteLieferschein() {
     if (!deleteLieferscheinId) return;
-    await deleteDeliveryNote(deleteLieferscheinId);
+    const result = await deleteDeliveryNote(deleteLieferscheinId);
+    if (!result.success) {
+      toast.error(result.error ?? "Lieferschein konnte nicht gelöscht werden.");
+      setDeleteLieferscheinId(null);
+      return;
+    }
     setB(prev => ({ ...prev, deliveryNotes: prev.deliveryNotes.filter(d => d.id !== deleteLieferscheinId) }));
     setDeleteLieferscheinId(null);
     toast.success("Lieferschein gelöscht");
@@ -193,6 +249,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
     { key: "dispo" as const, label: "Disposition", icon: CalendarDays, count: b.dispositionEntries.length },
     { key: "rapporte" as const, label: "Bautagebuch", icon: FileText, count: b.rapporte.length },
     { key: "lieferscheine" as const, label: "Lieferscheine", icon: Truck, count: b.deliveryNotes.length },
+    { key: "rechnungen" as const, label: "Rechnungen", icon: Receipt, count: b.invoices.length },
     { key: "dokumente" as const, label: "Dokumente", icon: FolderOpen },
   ];
 
@@ -511,43 +568,191 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
 
         {/* ── TAB: Lieferscheine ─────────────────────────────────────────── */}
         {tab === "lieferscheine" && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-semibold text-gray-900">Lieferscheine</h2>
-              <Link
-                href={`/lieferscheine/neu?baustelleId=${b.id}${b.orderId ? `&orderId=${b.orderId}` : ""}`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 h-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
-              >
-                <Plus className="h-4 w-4" />Neuer Lieferschein
-              </Link>
-            </div>
-            {b.deliveryNotes.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 text-sm">Noch keine Lieferscheine erfasst</div>
+          <div className="space-y-3">
+            {selectionMode ? (
+              <>
+                <div className="flex items-center gap-3 bg-white border border-blue-200 rounded-xl px-4 py-3 shadow-sm">
+                  <button onClick={exitSelectionMode} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0">
+                    <ChevronLeft className="h-4 w-4" />Abbrechen
+                  </button>
+                  <div className="flex-1 text-center">
+                    <span className="text-sm font-medium text-gray-700">
+                      {selectedDnIds.size === 0 ? "Keine Lieferscheine ausgewählt" : `${selectedDnIds.size} von ${openDeliveryNotes.length} ausgewählt`}
+                    </span>
+                  </div>
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5 flex-shrink-0"
+                    onClick={handleCreateInvoiceFromDns} disabled={creatingInvoice || selectedDnIds.size === 0}>
+                    <Receipt className="h-3.5 w-3.5" />
+                    {creatingInvoice ? "Wird erstellt…" : `Rechnung erstellen (${selectedDnIds.size})`}
+                  </Button>
+                </div>
+                {openDeliveryNotes.length === 0 ? (
+                  <div className="bg-white border border-gray-200 rounded-xl px-5 py-14 flex flex-col items-center gap-2 text-center">
+                    <Truck className="h-8 w-8 text-gray-200" />
+                    <p className="text-sm text-gray-400">Keine offenen Lieferscheine</p>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                    <div className="divide-y divide-gray-100">
+                      {openDeliveryNotes.map((dn) => {
+                        const isSelected = selectedDnIds.has(dn.id);
+                        return (
+                          <div key={dn.id}
+                            className={`flex items-center gap-3 px-5 py-3.5 cursor-pointer transition-colors ${isSelected ? "bg-blue-50/40" : "hover:bg-gray-50"}`}
+                            onClick={() => toggleDn(dn.id)}>
+                            <div className="flex-shrink-0">
+                              {isSelected ? <CheckSquare className="h-4 w-4 text-blue-500" /> : <Square className="h-4 w-4 text-gray-300" />}
+                            </div>
+                            <div className="flex-1 min-w-0 grid grid-cols-[80px_1fr_100px_90px] gap-3 items-center">
+                              <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
+                              <span className="text-sm text-gray-700 truncate">{dn.material}</span>
+                              <span className="text-xs text-gray-400">{format(new Date(dn.date), "dd.MM.yyyy", { locale: de })}</span>
+                              <span className="text-sm font-semibold text-gray-900 text-right tabular-nums">{dn.quantity != null ? dn.quantity.toLocaleString("de-DE") : "–"} {dn.unit}</span>
+                            </div>
+                            <Link href={`/lieferscheine/${dn.id}?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`} onClick={(e) => e.stopPropagation()} className="flex-shrink-0">
+                              <ChevronRight className="h-4 w-4 text-gray-200" />
+                            </Link>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50/30">
+                      <button onClick={toggleAllDn} className="text-xs text-blue-600 hover:text-blue-700 font-medium">
+                        {openDeliveryNotes.every((dn) => selectedDnIds.has(dn.id)) ? "Alle abwählen" : "Alle auswählen"}
+                      </button>
+                      <span className="text-xs text-gray-400">{selectedDnIds.size} von {openDeliveryNotes.length} ausgewählt</span>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_1fr_2fr_1fr_1fr_56px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-                  {["Nr.", "Datum", "Material", "Menge", "Fahrer", ""].map(h => (
+              <>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Link
+                    href={`/lieferscheine/neu?baustelleId=${b.id}${b.orderId ? `&orderId=${b.orderId}` : ""}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 h-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
+                  >
+                    <Plus className="h-4 w-4" />Neuer Lieferschein
+                  </Link>
+                  <div className="flex-1" />
+                  {(["all", "open", "billed"] as const).map((f) => {
+                    const openCount = b.deliveryNotes.filter((dn) => !dn.invoice).length;
+                    const billedCount = b.deliveryNotes.filter((dn) => dn.invoice).length;
+                    const labels = { all: `Alle (${b.deliveryNotes.length})`, open: `Offen (${openCount})`, billed: `Verrechnet (${billedCount})` };
+                    return (
+                      <button key={f} onClick={() => setDnFilter(f)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${dnFilter === f ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}>
+                        {labels[f]}
+                      </button>
+                    );
+                  })}
+                  {openDeliveryNotes.length > 0 && b.contactId && (
+                    <button onClick={enterSelectionMode}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors">
+                      <Receipt className="h-3.5 w-3.5" />Rechnung erstellen
+                    </button>
+                  )}
+                </div>
+                {b.deliveryNotes.length === 0 ? (
+                  <div className="bg-white border border-gray-200 rounded-xl px-5 py-14 flex flex-col items-center gap-2 text-center">
+                    <Truck className="h-8 w-8 text-gray-200" />
+                    <p className="text-sm text-gray-400">Noch keine Lieferscheine erfasst</p>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                    <div className="grid grid-cols-[80px_1fr_110px_100px_90px_56px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                      {["Nr.", "Material", "Datum", "Menge", "Status", ""].map(h => (
+                        <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+                      ))}
+                    </div>
+                    {(() => {
+                      const filtered = dnFilter === "open"
+                        ? b.deliveryNotes.filter((dn) => !dn.invoice)
+                        : dnFilter === "billed"
+                        ? b.deliveryNotes.filter((dn) => dn.invoice)
+                        : b.deliveryNotes;
+                      return filtered.map((dn, i) => (
+                        <Link key={dn.id} href={`/lieferscheine/${dn.id}?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`}
+                          className={`group grid grid-cols-[80px_1fr_110px_100px_90px_56px] px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${i < filtered.length - 1 ? "border-b border-gray-100" : ""}`}>
+                          <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
+                          <span className="text-sm font-medium text-gray-900 truncate pr-3">{dn.material}</span>
+                          <span className="text-sm text-gray-400">{format(new Date(dn.date), "dd.MM.yyyy", { locale: de })}</span>
+                          <span className="text-sm text-gray-500 font-mono">{dn.quantity != null ? dn.quantity.toLocaleString("de-DE") : "–"} {dn.unit}</span>
+                          {dn.invoice
+                            ? <span className="text-xs font-medium text-green-600 truncate">{dn.invoice.invoiceNumber}</span>
+                            : <span className="text-xs font-medium text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full w-fit">Offen</span>
+                          }
+                          <div className="flex items-center justify-end gap-1">
+                            {(() => {
+                              const blocked = dn.invoice?.status === "VERSENDET" || dn.invoice?.status === "BEZAHLT";
+                              return (
+                                <button
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!blocked) setDeleteLieferscheinId(dn.id); }}
+                                  className={`transition-colors p-0.5 ${blocked ? "text-gray-200 cursor-not-allowed" : "text-gray-300 hover:text-red-400"}`}
+                                  title={blocked ? "Rechnung bereits versendet oder bezahlt" : "Löschen"}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              );
+                            })()}
+                            <ChevronRight className="h-4 w-4 text-gray-200 group-hover:text-gray-400 transition-colors flex-shrink-0" />
+                          </div>
+                        </Link>
+                      ));
+                    })()}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── TAB: Rechnungen ────────────────────────────────────────────── */}
+        {tab === "rechnungen" && (
+          <div>
+            {b.invoices.length === 0 ? (
+              <div className="bg-white border border-gray-200 rounded-xl px-5 py-14 flex flex-col items-center gap-2 text-center">
+                <Receipt className="h-8 w-8 text-gray-200" />
+                <p className="text-sm text-gray-400">Noch keine Rechnungen vorhanden</p>
+              </div>
+            ) : (
+              <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                <div className="grid grid-cols-[100px_120px_1fr_100px_56px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                  {["Nr.", "Datum", "Betrag", "Status", ""].map(h => (
                     <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
                   ))}
                 </div>
-                {b.deliveryNotes.map((dn, i) => (
-                  <Link key={dn.id} href={`/lieferscheine/${dn.id}`} className={`group grid grid-cols-[1fr_1fr_2fr_1fr_1fr_56px] gap-3 px-5 py-3 items-center hover:bg-gray-50 transition-colors ${i !== b.deliveryNotes.length - 1 ? "border-b border-gray-100" : ""}`}>
-                    <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
-                    <span className="text-sm text-gray-700">{fmt(dn.date)}</span>
-                    <span className="text-sm font-medium text-gray-900 truncate">{dn.material}</span>
-                    <span className="text-sm font-mono text-gray-700">{dn.quantity != null ? dn.quantity.toLocaleString("de-DE") : "–"} {dn.unit}</span>
-                    <span className="text-sm text-gray-500">{dn.driver ?? "–"}</span>
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeleteLieferscheinId(dn.id); }}
-                        className="text-gray-300 hover:text-red-400 transition-colors p-0.5"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
-                    </div>
-                  </Link>
-                ))}
+                {b.invoices.map((inv, i) => {
+                  const invStatusColors: Record<string, string> = {
+                    ENTWURF: "bg-gray-100 text-gray-600", VERSENDET: "bg-blue-50 text-blue-700",
+                    BEZAHLT: "bg-green-50 text-green-700", STORNIERT: "bg-red-50 text-red-600",
+                  };
+                  const invStatusLabels: Record<string, string> = {
+                    ENTWURF: "Entwurf", VERSENDET: "Versendet", BEZAHLT: "Bezahlt", STORNIERT: "Storniert",
+                  };
+                  return (
+                    <Link key={inv.id} href={`/rechnungen/${inv.id}?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`}
+                      className={`group grid grid-cols-[100px_120px_1fr_100px_56px] px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${i < b.invoices.length - 1 ? "border-b border-gray-100" : ""}`}>
+                      <span className="font-mono text-xs text-gray-400">{inv.invoiceNumber}</span>
+                      <span className="text-sm text-gray-400">{format(new Date(inv.invoiceDate), "dd.MM.yyyy", { locale: de })}</span>
+                      <span className="text-sm font-medium text-gray-900">{inv.totalAmount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                      <span className={`text-xs font-medium px-2 py-0.5 rounded-full w-fit ${invStatusColors[inv.status] ?? "bg-gray-100 text-gray-600"}`}>
+                        {invStatusLabels[inv.status] ?? inv.status}
+                      </span>
+                      <div className="flex items-center justify-end gap-1">
+                        {inv.status === "ENTWURF" ? (
+                          <button onClick={(e) => { e.preventDefault(); setConfirmDeleteInvoiceId(inv.id); }}
+                            className="text-gray-300 hover:text-red-500 transition-colors p-1" title="Rechnung löschen">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <span className="p-1"><Trash2 className="h-3.5 w-3.5 text-gray-200" /></span>
+                        )}
+                        <ChevronRight className="h-4 w-4 text-gray-200 group-hover:text-gray-400 transition-colors" />
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -602,6 +807,15 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
             : "destructive"
         }
         onConfirm={confirmDeleteLieferschein}
+      />
+
+      {/* ── Dialog: Rechnung löschen ───────────────────────────────────────────── */}
+      <ConfirmDialog
+        open={!!confirmDeleteInvoiceId}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteInvoiceId(null); }}
+        title="Rechnung löschen"
+        description="Die Rechnung wird unwiderruflich gelöscht. Alle verknüpften Lieferscheine werden wieder auf offen gesetzt."
+        onConfirm={handleDeleteInvoice}
       />
 
     </div>

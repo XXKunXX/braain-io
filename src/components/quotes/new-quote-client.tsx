@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import { ArrowLeft, Plus, Trash2, X, Package, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -48,6 +49,7 @@ interface Props {
 export function NewQuoteClient({ contacts, userNames, products, machines, prefillContactId, prefillRequest, defaultValidUntil }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  useEscapeKey(() => router.back(), true);
 
   // ── Contact ───────────────────────────────────────────────────────────────
   const [contactId, setContactId] = useState(prefillContactId ?? prefillRequest?.contactId ?? "");

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
 import { ArrowLeft, ChevronDown, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ function toDateInput(d: Date | null | undefined) {
 export function NeueBaustelleClient({ orders, userNames, contacts: initialContacts, prefillOrder }: Props) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  useEscapeKey(() => router.back(), true);
 
   // ── Contact ───────────────────────────────────────────────────────────────────
   const [contactId, setContactId] = useState("");

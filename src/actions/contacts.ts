@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { validateSkontoSteps, type SkontoStep } from "@/lib/payment-terms";
 
 const contactSchema = z
   .object({
@@ -18,6 +19,11 @@ const contactSchema = z
     type: z.enum(["COMPANY", "PRIVATE", "SUPPLIER"]),
     owner: z.string().optional().or(z.literal("")),
     notes: z.string().optional(),
+    billingMode: z.enum(["PRO_LIEFERSCHEIN", "NACH_PROJEKTENDE", "PERIODISCH", "MANUELL"]).default("MANUELL"),
+    billingIntervalDays: z.coerce.number().int().positive().optional().nullable(),
+    paymentTermDays: z.number().nullable().optional(),
+    paymentTermSkonto: z.array(z.object({ days: z.number(), percent: z.number() })).optional(),
+    paymentTermCustom: z.string().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (data.type !== "PRIVATE" && !data.companyName) {
@@ -35,8 +41,18 @@ export async function createContact(data: ContactFormData) {
   const parsed = contactSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const { owner, companyName, ...rest } = parsed.data;
-  const contact = await prisma.contact.create({ data: { ...rest, companyName: companyName ?? "", owner: owner || null } });
+  const { owner, companyName, billingIntervalDays, paymentTermDays, paymentTermSkonto, paymentTermCustom, ...rest } = parsed.data;
+  const contact = await prisma.contact.create({
+    data: {
+      ...rest,
+      companyName: companyName ?? "",
+      owner: owner || null,
+      billingIntervalDays: billingIntervalDays ?? null,
+      ...(paymentTermDays !== undefined && { paymentTermDays: paymentTermDays ?? null }),
+      ...(paymentTermSkonto !== undefined && { paymentTermSkonto: paymentTermSkonto }),
+      ...(paymentTermCustom !== undefined && { paymentTermCustom: paymentTermCustom ?? null }),
+    },
+  });
   revalidatePath("/kontakte");
   revalidatePath("/anfragen/neu");
   return { contact };
@@ -46,14 +62,45 @@ export async function updateContact(id: string, data: ContactFormData) {
   const parsed = contactSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const { owner, companyName, ...rest } = parsed.data;
+  const { owner, companyName, billingIntervalDays, paymentTermDays, paymentTermSkonto, paymentTermCustom, ...rest } = parsed.data;
   const contact = await prisma.contact.update({
     where: { id },
-    data: { ...rest, companyName: companyName ?? "", owner: owner || null },
+    data: {
+      ...rest,
+      companyName: companyName ?? "",
+      owner: owner || null,
+      billingIntervalDays: billingIntervalDays ?? null,
+      ...(paymentTermDays !== undefined && { paymentTermDays: paymentTermDays ?? null }),
+      ...(paymentTermSkonto !== undefined && { paymentTermSkonto: paymentTermSkonto }),
+      ...(paymentTermCustom !== undefined && { paymentTermCustom: paymentTermCustom ?? null }),
+    },
   });
   revalidatePath("/kontakte");
   revalidatePath(`/kontakte/${id}`);
   return { contact };
+}
+
+export async function updatePaymentTerm(
+  id: string,
+  data: {
+    paymentTermDays: number | null;
+    paymentTermSkonto: SkontoStep[];
+    paymentTermCustom: string | null;
+  }
+) {
+  const validationError = validateSkontoSteps(data.paymentTermSkonto, data.paymentTermDays);
+  if (validationError) return { error: validationError };
+
+  await prisma.contact.update({
+    where: { id },
+    data: {
+      paymentTermDays: data.paymentTermDays,
+      paymentTermSkonto: data.paymentTermSkonto.length > 0 ? data.paymentTermSkonto : [],
+      paymentTermCustom: data.paymentTermCustom || null,
+    },
+  });
+  revalidatePath(`/kontakte/${id}`);
+  return { success: true };
 }
 
 export async function deleteContact(id: string) {
@@ -75,7 +122,14 @@ export async function getContact(id: string) {
       requests: { orderBy: { createdAt: "desc" } },
       quotes: { orderBy: { createdAt: "desc" } },
       orders: { orderBy: { createdAt: "desc" } },
-      deliveryNotes: { orderBy: { date: "desc" } },
+      deliveryNotes: {
+        orderBy: { date: "asc" },
+        include: { invoice: { select: { id: true, invoiceNumber: true, status: true } } },
+      },
+      invoices: {
+        orderBy: { invoiceDate: "desc" },
+        select: { id: true, invoiceNumber: true, invoiceDate: true, status: true, totalAmount: true },
+      },
       contactNotes: { orderBy: { createdAt: "desc" }, include: { request: { select: { id: true, title: true } } } },
       attachments: { orderBy: { createdAt: "desc" }, include: { request: { select: { id: true, title: true } } } },
     },
