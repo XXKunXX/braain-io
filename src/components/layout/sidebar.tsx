@@ -21,9 +21,9 @@ import {
   Banknote,
   FolderOpen,
   Settings,
-  Sparkles,
   Receipt,
   CalendarCog,
+  Archive,
 } from "lucide-react";
 
 const navSections = [
@@ -35,23 +35,28 @@ const navSections = [
     ],
   },
   {
-    label: "CRM",
+    label: "Akquise",
     items: [
       { href: "/kontakte", label: "Kontakte", icon: Users, badgeKey: "" },
       { href: "/anfragen", label: "Anfragen", icon: MessageSquare, badgeKey: "requests" },
       { href: "/angebote", label: "Angebote", icon: FileText, badgeKey: "" },
-      { href: "/auftraege", label: "Aufträge", icon: ClipboardList, badgeKey: "" },
-      { href: "/rechnungen", label: "Rechnungen", icon: Receipt, badgeKey: "" },
-      { href: "/zahlungen", label: "Zahlungen", icon: Banknote, badgeKey: "payments" },
-      { href: "/dokumente", label: "Dokumente", icon: FolderOpen, badgeKey: "" },
     ],
   },
   {
-    label: "Baustellenmanagement",
+    label: "Ausführung",
     items: [
+      { href: "/auftraege", label: "Aufträge", icon: ClipboardList, badgeKey: "" },
       { href: "/baustellen", label: "Baustellen", icon: MapPin, badgeKey: "" },
       { href: "/disposition", label: "Disposition", icon: CalendarDays, badgeKey: "" },
+      { href: "/dokumente", label: "Dokumente", icon: FolderOpen, badgeKey: "" },
       { href: "/fahrer", label: "Fahrer App", icon: Smartphone, badgeKey: "" },
+    ],
+  },
+  {
+    label: "Abrechnung",
+    items: [
+      { href: "/zahlungen", label: "Offene Posten", icon: Banknote, badgeKey: "payments" },
+      { href: "/rechnungen", label: "Rechnungs-Archiv", icon: Archive, badgeKey: "" },
     ],
   },
   {

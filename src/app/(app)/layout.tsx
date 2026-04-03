@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/app-shell";
 import { getOpenTaskCount } from "@/actions/tasks";
 import { getNewRequestCount } from "@/actions/requests";
-import { getOverduePaymentCount } from "@/actions/payment-milestones";
+import { getOffenePostenCount } from "@/actions/invoices";
 import { getUserPreferences } from "@/actions/user-preferences";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const [openTaskCount, newRequestCount, overduePaymentCount, prefs] = await Promise.all([
     getOpenTaskCount(),
     getNewRequestCount(),
-    getOverduePaymentCount(),
+    getOffenePostenCount(),
     role === "Admin" ? getUserPreferences() : Promise.resolve({ showFahrerApp: false }),
   ]);
 

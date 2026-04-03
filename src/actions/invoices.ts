@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { getNextNumber } from "@/lib/counter";
+import { generatePaymentTermText, parseSkontoFromJson } from "@/lib/payment-terms";
 import { getSettings } from "@/actions/settings";
 import nodemailer from "nodemailer";
 import { renderToBuffer } from "@react-pdf/renderer";
@@ -33,7 +34,6 @@ export type CreateInvoiceInput = {
   notes?: string;
   vatRate?: number;
   items: InvoiceItemInput[];
-  paymentMilestoneId?: string;
 };
 
 export type UpdateInvoiceInput = {
@@ -88,7 +88,10 @@ export async function getInvoice(id: string) {
       contact: true,
       order: { select: { id: true, orderNumber: true, title: true } },
       items: { orderBy: { position: "asc" } },
-      paymentMilestone: true,
+      deliveryNotes: {
+        select: { id: true, deliveryNumber: true, date: true, material: true, quantity: true, unit: true },
+        orderBy: { date: "asc" },
+      },
     },
   });
 }
@@ -113,7 +116,6 @@ export async function createInvoice(data: CreateInvoiceInput) {
       subtotal,
       vatAmount,
       totalAmount,
-      paymentMilestoneId: data.paymentMilestoneId ?? null,
       items: {
         create: data.items.map((item, idx) => ({
           position: idx + 1,
@@ -129,16 +131,92 @@ export async function createInvoice(data: CreateInvoiceInput) {
     },
   });
 
-  // If linked to a payment milestone, update its invoice number
-  if (data.paymentMilestoneId) {
-    await prisma.paymentMilestone.update({
-      where: { id: data.paymentMilestoneId },
-      data: { invoiceNumber },
+  revalidatePath("/rechnungen");
+  return { invoice };
+}
+
+export async function createInvoiceFromDeliveryNotes(
+  contactId: string,
+  deliveryNoteIds: string[],
+  orderId?: string
+) {
+  if (deliveryNoteIds.length === 0) return { error: "Keine Lieferscheine ausgewählt" };
+
+  const [settings, contact] = await Promise.all([
+    getSettings(),
+    prisma.contact.findUnique({ where: { id: contactId }, select: { paymentTermDays: true, paymentTermSkonto: true, paymentTermCustom: true } }),
+  ]);
+  const vatRate = Number(settings.vatRate);
+  const invoiceNumber = await getNextNumber("invoice");
+
+  const footerText = contact
+    ? generatePaymentTermText({
+        paymentTermDays: contact.paymentTermDays ?? 30,
+        paymentTermSkonto: parseSkontoFromJson(contact.paymentTermSkonto),
+        paymentTermCustom: contact.paymentTermCustom ?? null,
+      })
+    : settings.defaultPaymentTerms;
+
+  const invoice = await prisma.$transaction(async (tx) => {
+    const inv = await tx.invoice.create({
+      data: {
+        invoiceNumber,
+        contactId,
+        orderId: orderId ?? null,
+        invoiceDate: new Date(),
+        footerText,
+        vatRate,
+        subtotal: 0,
+        vatAmount: 0,
+        totalAmount: 0,
+        items: {
+          create: deliveryNoteIds.map((_, idx) => ({
+            position: idx + 1,
+            description: "",
+            quantity: 1,
+            unit: "Stk",
+            unitPrice: 0,
+            vatRate,
+            total: 0,
+          })),
+        },
+      },
     });
-    if (data.orderId) revalidatePath(`/auftraege/${data.orderId}`);
-  }
+
+    // Fetch delivery notes to build items
+    const notes = await tx.deliveryNote.findMany({
+      where: { id: { in: deliveryNoteIds } },
+      select: { id: true, deliveryNumber: true, date: true, material: true, quantity: true, unit: true },
+      orderBy: { date: "asc" },
+    });
+
+    // Delete placeholder items and create real ones from delivery notes
+    await tx.invoiceItem.deleteMany({ where: { invoiceId: inv.id } });
+    await tx.invoiceItem.createMany({
+      data: notes.map((dn, idx) => ({
+        invoiceId: inv.id,
+        position: idx + 1,
+        description: dn.material,
+        note: `Lieferschein ${dn.deliveryNumber} – ${new Date(dn.date).toLocaleDateString("de-DE")}`,
+        quantity: Number(dn.quantity),
+        unit: dn.unit,
+        unitPrice: 0,
+        vatRate,
+        total: 0,
+      })),
+    });
+
+    // Link delivery notes to this invoice
+    await tx.deliveryNote.updateMany({
+      where: { id: { in: deliveryNoteIds } },
+      data: { invoiceId: inv.id },
+    });
+
+    return inv;
+  });
 
   revalidatePath("/rechnungen");
+  revalidatePath("/lieferscheine");
   return { invoice };
 }
 
@@ -189,28 +267,35 @@ export async function updateInvoiceItems(invoiceId: string, items: InvoiceItemIn
 }
 
 export async function markInvoicePaid(id: string) {
-  const invoice = await prisma.invoice.update({
+  await prisma.invoice.update({
     where: { id },
     data: { status: "BEZAHLT", paidAt: new Date() },
   });
 
-  // Sync payment milestone status if linked
-  if (invoice.paymentMilestoneId) {
-    await prisma.paymentMilestone.update({
-      where: { id: invoice.paymentMilestoneId },
-      data: { status: "BEZAHLT", paidAt: new Date() },
-    });
-    if (invoice.orderId) revalidatePath(`/auftraege/${invoice.orderId}`);
-  }
-
   revalidatePath("/rechnungen");
+  revalidatePath("/zahlungen");
   revalidatePath(`/rechnungen/${id}`);
   return { success: true };
 }
 
+export async function getOffenePostenCount() {
+  const now = new Date();
+  const [overdue, drafts, unInvoiced] = await Promise.all([
+    prisma.invoice.count({ where: { status: "VERSENDET", dueDate: { lt: now } } }),
+    prisma.invoice.count({ where: { status: "ENTWURF" } }),
+    prisma.deliveryNote.count({ where: { invoiceId: null } }),
+  ]);
+  return overdue + drafts + unInvoiced;
+}
+
 export async function deleteInvoice(id: string) {
-  await prisma.invoice.delete({ where: { id } });
+  await prisma.$transaction([
+    prisma.deliveryNote.updateMany({ where: { invoiceId: id }, data: { invoiceId: null } }),
+    prisma.invoice.delete({ where: { id } }),
+  ]);
   revalidatePath("/rechnungen");
+  revalidatePath("/kontakte");
+  revalidatePath("/lieferscheine");
   return { success: true };
 }
 
