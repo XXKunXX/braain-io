@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Search, CheckCircle, AlertTriangle, Clock,
-  ChevronRight, FileText, Package, Plus,
+  ChevronRight, FileText, Package, Plus, Receipt,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { markInvoicePaid } from "@/actions/invoices";
@@ -213,7 +213,7 @@ export function OffenePostenList({
                 return (
                   <div
                     key={inv.id}
-                    onClick={() => router.push(`/rechnungen/${inv.id}`)}
+                    onClick={() => router.push(`/rechnungen/${inv.id}?from=zahlungen`)}
                     className={`cursor-pointer hover:bg-gray-50 transition-colors border-l-4 ${cfg.border} ${cfg.bg}`}
                   >
                     {/* Mobile */}
@@ -291,7 +291,7 @@ export function OffenePostenList({
                         )}
                         {inv.status === "ENTWURF" && (
                           <Link
-                            href={`/rechnungen/${inv.id}`}
+                            href={`/rechnungen/${inv.id}?from=zahlungen`}
                             onClick={(e) => e.stopPropagation()}
                             className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors ${cfg.btnClass}`}
                           >

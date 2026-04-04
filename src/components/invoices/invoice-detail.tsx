@@ -120,9 +120,16 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
   const searchParams = useSearchParams();
   const contactId = searchParams.get("contactId");
   const contactName = searchParams.get("contactName");
-  const backHref = contactId ? `/kontakte/${contactId}?tab=rechnungen` : "/rechnungen";
+  const from = searchParams.get("from");
+  const backHref = contactId
+    ? `/kontakte/${contactId}?tab=rechnungen`
+    : from === "zahlungen"
+    ? "/zahlungen"
+    : "/rechnungen";
   const backLabel = contactId
     ? `Zurück zu ${contactName ?? "Kontakt"}`
+    : from === "zahlungen"
+    ? "Zurück zu Offene Posten"
     : "Zurück zu Rechnungen";
   const [editingDetails, setEditingDetails] = useState(false);
   const [editingItems, setEditingItems] = useState(false);

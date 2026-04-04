@@ -246,3 +246,4 @@ export async function getDeliveryNote(id: string) {
     include: { contact: true, order: true, baustelle: { include: { order: true } } },
   });
 }
+

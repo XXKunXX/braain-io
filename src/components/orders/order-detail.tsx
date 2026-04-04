@@ -248,6 +248,65 @@ export function OrderDetail({
         </div>
       </div>
 
+      {/* ── Workflow ── */}
+      <div className="px-6 py-2.5 border-b border-gray-100 bg-gray-50/40 overflow-x-auto">
+        <div className="flex items-center gap-1 min-w-max">
+          <button
+            onClick={() => setActiveTab("Details")}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
+          >
+            <ClipboardList className="h-3 w-3" />
+            Auftrag · {statusLabels[order.status]}
+          </button>
+          <ChevronRight className="h-3 w-3 text-gray-300 flex-shrink-0" />
+          <button
+            onClick={() => setActiveTab("Baustellen")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+              order.baustellen.length > 0
+                ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"
+            }`}
+          >
+            <MapPin className="h-3 w-3" />
+            {order.baustellen.length > 0
+              ? `${order.baustellen.length} Baustelle${order.baustellen.length !== 1 ? "n" : ""}`
+              : "Keine Baustellen"}
+          </button>
+          <ChevronRight className="h-3 w-3 text-gray-300 flex-shrink-0" />
+          <button
+            onClick={() => setActiveTab("Lieferscheine")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+              openDeliveryNotes.length > 0
+                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                : order.deliveryNotes.length > 0
+                ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"
+            }`}
+          >
+            <Truck className="h-3 w-3" />
+            {order.deliveryNotes.length > 0
+              ? openDeliveryNotes.length > 0
+                ? `${openDeliveryNotes.length} offen · ${order.deliveryNotes.length - openDeliveryNotes.length} verrechnet`
+                : `${order.deliveryNotes.length} verrechnet`
+              : "Keine Lieferscheine"}
+          </button>
+          <ChevronRight className="h-3 w-3 text-gray-300 flex-shrink-0" />
+          <button
+            onClick={() => setActiveTab("Rechnungen")}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
+              order.invoices.length > 0
+                ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"
+            }`}
+          >
+            <Receipt className="h-3 w-3" />
+            {order.invoices.length > 0
+              ? `${order.invoices.length} Rechnung${order.invoices.length !== 1 ? "en" : ""} · ${order.invoices.reduce((s, i) => s + i.totalAmount, 0).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`
+              : "Keine Rechnungen"}
+          </button>
+        </div>
+      </div>
+
       {/* ── Stat cards ── */}
       <div className="px-4 sm:px-6 py-4 grid grid-cols-2 gap-3 sm:gap-4 border-b border-gray-100 bg-gray-50/60">
         <StatCard label="Status">
