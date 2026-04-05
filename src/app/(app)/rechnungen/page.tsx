@@ -1,6 +1,7 @@
 import { Archive } from "lucide-react";
 import { getInvoices } from "@/actions/invoices";
 import { InvoiceArchive } from "@/components/invoices/invoice-list";
+import { InvoiceExportButton } from "@/components/invoices/invoice-export-button";
 
 export default async function RechnungsArchivPage() {
   const invoices = await getInvoices();
@@ -12,11 +13,14 @@ export default async function RechnungsArchivPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold text-gray-900">Rechnungs-Archiv</h1>
-        <p className="text-sm text-gray-400 mt-0.5">
-          {archived.length} abgeschlossene Rechnung{archived.length !== 1 ? "en" : ""} · {totalPaid.toLocaleString("de-DE", { style: "currency", currency: "EUR" })} bezahlt
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">Rechnungs-Archiv</h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {archived.length} abgeschlossene Rechnung{archived.length !== 1 ? "en" : ""} · {totalPaid.toLocaleString("de-DE", { style: "currency", currency: "EUR" })} bezahlt
+          </p>
+        </div>
+        <InvoiceExportButton />
       </div>
 
       {archived.length === 0 ? (

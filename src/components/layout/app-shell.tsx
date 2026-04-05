@@ -6,6 +6,7 @@ import { UserButton } from "@clerk/nextjs";
 import { Sidebar } from "./sidebar";
 import { GlobalSearch, useGlobalSearch } from "./global-search";
 import { NotificationBell } from "./notification-bell";
+import { MobileBottomNav } from "./mobile-bottom-nav";
 import { cn } from "@/lib/utils";
 
 interface AppShellProps {
@@ -90,10 +91,22 @@ export function AppShell({ children, openTaskCount, newRequestCount = 0, overdue
           </div>
         </div>
 
-        <main className="flex-1 overflow-auto">{children}</main>
+        {/* On mobile: add bottom padding so content isn't hidden behind the bottom nav */}
+        <main className="flex-1 overflow-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+          {children}
+        </main>
       </div>
 
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      {/* Mobile Bottom Navigation — only visible on mobile, invisible on md+ */}
+      <MobileBottomNav
+        newRequestCount={newRequestCount}
+        openTaskCount={openTaskCount}
+        overduePaymentCount={overduePaymentCount}
+        userRole={userRole}
+        showFahrerApp={showFahrerApp}
+      />
     </div>
   );
 }

@@ -134,3 +134,19 @@
     display: none;
   }
 }
+
+/* Safe area utilities for iPhone notch / Dynamic Island / Home Indicator */
+@utility safe-pb {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@utility safe-pt {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* Smooth tap highlight suppression for native feel */
+@layer base {
+  button, a {
+    -webkit-tap-highlight-color: transparent;
+  }
+}

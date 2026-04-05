@@ -340,6 +340,7 @@ export function ContactForm({
     Array.isArray(defaultValues?.paymentTermSkonto) ? (defaultValues.paymentTermSkonto as SkontoStep[]) : []
   );
   const [ptCustom, setPtCustom] = useState(defaultValues?.paymentTermCustom ?? "");
+  const [reminderDays, setReminderDays] = useState<number | null>(defaultValues?.paymentReminderDays ?? null);
 
   const {
     register,
@@ -361,7 +362,7 @@ export function ContactForm({
   }
 
   return (
-    <form onSubmit={handleSubmit((data) => onSubmit({ ...data, paymentTermDays: ptDays, paymentTermSkonto: ptSkonto, paymentTermCustom: ptCustom || null }))} className="space-y-0">
+    <form onSubmit={handleSubmit((data) => onSubmit({ ...data, paymentTermDays: ptDays, paymentTermSkonto: ptSkonto, paymentTermCustom: ptCustom || null, paymentReminderDays: reminderDays }))} className="space-y-0">
 
       {/* ── Section: Stammdaten ── */}
       <div className="space-y-4 pb-6">
@@ -614,6 +615,38 @@ export function ContactForm({
             {generatePaymentTermText({ paymentTermDays: ptDays, paymentTermSkonto: ptSkonto, paymentTermCustom: ptCustom || null })}
           </p>
         </div>
+      </div>
+
+      {/* ── Section: Mahnwesen ── */}
+      <div className="space-y-4 pb-6 border-t border-gray-100 pt-6">
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Mahnwesen</p>
+        <div className="flex items-center justify-between py-2 px-4 rounded-lg border border-gray-100 bg-gray-50">
+          <div>
+            <p className="text-sm font-medium text-gray-800">Mahnungs-Erinnerung</p>
+            <p className="text-xs text-gray-400 mt-0.5">Erinnerung wenn Rechnung X Tage überfällig ist</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReminderDays(reminderDays === null ? 14 : null)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${reminderDays !== null ? "bg-blue-600" : "bg-gray-200"}`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${reminderDays !== null ? "translate-x-4" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+        {reminderDays !== null && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-blue-100 bg-blue-50">
+            <p className="text-sm text-blue-800 whitespace-nowrap">Mahnung nach</p>
+            <input
+              type="number"
+              min={1}
+              max={365}
+              value={reminderDays}
+              onChange={(e) => setReminderDays(Math.max(1, parseInt(e.target.value) || 1))}
+              className="w-20 h-8 rounded-md border border-blue-200 bg-white text-center text-sm font-semibold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-sm text-blue-800 whitespace-nowrap">Tagen Überfälligkeit</p>
+          </div>
+        )}
       </div>
 
       {/* ── Actions ── */}

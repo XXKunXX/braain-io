@@ -1,15 +1,17 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { OffenePostenList } from "@/components/zahlungen/zahlungen-list";
 
-export default async function OffenePostenPage() {
+export default async function OffenePostenPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const now = new Date();
+  const { tab } = await searchParams;
 
   const [invoices, deliveryNotes] = await Promise.all([
     prisma.invoice.findMany({
       where: { status: { in: ["ENTWURF", "VERSENDET"] } },
       orderBy: { dueDate: "asc" },
       include: {
-        contact: { select: { id: true, companyName: true } },
+        contact: { select: { id: true, companyName: true, paymentReminderDays: true } },
         order: { select: { id: true, orderNumber: true, title: true } },
       },
     }),
@@ -61,24 +63,51 @@ export default async function OffenePostenPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-400 mb-1">Ausstehend gesamt</p>
-          <p className="text-lg font-bold text-gray-900">
-            {totalOutstanding.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
-          </p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-400 mb-1">Davon überfällig</p>
-          <p className={`text-lg font-bold ${totalOverdue > 0 ? "text-red-600" : "text-gray-400"}`}>
-            {totalOverdue.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
-          </p>
-        </div>
-        <div className="bg-white border border-gray-200 rounded-xl p-4">
-          <p className="text-xs text-gray-400 mb-1">Noch nicht verrechnet</p>
-          <p className={`text-lg font-bold ${deliveryNotes.length > 0 ? "text-blue-600" : "text-gray-400"}`}>
-            {deliveryNotes.length} Lieferschein{deliveryNotes.length !== 1 ? "e" : ""}
-          </p>
-        </div>
+        {totalOutstanding > 0 ? (
+          <Link href="/zahlungen?tab=offen" className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all group">
+            <p className="text-xs text-gray-400 mb-1 group-hover:text-gray-500">Ausstehend gesamt</p>
+            <p className="text-lg font-bold text-gray-900">
+              {totalOutstanding.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+            </p>
+          </Link>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <p className="text-xs text-gray-400 mb-1">Ausstehend gesamt</p>
+            <p className="text-lg font-bold text-gray-400">
+              {totalOutstanding.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+            </p>
+          </div>
+        )}
+        {totalOverdue > 0 ? (
+          <Link href="/zahlungen?tab=ueberfaellig" className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all group">
+            <p className="text-xs text-gray-400 mb-1 group-hover:text-gray-500">Davon überfällig</p>
+            <p className="text-lg font-bold text-red-600">
+              {totalOverdue.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+            </p>
+          </Link>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <p className="text-xs text-gray-400 mb-1">Davon überfällig</p>
+            <p className="text-lg font-bold text-gray-400">
+              {totalOverdue.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+            </p>
+          </div>
+        )}
+        {deliveryNotes.length > 0 ? (
+          <Link href="/zahlungen?tab=lieferscheine" className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all group">
+            <p className="text-xs text-gray-400 mb-1 group-hover:text-gray-500">Noch nicht verrechnet</p>
+            <p className="text-lg font-bold text-blue-600">
+              {deliveryNotes.length} Lieferschein{deliveryNotes.length !== 1 ? "e" : ""}
+            </p>
+          </Link>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <p className="text-xs text-gray-400 mb-1">Noch nicht verrechnet</p>
+            <p className="text-lg font-bold text-gray-400">
+              0 Lieferscheine
+            </p>
+          </div>
+        )}
       </div>
 
       <OffenePostenList invoices={serializedInvoices} deliveryNotes={serializedDeliveryNotes} />

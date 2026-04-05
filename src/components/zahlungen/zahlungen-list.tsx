@@ -1,15 +1,13 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search, CheckCircle, AlertTriangle, Clock,
-  ChevronRight, FileText, Package, Plus, Receipt,
+  ChevronRight, FileText, Package, Plus, Receipt, Bell,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { markInvoicePaid } from "@/actions/invoices";
-import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { de } from "date-fns/locale";
 
@@ -20,7 +18,7 @@ type Invoice = {
   dueDate: Date | null;
   status: string;
   totalAmount: number;
-  contact: { id: string; companyName: string };
+  contact: { id: string; companyName: string; paymentReminderDays?: number | null };
   order: { id: string; orderNumber: string; title: string } | null;
 };
 
@@ -52,6 +50,11 @@ function isOverdue(inv: Invoice) {
   return inv.status === "VERSENDET" && inv.dueDate && new Date(inv.dueDate) < new Date();
 }
 
+function needsReminder(inv: Invoice): boolean {
+  if (!isOverdue(inv) || !inv.dueDate || !inv.contact.paymentReminderDays) return false;
+  return differenceInDays(new Date(), new Date(inv.dueDate)) >= inv.contact.paymentReminderDays;
+}
+
 type UrgencyLevel = 0 | 1 | 2 | 3;
 
 function getUrgency(inv: Invoice): UrgencyLevel {
@@ -70,6 +73,7 @@ const URGENCY_CONFIG = {
 
 const TABS = [
   { key: "offen",         label: "Offen",            icon: Clock },
+  { key: "ueberfaellig",  label: "Überfällig",        icon: AlertTriangle },
   { key: "lieferscheine", label: "Nicht verrechnet",  icon: Package },
 ] as const;
 
@@ -83,20 +87,16 @@ export function OffenePostenList({
   deliveryNotes: DeliveryNote[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState<TabKey>("offen");
-  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<TabKey>(
+    tabParam === "lieferscheine" ? "lieferscheine" : tabParam === "ueberfaellig" ? "ueberfaellig" : "offen"
+  );
 
-  async function handleMarkPaid(e: React.MouseEvent, id: string) {
-    e.preventDefault();
-    e.stopPropagation();
-    setMarkingPaidId(id);
-    await markInvoicePaid(id);
-    toast.success("Als bezahlt markiert");
-    router.refresh();
-    setMarkingPaidId(null);
-  }
-
+  useEffect(() => {
+    setActiveTab(tabParam === "lieferscheine" ? "lieferscheine" : tabParam === "ueberfaellig" ? "ueberfaellig" : "offen");
+  }, [tabParam]);
   // Group delivery notes by contact + order
   const deliveryNoteGroups = useMemo<DeliveryNoteGroup[]>(() => {
     const map = new Map<string, DeliveryNoteGroup>();
@@ -120,9 +120,10 @@ export function OffenePostenList({
   const filteredInvoices = useMemo(() => {
     const q = search.toLowerCase();
     const base = invoices.filter((inv) => {
-      const matchesTab = activeTab === "offen"
-        ? (inv.status === "ENTWURF" || inv.status === "VERSENDET")
-        : false;
+      const matchesTab =
+        activeTab === "offen" ? (inv.status === "ENTWURF" || inv.status === "VERSENDET") :
+        activeTab === "ueberfaellig" ? isOverdue(inv) :
+        false;
       const matchesSearch = !q ||
         inv.invoiceNumber.toLowerCase().includes(q) ||
         inv.contact.companyName.toLowerCase().includes(q) ||
@@ -133,7 +134,7 @@ export function OffenePostenList({
   }, [invoices, search, activeTab]);
 
   const filteredGroups = useMemo(() => {
-    if (activeTab !== "lieferscheine") return [];
+    if (activeTab !== "lieferscheine") return [] as typeof deliveryNoteGroups;
     const q = search.toLowerCase();
     if (!q) return deliveryNoteGroups;
     return deliveryNoteGroups.filter(
@@ -143,6 +144,7 @@ export function OffenePostenList({
 
   const tabCounts = useMemo(() => ({
     offen: invoices.filter((i) => i.status === "ENTWURF" || i.status === "VERSENDET").length,
+    ueberfaellig: invoices.filter(isOverdue).length,
     lieferscheine: deliveryNoteGroups.length,
   }), [invoices, deliveryNoteGroups]);
 
@@ -165,7 +167,7 @@ export function OffenePostenList({
             {tabCounts[key] > 0 && (
               <span className={`text-xs rounded-full px-1.5 py-0.5 leading-none font-semibold ${
                 activeTab === key ? "bg-gray-100 text-gray-600" :
-                key === "offen" && invoices.some(isOverdue) ? "bg-red-500 text-white" :
+                key === "ueberfaellig" ? "bg-red-500 text-white" :
                 "text-gray-400"
               }`}>
                 {tabCounts[key]}
@@ -196,9 +198,9 @@ export function OffenePostenList({
         ) : (
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             {/* Desktop header */}
-            <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_120px_120px_110px_140px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
-              {["Kontakt", "Auftrag / Nummer", "Datum", "Fällig", "Status", ""].map((h) => (
-                <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
+            <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_110px_110px_130px_1fr_56px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              {["Kontakt", "Auftrag / Nummer", "Datum", "Fällig", "Status", "Betrag", ""].map((h) => (
+                <span key={h} className={`text-[11px] font-semibold tracking-wider text-gray-400 uppercase ${h === "Betrag" ? "text-right" : ""}`}>{h}</span>
               ))}
             </div>
 
@@ -209,12 +211,13 @@ export function OffenePostenList({
                 const cfg = URGENCY_CONFIG[urgency];
                 const StatusIcon = cfg.icon;
                 const daysOverdue = overdue && inv.dueDate ? differenceInDays(new Date(), new Date(inv.dueDate)) : 0;
+                const reminderDue = needsReminder(inv);
 
                 return (
                   <div
                     key={inv.id}
                     onClick={() => router.push(`/rechnungen/${inv.id}?from=zahlungen`)}
-                    className={`cursor-pointer hover:bg-gray-50 transition-colors border-l-4 ${cfg.border} ${cfg.bg}`}
+                    className={`cursor-pointer hover:bg-gray-50/70 transition-colors border-l-4 ${cfg.border} ${cfg.bg}`}
                   >
                     {/* Mobile */}
                     <div className="md:hidden flex items-start gap-3 px-4 py-3.5">
@@ -231,30 +234,12 @@ export function OffenePostenList({
                         <p className="text-xs text-gray-400 mt-0.5 font-mono">{inv.invoiceNumber}</p>
                         <p className="text-sm font-semibold text-gray-900 mt-1">{fmt(inv.totalAmount)}</p>
                       </div>
-                      <div className="shrink-0 flex flex-col items-end gap-2">
-                        {inv.status === "VERSENDET" && (
-                          <button
-                            onClick={(e) => handleMarkPaid(e, inv.id)}
-                            disabled={markingPaidId === inv.id}
-                            className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50 ${cfg.btnClass}`}
-                          >
-                            <CheckCircle className="h-3 w-3" />
-                            Bezahlt
-                          </button>
-                        )}
-                        {inv.status === "ENTWURF" && (
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md ${cfg.btnClass}`}>
-                            Öffnen <ChevronRight className="h-3 w-3" />
-                          </span>
-                        )}
-                      </div>
+                      <ChevronRight className="h-4 w-4 text-gray-300 shrink-0 self-center" />
                     </div>
 
                     {/* Desktop */}
-                    <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_120px_120px_110px_140px] gap-3 px-5 py-3.5 items-center">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{inv.contact.companyName}</p>
-                      </div>
+                    <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_110px_110px_130px_1fr_56px] gap-3 px-5 py-3.5 items-center">
+                      <p className="text-sm font-medium text-gray-900 truncate">{inv.contact.companyName}</p>
                       <div className="min-w-0">
                         {inv.order && <p className="text-xs text-gray-400 truncate">{inv.order.orderNumber} – {inv.order.title}</p>}
                         <p className="text-xs font-mono text-gray-500">{inv.invoiceNumber}</p>
@@ -262,42 +247,30 @@ export function OffenePostenList({
                       <span className="text-sm text-gray-500">
                         {format(new Date(inv.invoiceDate), "dd.MM.yyyy", { locale: de })}
                       </span>
-                      <span className={`text-sm font-medium ${overdue ? "text-red-600" : "text-gray-500"}`}>
+                      <span className={`text-sm ${overdue ? "text-red-600 font-medium" : "text-gray-500"}`}>
                         {inv.dueDate ? (
                           overdue
-                            ? <span className="flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" />{daysOverdue}T überfällig</span>
+                            ? <span className="flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" />{daysOverdue}T</span>
                             : format(new Date(inv.dueDate), "dd.MM.yyyy", { locale: de })
-                        ) : "–"}
+                        ) : <span className="text-gray-300">–</span>}
                       </span>
-                      <div>
+                      <div className="flex flex-col gap-1">
                         {cfg.label && (
-                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit ${cfg.badge}`}>
                             <StatusIcon className="h-3 w-3" />
                             {cfg.label}
                           </span>
                         )}
+                        {reminderDue && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit bg-purple-100 text-purple-700">
+                            <Bell className="h-3 w-3" />
+                            Mahnung fällig
+                          </span>
+                        )}
                       </div>
-                      <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                        <span className="text-sm font-semibold text-gray-900 tabular-nums">{fmt(inv.totalAmount)}</span>
-                        {inv.status === "VERSENDET" && (
-                          <button
-                            onClick={(e) => handleMarkPaid(e, inv.id)}
-                            disabled={markingPaidId === inv.id}
-                            className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-50 ${cfg.btnClass}`}
-                          >
-                            <CheckCircle className="h-3 w-3" />
-                            Bezahlt
-                          </button>
-                        )}
-                        {inv.status === "ENTWURF" && (
-                          <Link
-                            href={`/rechnungen/${inv.id}?from=zahlungen`}
-                            onClick={(e) => e.stopPropagation()}
-                            className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-md transition-colors ${cfg.btnClass}`}
-                          >
-                            Öffnen <ChevronRight className="h-3 w-3" />
-                          </Link>
-                        )}
+                      <span className="text-sm font-semibold text-gray-900 tabular-nums text-right">{fmt(inv.totalAmount)}</span>
+                      <div className="flex items-center justify-end">
+                        <ChevronRight className="h-4 w-4 text-gray-300" />
                       </div>
                     </div>
                   </div>

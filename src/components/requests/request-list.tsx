@@ -8,6 +8,7 @@ import { de } from "date-fns/locale";
 import {
   Trash2, Search, ChevronRight, ClipboardList, Plus,
   Files, Inbox, CalendarClock, Eye, FileText, Loader2, CheckCircle,
+  Phone,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -20,6 +21,7 @@ import { sortItems } from "@/lib/sort";
 import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { BlitzAnfrageSheet } from "./blitz-anfrage-sheet";
 
 type RequestWithContact = Request & { contact: Contact };
 
@@ -37,15 +39,17 @@ const STATUS_TABS = [
 interface RequestListProps {
   requests: RequestWithContact[];
   initialStatus?: string;
+  contacts?: Contact[];
 }
 
-export function RequestList({ requests, initialStatus }: RequestListProps) {
+export function RequestList({ requests, initialStatus, contacts = [] }: RequestListProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState(initialStatus ?? "ALL");
   const [sortKey, setSortKey] = useState<string | null>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [blitzOpen, setBlitzOpen] = useState(false);
 
   function handleSort(key: string) {
     if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
@@ -98,7 +102,30 @@ export function RequestList({ requests, initialStatus }: RequestListProps) {
         description="Diese Anfrage wird unwiderruflich gelöscht."
         onConfirm={confirmDelete}
       />
-      <div className="space-y-5">
+
+      {/* Blitz-Anfrage Sheet — Mobile only */}
+      <BlitzAnfrageSheet
+        open={blitzOpen}
+        onClose={() => setBlitzOpen(false)}
+        contacts={contacts}
+      />
+
+      {/* FAB — Mobile only, floats above bottom nav */}
+      <button
+        onClick={() => setBlitzOpen(true)}
+        className="md:hidden fixed z-30 right-5 flex items-center justify-center gap-2 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-600/30 active:scale-95 transition-transform"
+        style={{
+          bottom: "calc(80px + env(safe-area-inset-bottom))",
+          height: "52px",
+          paddingLeft: "20px",
+          paddingRight: "20px",
+        }}
+      >
+        <Plus className="h-5 w-5" />
+        <span className="text-sm font-semibold">Anfrage</span>
+      </button>
+
+      <div className="space-y-5 relative">
         {/* Status Tabs */}
         <div className="overflow-hidden">
           <div className="flex items-center gap-1 flex-wrap">
@@ -134,7 +161,8 @@ export function RequestList({ requests, initialStatus }: RequestListProps) {
               className="pl-9 bg-white"
             />
           </div>
-          <Link href="/anfragen/neu">
+          {/* Desktop CTA — hidden on mobile (FAB handles it) */}
+          <Link href="/anfragen/neu" className="hidden sm:block">
             <Button className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto">
               <Plus className="h-4 w-4" />
               Neue Anfrage
@@ -154,38 +182,48 @@ export function RequestList({ requests, initialStatus }: RequestListProps) {
         ) : (
           <>
             {/* Mobile Card Layout */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-2.5">
               {filtered.map((req) => (
-                <Link
-                  key={req.id}
-                  href={`/anfragen/${req.id}`}
-                  className="block bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{req.title}</p>
-                      <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400 truncate">{req.contact.companyName}</span>
-                        {req.assignedTo && <span className="text-xs text-gray-400">{req.assignedTo}</span>}
+                <div key={req.id} className="relative">
+                  <Link
+                    href={`/anfragen/${req.id}`}
+                    className="block bg-white border border-gray-200 rounded-2xl p-4 active:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 leading-snug">{req.title}</p>
+                        <p className="text-sm text-gray-500 mt-0.5 truncate">{req.contact.companyName}</p>
+                        <div className="flex items-center gap-2 mt-2.5">
+                          <StatusBadge status={req.status} />
+                          <span className="text-xs text-gray-400">
+                            {format(new Date(req.createdAt), "dd.MM.yy", { locale: de })}
+                          </span>
+                          {req.assignedTo && (
+                            <span className="text-xs text-gray-400 truncate">· {req.assignedTo}</span>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <StatusBadge status={req.status} />
-                        <span className="text-xs text-gray-400">
-                          {format(new Date(req.createdAt), "dd.MM.yyyy", { locale: de })}
-                        </span>
+                      <div className="flex items-center gap-1 flex-shrink-0 -mr-1">
+                        {/* Phone button — tap to call contact */}
+                        {req.contact.phone && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); window.location.href = `tel:${req.contact.phone}`; }}
+                            className="w-9 h-9 flex items-center justify-center rounded-full bg-green-50 text-green-600 active:bg-green-100 transition-colors"
+                          >
+                            <Phone className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={(e) => handleDelete(e, req.id)}
+                          className="w-9 h-9 flex items-center justify-center text-gray-300 active:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                        <ChevronRight className="h-4 w-4 text-gray-300 flex-shrink-0" />
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={(e) => handleDelete(e, req.id)}
-                        className="p-2 text-gray-300 hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                      <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
-                    </div>
-                  </div>
-                </Link>
+                  </Link>
+                </div>
               ))}
             </div>
 

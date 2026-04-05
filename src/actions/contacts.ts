@@ -24,6 +24,7 @@ const contactSchema = z
     paymentTermDays: z.number().nullable().optional(),
     paymentTermSkonto: z.array(z.object({ days: z.number(), percent: z.number() })).optional(),
     paymentTermCustom: z.string().optional().nullable(),
+    paymentReminderDays: z.number().int().positive().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.type !== "PRIVATE" && !data.companyName) {
@@ -41,7 +42,7 @@ export async function createContact(data: ContactFormData) {
   const parsed = contactSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const { owner, companyName, billingIntervalDays, paymentTermDays, paymentTermSkonto, paymentTermCustom, ...rest } = parsed.data;
+  const { owner, companyName, billingIntervalDays, paymentTermDays, paymentTermSkonto, paymentTermCustom, paymentReminderDays, ...rest } = parsed.data;
   const contact = await prisma.contact.create({
     data: {
       ...rest,
@@ -51,6 +52,7 @@ export async function createContact(data: ContactFormData) {
       ...(paymentTermDays !== undefined && { paymentTermDays: paymentTermDays ?? null }),
       ...(paymentTermSkonto !== undefined && { paymentTermSkonto: paymentTermSkonto }),
       ...(paymentTermCustom !== undefined && { paymentTermCustom: paymentTermCustom ?? null }),
+      paymentReminderDays: paymentReminderDays ?? null,
     },
   });
   revalidatePath("/kontakte");
@@ -62,7 +64,7 @@ export async function updateContact(id: string, data: ContactFormData) {
   const parsed = contactSchema.safeParse(data);
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
-  const { owner, companyName, billingIntervalDays, paymentTermDays, paymentTermSkonto, paymentTermCustom, ...rest } = parsed.data;
+  const { owner, companyName, billingIntervalDays, paymentTermDays, paymentTermSkonto, paymentTermCustom, paymentReminderDays, ...rest } = parsed.data;
   const contact = await prisma.contact.update({
     where: { id },
     data: {
@@ -73,6 +75,7 @@ export async function updateContact(id: string, data: ContactFormData) {
       ...(paymentTermDays !== undefined && { paymentTermDays: paymentTermDays ?? null }),
       ...(paymentTermSkonto !== undefined && { paymentTermSkonto: paymentTermSkonto }),
       ...(paymentTermCustom !== undefined && { paymentTermCustom: paymentTermCustom ?? null }),
+      paymentReminderDays: paymentReminderDays ?? null,
     },
   });
   revalidatePath("/kontakte");
