@@ -25,14 +25,14 @@ import type { BaustelleStatusType } from "@/actions/baustellen";
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<BaustelleStatusType, string> = {
-  PLANNED: "Geplant", ACTIVE: "Aktiv", PENDING: "Ausstehend", INVOICED: "In Abrechnung", COMPLETED: "Abgeschlossen",
+  OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "Verrechnet", ABGESCHLOSSEN: "Abgeschlossen",
 };
 const STATUS_COLOR: Record<BaustelleStatusType, string> = {
-  PLANNED: "border-gray-300 text-gray-600 bg-gray-50",
-  ACTIVE: "border-blue-300 text-blue-700 bg-blue-50",
-  PENDING: "border-red-300 text-red-700 bg-red-50",
-  INVOICED: "border-orange-300 text-orange-700 bg-orange-50",
-  COMPLETED: "border-green-300 text-green-700 bg-green-50",
+  OPEN: "border-blue-300 text-blue-700 bg-blue-50",
+  DISPONIERT: "border-green-300 text-green-700 bg-green-50",
+  IN_LIEFERUNG: "border-amber-300 text-amber-700 bg-amber-50",
+  VERRECHNET: "border-orange-300 text-orange-700 bg-orange-50",
+  ABGESCHLOSSEN: "border-gray-300 text-gray-500 bg-gray-50",
 };
 const TYPE_LABEL: Record<string, string> = {
   FAHRER: "Fahrer", MASCHINE: "Maschine", FAHRZEUG: "Fahrzeug", OTHER: "Sonstiges",
@@ -110,7 +110,6 @@ type Baustelle = {
   invoices: Array<{
     id: string; invoiceNumber: string; invoiceDate: Date; totalAmount: number; status: string;
   }>;
-  contactId: string | null;
 };
 
 interface Props {
@@ -407,9 +406,11 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                     </Field>
                     <Field label="Status">
                       <select className={IC} value={ef.status} onChange={e => setEf(f => ({ ...f, status: e.target.value as BaustelleStatusType }))}>
-                        <option value="PLANNED">Geplant</option>
-                        <option value="ACTIVE">Aktiv</option>
-                        <option value="COMPLETED">Abgeschlossen</option>
+                        <option value="OPEN">Offen</option>
+                        <option value="DISPONIERT">Disponiert</option>
+                        <option value="IN_LIEFERUNG">In Lieferung</option>
+                        <option value="VERRECHNET">Verrechnet</option>
+                        <option value="ABGESCHLOSSEN">Abgeschlossen</option>
                       </select>
                     </Field>
                   </div>

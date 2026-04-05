@@ -14,7 +14,7 @@ export default async function BaustelleDetailPage({
   const [baustelle, orders, users] = await Promise.all([
     getBaustelle(id),
     prisma.order.findMany({
-      where: { status: { in: ["PLANNED", "ACTIVE", "PENDING", "INVOICED"] } },
+      where: { status: { in: ["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET"] } },
       select: { id: true, orderNumber: true, title: true },
       orderBy: { startDate: "asc" },
     }),

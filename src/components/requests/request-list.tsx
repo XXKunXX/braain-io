@@ -22,6 +22,7 @@ import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { BlitzAnfrageSheet } from "./blitz-anfrage-sheet";
+import { getContactName } from "@/lib/utils";
 
 type RequestWithContact = Request & { contact: Contact };
 
@@ -67,12 +68,12 @@ export function RequestList({ requests, initialStatus, contacts = [] }: RequestL
   const filtered = useMemo(() => {
     const base = requests.filter((r) => {
       const matchesStatus = activeTab === "ALL" || r.status === activeTab;
-      const matchesText = matchesSearch(search, r.title, r.contact.companyName, r.description);
+      const matchesText = matchesSearch(search, r.title, getContactName(r.contact), r.description);
       return matchesStatus && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "title") return item.title;
-      if (key === "contact") return item.contact.companyName;
+      if (key === "contact") return getContactName(item.contact);
       if (key === "status") return item.status;
       if (key === "owner") return item.assignedTo ?? "";
       if (key === "createdAt") return new Date(item.createdAt);
@@ -192,7 +193,7 @@ export function RequestList({ requests, initialStatus, contacts = [] }: RequestL
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-gray-900 leading-snug">{req.title}</p>
-                        <p className="text-sm text-gray-500 mt-0.5 truncate">{req.contact.companyName}</p>
+                        <p className="text-sm text-gray-500 mt-0.5 truncate">{getContactName(req.contact)}</p>
                         <div className="flex items-center gap-2 mt-2.5">
                           <StatusBadge status={req.status} />
                           <span className="text-xs text-gray-400">
@@ -247,7 +248,7 @@ export function RequestList({ requests, initialStatus, contacts = [] }: RequestL
                   }`}
                 >
                   <span className="text-sm font-medium text-gray-900 truncate">{req.title}</span>
-                  <span className="text-sm text-gray-500 truncate">{req.contact.companyName}</span>
+                  <span className="text-sm text-gray-500 truncate">{getContactName(req.contact)}</span>
                   <div>
                     <StatusBadge status={req.status} />
                   </div>

@@ -59,7 +59,7 @@ export async function updateUserAdmin(
       verified: true,
       primary: true,
     });
-    await client.users.updateUser(userId, { primaryEmailAddressId: newAddr.id });
+    await client.users.updateUser(userId, { primaryEmailAddressID: newAddr.id });
     if (user.emailAddresses[0]?.id) {
       await client.emailAddresses.deleteEmailAddress(user.emailAddresses[0].id);
     }

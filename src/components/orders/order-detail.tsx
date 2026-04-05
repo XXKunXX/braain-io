@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useTabLabels } from "@/hooks/use-tab-labels";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
-import { ArrowLeft, Pencil, FileUp, Receipt, User, MapPin, Euro, ClipboardList, HardHat, Plus, Trash2, Activity, FileText, ChevronLeft, ChevronRight, Square, CheckSquare, Truck } from "lucide-react";
+import { ArrowLeft, Pencil, FileUp, Receipt, User, MapPin, Euro, ClipboardList, HardHat, Plus, Trash2, Activity, FileText, ChevronLeft, ChevronRight, Square, CheckSquare, Truck, Layers, Circle, CalendarCheck, CheckCircle2 } from "lucide-react";
 import { OrderActivityTab } from "./order-activity-tab";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -24,7 +24,8 @@ import {
 import { updateOrderStatus, updateOrder } from "@/actions/orders";
 import { createInvoiceFromDeliveryNotes, deleteInvoice } from "@/actions/invoices";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import type { Contact, Order, Quote, QuoteItem } from "@prisma/client";
+import { ProcessStepper } from "@/components/shared/process-stepper";
+import type { Contact, Order, Quote, QuoteItem, Request } from "@prisma/client";
 
 type BaustelleSummary = {
   id: string;
@@ -57,26 +58,34 @@ type OrderInvoice = {
 
 type OrderWithRelations = Order & {
   contact: Contact;
-  quote: (Quote & { items: QuoteItem[] }) | null;
+  quote: (Quote & { items: QuoteItem[]; request: Request | null }) | null;
   baustellen: BaustelleSummary[];
   deliveryNotes: OrderDeliveryNote[];
   invoices: OrderInvoice[];
 };
 
 const statusLabels: Record<string, string> = {
-  PLANNED: "Geplant",
-  ACTIVE: "Aktiv",
-  PENDING: "Ausstehend",
-  INVOICED: "In Abrechnung",
-  COMPLETED: "Abgeschlossen",
+  OPEN: "Offen",
+  DISPONIERT: "Disponiert",
+  IN_LIEFERUNG: "In Lieferung",
+  VERRECHNET: "Verrechnet",
+  ABGESCHLOSSEN: "Abgeschlossen",
+};
+
+const statusIcons: Record<string, React.ElementType> = {
+  OPEN: Circle,
+  DISPONIERT: CalendarCheck,
+  IN_LIEFERUNG: Truck,
+  VERRECHNET: Receipt,
+  ABGESCHLOSSEN: CheckCircle2,
 };
 
 const statusColors: Record<string, string> = {
-  PLANNED: "border border-blue-200 text-blue-700 bg-blue-50",
-  ACTIVE: "border border-green-300 text-green-700 bg-green-50",
-  PENDING: "border border-red-300 text-red-700 bg-red-50",
-  INVOICED: "border border-orange-300 text-orange-700 bg-orange-50",
-  COMPLETED: "border border-gray-200 text-gray-500 bg-gray-50",
+  OPEN: "border border-zinc-200 text-zinc-600 bg-zinc-100",
+  DISPONIERT: "border border-blue-200 text-blue-700 bg-blue-50",
+  IN_LIEFERUNG: "border border-emerald-200 text-emerald-700 bg-emerald-50",
+  VERRECHNET: "border border-emerald-300 text-emerald-800 bg-emerald-100",
+  ABGESCHLOSSEN: "border border-green-300 text-green-800 bg-green-100",
 };
 
 const TABS = [
@@ -148,6 +157,7 @@ export function OrderDetail({
   const [creatingInvoice, setCreatingInvoice] = useState(false);
   const [dnFilter, setDnFilter] = useState<"all" | "open" | "billed">("all");
   const [confirmDeleteInvoiceId, setConfirmDeleteInvoiceId] = useState<string | null>(null);
+  const [showNoBaustelleDialog, setShowNoBaustelleDialog] = useState(false);
 
   function toggleDn(id: string) {
     setSelectedDnIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -190,7 +200,7 @@ export function OrderDetail({
       notes: editNotes,
     });
     if (editStatus !== order.status) {
-      await updateOrderStatus(order.id, editStatus as "PLANNED" | "ACTIVE" | "COMPLETED");
+      await updateOrderStatus(order.id, editStatus as "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN");
     }
     toast.success("Auftrag gespeichert");
     setSaving(false);
@@ -212,23 +222,15 @@ export function OrderDetail({
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-2xl font-bold text-gray-900">{order.title}</h1>
-              <StatusBadge status={order.status} />
+              <StatusBadge status={order.status} showIcon />
             </div>
-            <Link href={`/kontakte/${order.contact.id}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-600 transition-colors mt-1">
+            <Link href={`/kontakte/${order.contact.id}?from=/auftraege/${order.id}&fromLabel=${encodeURIComponent(order.orderNumber)}`} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-blue-600 transition-colors mt-1">
               <User className="h-3.5 w-3.5" />
-              {order.contact.companyName}
+              {order.contact.companyName || [order.contact.firstName, order.contact.lastName].filter(Boolean).join(" ")}
             </Link>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {editing && (
-              <>
-                <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
-                <LoadingButton className="rounded-lg" onClick={handleSave} loading={saving}>
-                  Speichern
-                </LoadingButton>
-              </>
-            )}
             {order.quote && (
               <Button
                 variant="outline"
@@ -238,80 +240,120 @@ export function OrderDetail({
                 <FileUp className="h-3.5 w-3.5" />Dokument
               </Button>
             )}
-            <Button
-              className="rounded-lg gap-1.5"
-              onClick={() => router.push(`/rechnungen/neu?orderId=${order.id}`)}
-            >
-              <FileText className="h-3.5 w-3.5" />Rechnung erstellen
-            </Button>
+
+            {/* Status-Aktions-Buttons */}
+            {(
+              [
+                {
+                  key: "OPEN",
+                  label: "Offen",
+                  icon: Circle,
+                  activeWhen: [] as string[], // nie ein "Weiter"-Button
+                },
+                {
+                  key: "DISPONIERT",
+                  label: "Disponieren",
+                  icon: CalendarCheck,
+                  activeWhen: ["OPEN"],
+                },
+                {
+                  key: "IN_LIEFERUNG",
+                  label: "Lieferung starten",
+                  icon: Truck,
+                  activeWhen: ["DISPONIERT"],
+                },
+                {
+                  key: "VERRECHNET",
+                  label: "Rechnung erstellen",
+                  icon: Receipt,
+                  activeWhen: ["IN_LIEFERUNG"],
+                },
+                {
+                  key: "ABGESCHLOSSEN",
+                  label: "Abschließen",
+                  icon: CheckCircle2,
+                  activeWhen: ["VERRECHNET"],
+                },
+              ] as const
+            )
+              .filter((s) => s.key !== "OPEN")
+              .map((step) => {
+                const isActive = (step.activeWhen as readonly string[]).includes(order.status);
+                const isDone = (() => {
+                  const order_steps = ["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET", "ABGESCHLOSSEN"];
+                  return order_steps.indexOf(order.status) > order_steps.indexOf(step.key);
+                })();
+                const StepIcon = step.icon;
+                return (
+                  <Button
+                    key={step.key}
+                    variant={isActive ? "default" : "outline"}
+                    disabled={!isActive}
+                    className={`rounded-lg gap-1.5 transition-opacity ${!isActive && !isDone ? "opacity-40" : ""} ${isDone ? "opacity-50" : ""}`}
+                    onClick={async () => {
+                      if (!isActive) return;
+                      if (step.key === "DISPONIERT") {
+                        if (order.baustellen.length === 0) {
+                          setShowNoBaustelleDialog(true);
+                          return;
+                        }
+                        await updateOrderStatus(order.id, "DISPONIERT");
+                        toast.success(`Status auf „Disponiert" gesetzt`);
+                        router.push(`/disposition?orderId=${order.id}&orderTitle=${encodeURIComponent(order.title)}`);
+                      } else if (step.key === "VERRECHNET") {
+                        router.push(`/rechnungen/neu?orderId=${order.id}`);
+                      } else {
+                        await updateOrderStatus(order.id, step.key);
+                        toast.success(`Status auf „${statusLabels[step.key]}" gesetzt`);
+                        router.refresh();
+                      }
+                    }}
+                  >
+                    <StepIcon className="h-3.5 w-3.5" />
+                    {step.label}
+                  </Button>
+                );
+              })}
           </div>
         </div>
       </div>
 
-      {/* ── Workflow ── */}
-      <div className="px-6 py-2.5 border-b border-gray-100 bg-gray-50/40 overflow-x-auto">
-        <div className="flex items-center gap-1 min-w-max">
-          <button
-            onClick={() => setActiveTab("Details")}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-100 transition-colors"
-          >
-            <ClipboardList className="h-3 w-3" />
-            Auftrag · {statusLabels[order.status]}
-          </button>
-          <ChevronRight className="h-3 w-3 text-gray-300 flex-shrink-0" />
-          <button
-            onClick={() => setActiveTab("Baustellen")}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
-              order.baustellen.length > 0
-                ? "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
-                : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"
-            }`}
-          >
-            <MapPin className="h-3 w-3" />
-            {order.baustellen.length > 0
-              ? `${order.baustellen.length} Baustelle${order.baustellen.length !== 1 ? "n" : ""}`
-              : "Keine Baustellen"}
-          </button>
-          <ChevronRight className="h-3 w-3 text-gray-300 flex-shrink-0" />
-          <button
-            onClick={() => setActiveTab("Lieferscheine")}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
-              openDeliveryNotes.length > 0
-                ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                : order.deliveryNotes.length > 0
-                ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-                : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"
-            }`}
-          >
-            <Truck className="h-3 w-3" />
-            {order.deliveryNotes.length > 0
-              ? openDeliveryNotes.length > 0
-                ? `${openDeliveryNotes.length} offen · ${order.deliveryNotes.length - openDeliveryNotes.length} verrechnet`
-                : `${order.deliveryNotes.length} verrechnet`
-              : "Keine Lieferscheine"}
-          </button>
-          <ChevronRight className="h-3 w-3 text-gray-300 flex-shrink-0" />
-          <button
-            onClick={() => setActiveTab("Rechnungen")}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium transition-colors ${
-              order.invoices.length > 0
-                ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
-                : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"
-            }`}
-          >
-            <Receipt className="h-3 w-3" />
-            {order.invoices.length > 0
-              ? `${order.invoices.length} Rechnung${order.invoices.length !== 1 ? "en" : ""} · ${order.invoices.reduce((s, i) => s + i.totalAmount, 0).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`
-              : "Keine Rechnungen"}
-          </button>
+      {/* ── Process Stepper ── */}
+      <div className="px-6 pb-4 pt-3 border-b border-gray-100 bg-white">
+        <div className="max-w-lg">
+          <ProcessStepper
+            requestId={order.quote?.request?.id ?? null}
+            requestCreatedAt={order.quote?.request?.createdAt?.toString() ?? null}
+            inspectionDone={order.quote?.request?.inspectionStatus === "DONE"}
+            inspectionPlanned={!!(order.quote?.request?.inspectionDate && order.quote?.request?.inspectionStatus !== "DONE" && !order.quote?.request?.noInspectionRequired)}
+            inspectionDate={order.quote?.request?.inspectionDate?.toString() ?? null}
+            noInspectionRequired={order.quote?.request?.noInspectionRequired ?? false}
+            quoteId={order.quote?.id ?? null}
+            quoteCreatedAt={order.quote?.createdAt?.toString() ?? null}
+            quoteStatus={order.quote?.status ?? null}
+            contactId={order.contact.id}
+            orderId={order.id}
+            orderCreatedAt={order.createdAt?.toString() ?? null}
+            orderStatus={order.status}
+            onOrderStatusChange={async (status) => {
+              if (status === "DISPONIERT" && order.baustellen.length === 0) {
+                setShowNoBaustelleDialog(true);
+                return;
+              }
+              await updateOrderStatus(order.id, status);
+              toast.success(`Status auf „${status}" gesetzt`);
+              if (status === "DISPONIERT") {
+                router.push(`/disposition?orderId=${order.id}&orderTitle=${encodeURIComponent(order.title)}`);
+              } else {
+                router.refresh();
+              }
+            }}
+          />
         </div>
       </div>
 
       {/* ── Stat cards ── */}
-      <div className="px-4 sm:px-6 py-4 grid grid-cols-2 gap-3 sm:gap-4 border-b border-gray-100 bg-gray-50/60">
-        <StatCard label="Status">
-          <StatusBadge status={order.status} />
-        </StatCard>
+      <div className="px-4 sm:px-6 py-4 grid grid-cols-1 gap-3 sm:gap-4 border-b border-gray-100 bg-gray-50/60">
         <StatCard label="Auftragssumme">
           <span className="text-xl font-bold text-gray-900">
             {totalPrice !== null
@@ -345,14 +387,19 @@ export function OrderDetail({
       {/* ── Tab content ── */}
       <div className="flex-1 p-6">
         {activeTab === "Details" && (
-          <div className="grid grid-cols-2 gap-6 max-w-4xl">
+          <div className="max-w-xl">
             {/* Auftragsinformationen */}
             <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-gray-900">Auftragsinformationen</h3>
-                {!editing && (
-                  <button onClick={() => setEditing(true)} className="text-gray-300 hover:text-gray-600 transition-colors" title="Bearbeiten">
-                    <Pencil className="h-4 w-4" />
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+                <h3 className="text-sm font-semibold text-gray-900">Auftragsinformationen</h3>
+                {editing ? (
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="rounded-lg h-8" onClick={() => setEditing(false)}>Abbrechen</Button>
+                    <LoadingButton size="sm" className="rounded-lg h-8" onClick={handleSave} loading={saving}>Speichern</LoadingButton>
+                  </div>
+                ) : (
+                  <button onClick={() => setEditing(true)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                    <Pencil className="h-3.5 w-3.5" />
                   </button>
                 )}
               </div>
@@ -366,12 +413,44 @@ export function OrderDetail({
                     <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</Label>
                     <Select value={editStatus} onValueChange={(v) => v && setEditStatus(v)}>
                       <SelectTrigger className="h-10 rounded-lg border-gray-200 w-full">
-                        <SelectValue>{statusLabels[editStatus]}</SelectValue>
+                        <SelectValue>
+                          {(() => {
+                            const Icon = statusIcons[editStatus];
+                            const colorClass = {
+                              OPEN: "text-zinc-500",
+                              DISPONIERT: "text-blue-600",
+                              IN_LIEFERUNG: "text-emerald-600",
+                              VERRECHNET: "text-emerald-700",
+                              ABGESCHLOSSEN: "text-green-700",
+                            }[editStatus] ?? "text-gray-500";
+                            return (
+                              <div className="flex items-center gap-2">
+                                {Icon && <Icon className={`h-3.5 w-3.5 ${colorClass}`} />}
+                                {statusLabels[editStatus]}
+                              </div>
+                            );
+                          })()}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {Object.entries(statusLabels).map(([v, l]) => (
-                          <SelectItem key={v} value={v}>{l}</SelectItem>
-                        ))}
+                        {Object.entries(statusLabels).map(([v, l]) => {
+                          const Icon = statusIcons[v];
+                          const colorClass = {
+                            OPEN: "text-blue-600",
+                            DISPONIERT: "text-violet-600",
+                            IN_LIEFERUNG: "text-amber-600",
+                            VERRECHNET: "text-teal-600",
+                            ABGESCHLOSSEN: "text-gray-400",
+                          }[v] ?? "text-gray-500";
+                          return (
+                            <SelectItem key={v} value={v}>
+                              <div className="flex items-center gap-2">
+                                {Icon && <Icon className={`h-3.5 w-3.5 ${colorClass}`} />}
+                                {l}
+                              </div>
+                            </SelectItem>
+                          );
+                        })}
                       </SelectContent>
                     </Select>
                   </div>
@@ -384,8 +463,8 @@ export function OrderDetail({
                 <div>
                   <InfoItem icon={ClipboardList} label="Projektname">{order.title}</InfoItem>
                   <InfoItem icon={User} label="Kontakt">
-                    <Link href={`/kontakte/${order.contact.id}`} className="text-blue-600 hover:underline">
-                      {order.contact.companyName}
+                    <Link href={`/kontakte/${order.contact.id}?from=/auftraege/${order.id}&fromLabel=${encodeURIComponent(order.orderNumber)}`} className="text-blue-600 hover:underline">
+                      {order.contact.companyName || [order.contact.firstName, order.contact.lastName].filter(Boolean).join(" ") || "–"}
                     </Link>
                   </InfoItem>
                   <InfoItem icon={MapPin} label="Baustellenadresse">
@@ -399,18 +478,16 @@ export function OrderDetail({
                   {order.notes && (
                     <InfoItem icon={ClipboardList} label="Notizen">{order.notes}</InfoItem>
                   )}
+                  {order.quote && (
+                    <InfoItem icon={Layers} label="Verknüpftes Angebot">
+                      <Link href={`/angebote/${order.quote.id}`} className="text-blue-600 hover:underline">
+                        Angebot {order.quote.quoteNumber}
+                      </Link>
+                    </InfoItem>
+                  )}
                 </div>
               )}
             </div>
-
-            {order.quote && (
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
-                <h3 className="text-base font-semibold text-gray-900 mb-4">Verknüpftes Angebot</h3>
-                <Link href={`/angebote/${order.quote.id}`} className="text-sm font-medium text-blue-600 hover:underline">
-                  {order.quote.quoteNumber}
-                </Link>
-              </div>
-            )}
           </div>
         )}
 
@@ -663,6 +740,19 @@ export function OrderDetail({
         title="Rechnung löschen"
         description="Die Rechnung wird unwiderruflich gelöscht. Alle verknüpften Lieferscheine werden wieder auf offen gesetzt."
         onConfirm={handleDeleteInvoice}
+      />
+
+      <ConfirmDialog
+        open={showNoBaustelleDialog}
+        onOpenChange={(open) => { if (!open) setShowNoBaustelleDialog(false); }}
+        title="Keine Baustelle vorhanden"
+        description="Bevor du den Auftrag disponieren kannst, muss zuerst eine Baustelle angelegt werden."
+        confirmLabel="Zur Baustelle"
+        cancelLabel="Abbrechen"
+        onConfirm={() => {
+          setShowNoBaustelleDialog(false);
+          router.push(`/baustellen/neu?orderId=${order.id}`);
+        }}
       />
     </div>
   );

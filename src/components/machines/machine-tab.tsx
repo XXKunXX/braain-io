@@ -48,7 +48,7 @@ const STATUS_COLOR: Record<MachineStatusType, string> = {
 
 type FormData = {
   name: string;
-  machineType: string;
+  machineType: string | null;
   machineTypeCustom: string;
   manufacturer: string;
   model: string;
@@ -139,7 +139,7 @@ export function MachineTab({ machines }: { machines: MachineRow[] }) {
     setIsSubmitting(true);
     const payload = {
       name: form.name.trim(),
-      machineType: resolvedType(),
+      machineType: resolvedType()!,
       manufacturer: form.manufacturer || undefined,
       model: form.model || undefined,
       year: form.year ? parseInt(form.year) : null,

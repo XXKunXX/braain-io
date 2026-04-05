@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getContactName } from "@/lib/utils";
 import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -39,7 +40,7 @@ async function getDashboardData() {
     // Offene Angebote
     prisma.quote.count({ where: { status: { in: ["DRAFT", "SENT"] } } }),
     // Aktive Aufträge
-    prisma.order.count({ where: { status: { in: ["ACTIVE", "PLANNED", "PENDING", "INVOICED"] } } }),
+    prisma.order.count({ where: { status: { in: ["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET"] } } }),
     // Heutige Aufträge aus Disposition
     prisma.order.findMany({
       where: {
@@ -48,7 +49,7 @@ async function getDashboardData() {
         },
       },
       include: {
-        contact: { select: { companyName: true } },
+        contact: { select: { companyName: true, firstName: true, lastName: true } },
         dispositionEntries: {
           where: { startDate: { lte: todayEnd }, endDate: { gte: todayStart } },
           include: { resource: { select: { name: true, type: true } } },
@@ -62,12 +63,12 @@ async function getDashboardData() {
     prisma.request.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
-      include: { contact: { select: { companyName: true } } },
+      include: { contact: { select: { companyName: true, firstName: true, lastName: true } } },
     }),
     // Überfällige Rechnungen (VERSENDET + dueDate < heute)
     prisma.invoice.findMany({
       where: { status: "VERSENDET", dueDate: { lt: new Date() } },
-      include: { contact: { select: { companyName: true } }, order: { select: { id: true, title: true } } },
+      include: { contact: { select: { companyName: true, firstName: true, lastName: true } }, order: { select: { id: true, title: true } } },
       orderBy: { dueDate: "asc" },
       take: 5,
     }),
@@ -75,7 +76,7 @@ async function getDashboardData() {
     // Rechnungen fällig diese Woche
     prisma.invoice.findMany({
       where: { status: "VERSENDET", dueDate: { gte: new Date(), lte: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) } },
-      include: { contact: { select: { companyName: true } }, order: { select: { id: true, title: true } } },
+      include: { contact: { select: { companyName: true, firstName: true, lastName: true } }, order: { select: { id: true, title: true } } },
       orderBy: { dueDate: "asc" },
       take: 5,
     }),
@@ -86,19 +87,19 @@ async function getDashboardData() {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  PLANNED: "Geplant",
-  ACTIVE: "Aktiv",
-  PENDING: "Ausstehend",
-  INVOICED: "In Abrechnung",
-  COMPLETED: "Abgeschlossen",
+  OPEN: "Offen",
+  DISPONIERT: "Disponiert",
+  IN_LIEFERUNG: "In Lieferung",
+  VERRECHNET: "Verrechnet",
+  ABGESCHLOSSEN: "Abgeschlossen",
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  PLANNED: "bg-gray-100 text-gray-600",
-  ACTIVE: "bg-green-50 text-green-700",
-  PENDING: "bg-red-50 text-red-700",
-  INVOICED: "bg-orange-50 text-orange-700",
-  COMPLETED: "bg-gray-50 text-gray-400",
+  OPEN: "bg-blue-50 text-blue-700",
+  DISPONIERT: "bg-green-50 text-green-700",
+  IN_LIEFERUNG: "bg-amber-50 text-amber-700",
+  VERRECHNET: "bg-orange-50 text-orange-700",
+  ABGESCHLOSSEN: "bg-gray-50 text-gray-400",
 };
 
 export default async function DashboardPage() {
@@ -200,7 +201,7 @@ export default async function DashboardPage() {
               <Link key={inv.id} href={`/rechnungen/${inv.id}`} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 hover:shadow-sm transition-shadow">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{inv.invoiceNumber}</p>
-                  <p className="text-xs text-gray-400">{inv.contact.companyName}{inv.order ? ` · ${inv.order.title}` : ""}</p>
+                  <p className="text-xs text-gray-400">{getContactName(inv.contact)}{inv.order ? ` · ${inv.order.title}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0 ml-4">
                   <span className="text-sm font-semibold text-red-600">{Number(inv.totalAmount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
@@ -229,7 +230,7 @@ export default async function DashboardPage() {
               <Link key={inv.id} href={`/rechnungen/${inv.id}`} className="flex items-center justify-between bg-white rounded-lg px-4 py-3 hover:shadow-sm transition-shadow">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{inv.invoiceNumber}</p>
-                  <p className="text-xs text-gray-400">{inv.contact.companyName}{inv.order ? ` · ${inv.order.title}` : ""}</p>
+                  <p className="text-xs text-gray-400">{getContactName(inv.contact)}{inv.order ? ` · ${inv.order.title}` : ""}</p>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0 ml-4">
                   <span className="text-sm font-semibold text-amber-700">{Number(inv.totalAmount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
@@ -278,7 +279,7 @@ export default async function DashboardPage() {
                           {STATUS_LABEL[order.status]}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-400 truncate">{order.contact.companyName}</p>
+                      <p className="text-xs text-gray-400 truncate">{getContactName(order.contact)}</p>
                       {resources && (
                         <p className="text-[11px] text-gray-300 truncate mt-0.5">{resources}</p>
                       )}
@@ -314,7 +315,7 @@ export default async function DashboardPage() {
                   <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${req.status === "OPEN" || req.status === "NEU" ? "bg-amber-400" : "bg-gray-300"}`} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{req.title}</p>
-                    <p className="text-xs text-gray-400">{req.contact.companyName}</p>
+                    <p className="text-xs text-gray-400">{getContactName(req.contact)}</p>
                   </div>
                   <span className="text-xs text-gray-300 flex-shrink-0 ml-auto">
                     {format(new Date(req.createdAt), "d. MMM", { locale: de })}

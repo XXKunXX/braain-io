@@ -34,7 +34,7 @@ export default async function FahrerOrderDetailPage({
       <div className="md:hidden max-w-lg mx-auto px-4 py-6">
         <BackLink />
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">{order.contact.companyName}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{order.contact.companyName || [order.contact.firstName, order.contact.lastName].filter(Boolean).join(" ")}</h1>
           <p className="text-gray-400 mt-0.5">{order.title}</p>
         </div>
         <div className="space-y-3 mb-6">
@@ -57,7 +57,7 @@ export default async function FahrerOrderDetailPage({
           {/* Left */}
           <div className="space-y-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{order.contact.companyName}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{order.contact.companyName || [order.contact.firstName, order.contact.lastName].filter(Boolean).join(" ")}</h1>
               <p className="text-gray-400 mt-0.5">{order.title}</p>
             </div>
             <div className="grid grid-cols-2 gap-4">

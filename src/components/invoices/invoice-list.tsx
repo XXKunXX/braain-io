@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { sortItems } from "@/lib/sort";
 import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
+import { getContactName } from "@/lib/utils";
 
 type InvoiceRow = {
   id: string;
@@ -18,7 +19,7 @@ type InvoiceRow = {
   invoiceDate: Date | string;
   dueDate?: Date | string | null;
   totalAmount: number | { toNumber(): number };
-  contact: { companyName: string };
+  contact: { companyName: string | null; firstName?: string | null; lastName?: string | null };
   order?: { id: string; orderNumber: string; title: string } | null;
 };
 
@@ -54,7 +55,7 @@ export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
   const filtered = useMemo(() => {
     const base = invoices.filter((inv) => {
       const matchesStatus = activeTab === "ALL" || inv.status === activeTab;
-      const matchesText = matchesSearch(search, inv.invoiceNumber, inv.contact.companyName, inv.order?.title);
+      const matchesText = matchesSearch(search, inv.invoiceNumber, getContactName(inv.contact), inv.order?.title);
       return matchesStatus && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
@@ -112,7 +113,7 @@ export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
             <div className="flex items-start gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-mono font-semibold text-gray-900">{inv.invoiceNumber}</p>
-                <p className="text-xs text-gray-500 truncate mt-0.5">{inv.contact.companyName}</p>
+                <p className="text-xs text-gray-500 truncate mt-0.5">{getContactName(inv.contact)}</p>
                 {inv.order && (
                   <p className="text-xs text-gray-400 truncate">{inv.order.orderNumber} – {inv.order.title}</p>
                 )}
@@ -150,7 +151,7 @@ export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
           >
             <span className="text-sm font-mono font-semibold text-gray-900 truncate">{inv.invoiceNumber}</span>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{inv.contact.companyName}</p>
+              <p className="text-sm font-medium text-gray-900 truncate">{getContactName(inv.contact)}</p>
               {inv.order && (
                 <p className="text-xs text-gray-400 truncate">{inv.order.orderNumber} – {inv.order.title}</p>
               )}

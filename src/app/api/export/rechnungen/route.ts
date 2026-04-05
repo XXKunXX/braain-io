@@ -21,7 +21,7 @@ export async function GET(request: Request) {
       status: { in: ["VERSENDET", "BEZAHLT"] },
     },
     include: {
-      contact: { select: { id: true, companyName: true } },
+      contact: { select: { id: true, companyName: true, firstName: true, lastName: true } },
       items: { orderBy: { position: "asc" } },
     },
     orderBy: { invoiceDate: "asc" },
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
       inv.invoiceNumber,
       "",
       "",
-      `"${inv.contact.companyName.replace(/"/g, '""')}"`,
+      `"${(inv.contact.companyName || [inv.contact.firstName, inv.contact.lastName].filter(Boolean).join(" ")).replace(/"/g, '""')}"`,
     ].join(";"));
 
     csv = [header, ...rows].join("\r\n");
@@ -87,13 +87,13 @@ export async function GET(request: Request) {
       format(new Date(inv.invoiceDate), "dd.MM.yyyy"),
       inv.invoiceNumber,
       inv.contact.id.slice(-8).toUpperCase(),
-      `"${inv.contact.companyName.replace(/"/g, '""')}"`,
+      `"${(inv.contact.companyName || [inv.contact.firstName, inv.contact.lastName].filter(Boolean).join(" ")).replace(/"/g, '""')}"`,
       Number(inv.subtotal).toFixed(2).replace(".", ","),
       (Number(inv.vatRate) * 100).toFixed(0),
       Number(inv.vatAmount).toFixed(2).replace(".", ","),
       Number(inv.totalAmount).toFixed(2).replace(".", ","),
       inv.dueDate ? format(new Date(inv.dueDate), "dd.MM.yyyy") : "",
-      `"${inv.invoiceNumber} ${inv.contact.companyName.replace(/"/g, '""')}"`,
+      `"${inv.invoiceNumber} ${(inv.contact.companyName || [inv.contact.firstName, inv.contact.lastName].filter(Boolean).join(" ")).replace(/"/g, '""')}"`,
     ].join(";"));
 
     csv = [header, ...rows].join("\r\n");

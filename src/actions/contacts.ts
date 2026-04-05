@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { validateSkontoSteps, type SkontoStep } from "@/lib/payment-terms";
+import { reportBetaError } from "@/lib/report-error";
 
 const contactSchema = z
   .object({
@@ -43,21 +44,26 @@ export async function createContact(data: ContactFormData) {
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
   const { owner, companyName, billingIntervalDays, paymentTermDays, paymentTermSkonto, paymentTermCustom, paymentReminderDays, ...rest } = parsed.data;
-  const contact = await prisma.contact.create({
-    data: {
-      ...rest,
-      companyName: companyName ?? "",
-      owner: owner || null,
-      billingIntervalDays: billingIntervalDays ?? null,
-      ...(paymentTermDays !== undefined && { paymentTermDays: paymentTermDays ?? null }),
-      ...(paymentTermSkonto !== undefined && { paymentTermSkonto: paymentTermSkonto }),
-      ...(paymentTermCustom !== undefined && { paymentTermCustom: paymentTermCustom ?? null }),
-      paymentReminderDays: paymentReminderDays ?? null,
-    },
-  });
-  revalidatePath("/kontakte");
-  revalidatePath("/anfragen/neu");
-  return { contact };
+  try {
+    const contact = await prisma.contact.create({
+      data: {
+        ...rest,
+        companyName: companyName ?? "",
+        owner: owner || null,
+        billingIntervalDays: billingIntervalDays ?? null,
+        ...(paymentTermDays !== undefined && { paymentTermDays: paymentTermDays ?? null }),
+        ...(paymentTermSkonto !== undefined && { paymentTermSkonto: paymentTermSkonto }),
+        ...(paymentTermCustom !== undefined && { paymentTermCustom: paymentTermCustom ?? null }),
+        paymentReminderDays: paymentReminderDays ?? null,
+      },
+    });
+    revalidatePath("/kontakte");
+    revalidatePath("/anfragen/neu");
+    return { contact };
+  } catch (err) {
+    await reportBetaError(err, { location: "createContact" });
+    return { error: { _form: ["Kontakt konnte nicht erstellt werden."] } };
+  }
 }
 
 export async function updateContact(id: string, data: ContactFormData) {
@@ -106,10 +112,21 @@ export async function updatePaymentTerm(
   return { success: true };
 }
 
-export async function deleteContact(id: string) {
-  await prisma.contact.delete({ where: { id } });
-  revalidatePath("/kontakte");
+export async function updateContactEmail(id: string, email: string) {
+  await prisma.contact.update({ where: { id }, data: { email } });
+  revalidatePath(`/kontakte/${id}`);
   return { success: true };
+}
+
+export async function deleteContact(id: string) {
+  try {
+    await prisma.contact.delete({ where: { id } });
+    revalidatePath("/kontakte");
+    return { success: true };
+  } catch (err) {
+    await reportBetaError(err, { location: "deleteContact", extra: { id } });
+    return { error: "Kontakt konnte nicht gelöscht werden." };
+  }
 }
 
 export async function getContacts() {

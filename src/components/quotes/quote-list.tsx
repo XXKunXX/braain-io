@@ -75,13 +75,14 @@ export function QuoteList({
 
   const filtered = useMemo(() => {
     const base = quotes.filter((q) => {
-      const matchesText = matchesSearch(search, q.title, q.contact.companyName, q.quoteNumber);
+      const contactName = q.contact.companyName || [q.contact.firstName, q.contact.lastName].filter(Boolean).join(" ");
+      const matchesText = matchesSearch(search, q.title, contactName, q.quoteNumber);
       const matchesStatus = activeTab === "ALL" || q.status === activeTab;
       return matchesText && matchesStatus;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "title") return item.title;
-      if (key === "contact") return item.contact.companyName;
+      if (key === "contact") return item.contact.companyName || [item.contact.firstName, item.contact.lastName].filter(Boolean).join(" ");
       if (key === "totalPrice") return Number(item.totalPrice);
       if (key === "status") return item.status;
       if (key === "createdAt") return new Date(item.createdAt);
@@ -178,7 +179,9 @@ export function QuoteList({
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{quote.title}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400 truncate">{quote.contact.companyName}</span>
+                        <span className="text-xs text-gray-400 truncate">
+                          {quote.contact.companyName || [quote.contact.firstName, quote.contact.lastName].filter(Boolean).join(" ")}
+                        </span>
                         <span className="text-xs text-gray-400">{quote.quoteNumber}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-2">
@@ -225,7 +228,9 @@ export function QuoteList({
                     <span className="text-sm font-medium text-gray-900 truncate">{quote.title}</span>
                     <span className="text-xs text-gray-400 flex-shrink-0 hidden lg:inline">{quote.quoteNumber}</span>
                   </div>
-                  <span className="text-sm text-gray-500 truncate">{quote.contact.companyName}</span>
+                  <span className="text-sm text-gray-500 truncate">
+                    {quote.contact.companyName || [quote.contact.firstName, quote.contact.lastName].filter(Boolean).join(" ")}
+                  </span>
                   <span className="text-sm text-gray-500 font-mono">
                     {Number(quote.totalPrice).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
                   </span>

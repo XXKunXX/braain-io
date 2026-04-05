@@ -19,8 +19,6 @@ export async function getOrderActivity(orderId: string): Promise<ActivityEvent[]
     include: {
       quote: true,
       baustellen: { orderBy: { createdAt: "asc" } },
-      paymentMilestones: { orderBy: { createdAt: "asc" } },
-      dispositionEntries: { include: { resource: true }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!order) return [];
@@ -39,34 +37,16 @@ export async function getOrderActivity(orderId: string): Promise<ActivityEvent[]
   }
 
   // Status changes (approximate)
-  if (order.status === "ACTIVE" || order.status === "COMPLETED") {
-    events.push({ id: `order-active`, type: "status", title: "Auftrag gestartet", actor: "System", actorType: "SYSTEM", date: order.updatedAt });
+  if (order.status === "DISPONIERT" || order.status === "IN_LIEFERUNG" || order.status === "VERRECHNET" || order.status === "ABGESCHLOSSEN") {
+    events.push({ id: `order-active`, type: "status", title: "Auftrag disponiert", actor: "System", actorType: "SYSTEM", date: order.updatedAt });
   }
-  if (order.status === "COMPLETED") {
+  if (order.status === "ABGESCHLOSSEN") {
     events.push({ id: `order-completed`, type: "status", title: "Auftrag abgeschlossen", actor: "System", actorType: "SYSTEM", date: order.updatedAt });
   }
 
   // Baustellen
   for (const b of order.baustellen) {
     events.push({ id: `baustelle-${b.id}`, type: "baustelle", title: `Baustelle „${b.name}" hinzugefügt`, description: b.city ?? undefined, actor: "System", actorType: "SYSTEM", date: b.createdAt, link: `/baustellen/${b.id}` });
-  }
-
-  // Payment milestones
-  for (const m of order.paymentMilestones) {
-    events.push({ id: `milestone-created-${m.id}`, type: "payment", title: `Zahlungsmeilenstein angelegt`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, actor: "System", actorType: "SYSTEM", date: m.createdAt });
-    if (m.paidAt) {
-      events.push({ id: `milestone-paid-${m.id}`, type: "payment", title: `Zahlung eingegangen`, description: `${m.title} · ${Number(m.amount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}`, actor: "System", actorType: "SYSTEM", date: m.paidAt });
-    }
-  }
-
-  // Disposition entries (group by date to avoid clutter)
-  const dispDates = new Set<string>();
-  for (const e of order.dispositionEntries) {
-    const dateKey = e.createdAt.toISOString().slice(0, 10);
-    if (!dispDates.has(dateKey)) {
-      dispDates.add(dateKey);
-      events.push({ id: `disp-${e.id}`, type: "disposition", title: `Disposition eingetragen`, description: e.resource.name, actor: "System", actorType: "SYSTEM", date: e.createdAt });
-    }
   }
 
   return events.sort((a, b) => b.date.getTime() - a.date.getTime());

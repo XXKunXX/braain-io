@@ -120,35 +120,20 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
   return (
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 bg-white">
-        <div>
-          <Link href="/anfragen" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Alle Anfragen
-          </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-gray-900">{title || "Neue Anfrage"}</h1>
-            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColors[status]}`}>
-              {statusOptions.find((s) => s.value === status)?.label}
-            </span>
-          </div>
-          <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500">
-            {selectedContact && <span>{selectedContact.companyName}</span>}
-            {owner && <span>{owner}</span>}
-          </div>
+      <div className="px-6 py-5 border-b border-gray-200 bg-white">
+        <Link href="/anfragen" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Alle Anfragen
+        </Link>
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-semibold text-gray-900">{title || "Neue Anfrage"}</h1>
+          <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${statusColors[status]}`}>
+            {statusOptions.find((s) => s.value === status)?.label}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/anfragen">
-            <Button variant="outline" className="rounded-lg">Abbrechen</Button>
-          </Link>
-          <LoadingButton
-            onClick={handleSubmit as unknown as React.MouseEventHandler}
-            loading={loading}
-            disabled={!contactId || !title}
-            className="rounded-lg"
-          >
-            Anfrage speichern
-          </LoadingButton>
+        <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500">
+          {selectedContact && <span>{selectedContact.companyName}</span>}
+          {owner && <span>{owner}</span>}
         </div>
       </div>
 
@@ -284,6 +269,7 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
                   />
                 </div>
               </div>
+
             </div>
 
             {/* Besichtigung */}
@@ -293,18 +279,31 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
                   <span className="text-gray-400">📅</span>
                   <h2 className="text-sm font-semibold text-gray-900">Besichtigung</h2>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setNoInspectionRequired(!noInspectionRequired)}
-                  className={`inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                    noInspectionRequired
-                      ? "bg-red-50 border-red-200 text-red-700"
-                      : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
-                  }`}
-                >
-                  <Ban className="h-3.5 w-3.5" />
-                  Keine Besichtigung notwendig
-                </button>
+                <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                  <button
+                    type="button"
+                    onClick={() => setNoInspectionRequired(false)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      !noInspectionRequired
+                        ? "bg-white text-gray-900 shadow-sm border border-gray-200"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Termin festlegen
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNoInspectionRequired(true)}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                      noInspectionRequired
+                        ? "bg-red-50 text-red-700 shadow-sm border border-red-200"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    <Ban className="h-3 w-3" />
+                    Keine Besichtigung
+                  </button>
+                </div>
               </div>
               {noInspectionRequired ? (
                 <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-sm text-red-700">
@@ -339,6 +338,21 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
                 </div>
               )}
             </div>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-2">
+              <Link href="/anfragen">
+                <Button type="button" variant="outline" className="rounded-lg">Abbrechen</Button>
+              </Link>
+              <LoadingButton
+                onClick={handleSubmit as unknown as React.MouseEventHandler}
+                loading={loading}
+                disabled={!contactId || !title}
+                className="rounded-lg"
+              >
+                Anfrage speichern
+              </LoadingButton>
+            </div>
           </div>
 
           {/* Right column */}
@@ -356,6 +370,7 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
             </div>
           </div>
         </div>
+
       </form>
     </div>
   );

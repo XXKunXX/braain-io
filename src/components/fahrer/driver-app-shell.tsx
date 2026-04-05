@@ -11,7 +11,7 @@ import { MapsPickerSheet } from "@/components/fahrer/nav-button";
 type BaustelleItem = {
   id: string;
   name: string;
-  status: "PLANNED" | "ACTIVE" | "PENDING" | "INVOICED" | "COMPLETED";
+  status: "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN";
   startDate: string;
   endDate: string;
   address: string | null;
@@ -22,11 +22,11 @@ type BaustelleItem = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  PLANNED: "Geplant",
-  ACTIVE: "Aktiv",
-  PENDING: "Ausstehend",
-  INVOICED: "In Abrechnung",
-  COMPLETED: "Abgeschlossen",
+  OPEN: "Offen",
+  DISPONIERT: "Disponiert",
+  IN_LIEFERUNG: "In Lieferung",
+  VERRECHNET: "Verrechnet",
+  ABGESCHLOSSEN: "Abgeschlossen",
 };
 
 const STATUS_BADGE: Record<string, string> = {
@@ -91,8 +91,8 @@ export function DriverAppShell({
   }
 
   const filtered = baustellen.filter((b) => {
-    if (tab === "active") return b.status === "PLANNED" || b.status === "ACTIVE";
-    if (tab === "completed") return b.status === "COMPLETED";
+    if (tab === "active") return b.status === "OPEN" || b.status === "DISPONIERT" || b.status === "IN_LIEFERUNG";
+    if (tab === "completed") return b.status === "ABGESCHLOSSEN";
     return true;
   });
 
@@ -157,8 +157,8 @@ export function DriverAppShell({
                 {t.key !== "all" && (
                   <span className={`ml-1.5 text-[11px] font-bold ${tab === t.key ? "text-white/70" : "text-gray-400"}`}>
                     {t.key === "active"
-                      ? baustellen.filter((b) => b.status === "PLANNED" || b.status === "ACTIVE").length
-                      : baustellen.filter((b) => b.status === "COMPLETED").length}
+                      ? baustellen.filter((b) => b.status === "OPEN" || b.status === "DISPONIERT" || b.status === "IN_LIEFERUNG").length
+                      : baustellen.filter((b) => b.status === "ABGESCHLOSSEN").length}
                   </span>
                 )}
               </button>

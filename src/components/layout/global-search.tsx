@@ -4,15 +4,17 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, Users, MessageSquare, FileText, ClipboardList, Truck, CheckSquare, HardHat, FolderOpen, X, Construction } from "lucide-react";
 
+type ContactRef = { companyName: string | null; firstName?: string | null; lastName?: string | null };
+
 interface SearchResults {
   contacts?: { id: string; companyName: string; firstName?: string | null; lastName?: string | null; type: string }[];
-  requests?: { id: string; title: string; status: string; contact: { companyName: string } }[];
-  quotes?: { id: string; title: string; quoteNumber: string; status: string; contact: { companyName: string } }[];
-  orders?: { id: string; title: string; orderNumber: string; status: string; contact: { companyName: string } }[];
-  deliveryNotes?: { id: string; deliveryNumber: string; material: string; contact: { companyName: string } }[];
+  requests?: { id: string; title: string; status: string; contact: ContactRef }[];
+  quotes?: { id: string; title: string; quoteNumber: string; status: string; contact: ContactRef }[];
+  orders?: { id: string; title: string; orderNumber: string; status: string; contact: ContactRef }[];
+  deliveryNotes?: { id: string; deliveryNumber: string; material: string; contact: ContactRef }[];
   tasks?: { id: string; title: string; status: string; priority: string }[];
   resources?: { id: string; name: string; type: string }[];
-  attachments?: { id: string; fileName: string; contact?: { companyName: string } | null }[];
+  attachments?: { id: string; fileName: string; contact?: ContactRef | null }[];
   baustellen?: { id: string; name: string; status: string; city?: string | null; order: { orderNumber: string } }[];
 }
 
@@ -23,13 +25,13 @@ interface GlobalSearchProps {
 
 const SECTIONS = [
   { key: "contacts", label: "Kontakte", icon: Users, href: (id: string) => `/kontakte/${id}`, display: (r: { companyName: string; firstName?: string | null; lastName?: string | null }) => ({ title: r.companyName, sub: [r.firstName, r.lastName].filter(Boolean).join(" ") || undefined }) },
-  { key: "requests", label: "Anfragen", icon: MessageSquare, href: (id: string) => `/anfragen/${id}`, display: (r: { title: string; contact: { companyName: string } }) => ({ title: r.title, sub: r.contact.companyName }) },
-  { key: "quotes", label: "Angebote", icon: FileText, href: (id: string) => `/angebote/${id}`, display: (r: { quoteNumber: string; title: string; contact: { companyName: string } }) => ({ title: `${r.quoteNumber} – ${r.title}`, sub: r.contact.companyName }) },
-  { key: "orders", label: "Aufträge", icon: ClipboardList, href: (id: string) => `/auftraege/${id}`, display: (r: { orderNumber: string; title: string; contact: { companyName: string } }) => ({ title: `${r.orderNumber} – ${r.title}`, sub: r.contact.companyName }) },
-  { key: "deliveryNotes", label: "Lieferscheine", icon: Truck, href: () => `/dokumente`, display: (r: { deliveryNumber: string; material: string; contact: { companyName: string } }) => ({ title: r.deliveryNumber, sub: `${r.material} · ${r.contact.companyName}` }) },
+  { key: "requests", label: "Anfragen", icon: MessageSquare, href: (id: string) => `/anfragen/${id}`, display: (r: { title: string; contact: ContactRef }) => ({ title: r.title, sub: r.contact.companyName || [r.contact.firstName, r.contact.lastName].filter(Boolean).join(" ") || undefined }) },
+  { key: "quotes", label: "Angebote", icon: FileText, href: (id: string) => `/angebote/${id}`, display: (r: { quoteNumber: string; title: string; contact: ContactRef }) => ({ title: `${r.quoteNumber} – ${r.title}`, sub: r.contact.companyName || [r.contact.firstName, r.contact.lastName].filter(Boolean).join(" ") || undefined }) },
+  { key: "orders", label: "Aufträge", icon: ClipboardList, href: (id: string) => `/auftraege/${id}`, display: (r: { orderNumber: string; title: string; contact: ContactRef }) => ({ title: `${r.orderNumber} – ${r.title}`, sub: r.contact.companyName || [r.contact.firstName, r.contact.lastName].filter(Boolean).join(" ") || undefined }) },
+  { key: "deliveryNotes", label: "Lieferscheine", icon: Truck, href: () => `/dokumente`, display: (r: { deliveryNumber: string; material: string; contact: ContactRef }) => ({ title: r.deliveryNumber, sub: `${r.material} · ${r.contact.companyName || [r.contact.firstName, r.contact.lastName].filter(Boolean).join(" ")}` }) },
   { key: "tasks", label: "Aufgaben", icon: CheckSquare, href: () => `/aufgaben`, display: (r: { title: string }) => ({ title: r.title }) },
   { key: "resources", label: "Ressourcen", icon: HardHat, href: () => `/ressourcen`, display: (r: { name: string; type: string }) => ({ title: r.name, sub: r.type }) },
-  { key: "attachments", label: "Anhänge", icon: FolderOpen, href: () => `/dokumente`, display: (r: { fileName: string; contact?: { companyName: string } | null }) => ({ title: r.fileName, sub: r.contact?.companyName }) },
+  { key: "attachments", label: "Anhänge", icon: FolderOpen, href: () => `/dokumente`, display: (r: { fileName: string; contact?: ContactRef | null }) => ({ title: r.fileName, sub: r.contact?.companyName || [r.contact?.firstName, r.contact?.lastName].filter(Boolean).join(" ") || undefined }) },
   { key: "baustellen", label: "Baustellen", icon: Construction, href: (id: string) => `/baustellen/${id}`, display: (r: { name: string; city?: string | null; order: { orderNumber: string } }) => ({ title: r.name, sub: [r.order.orderNumber, r.city].filter(Boolean).join(" · ") }) },
 ] as const;
 

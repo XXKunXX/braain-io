@@ -107,7 +107,7 @@ export function TaskDetailDrawer({ task, fallbackRequest, onClose }: TaskDetailD
                 <Building2 className="h-4 w-4 text-gray-400 flex-shrink-0" />
                 <div>
                   <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Kontakt</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{task.contact.companyName}</p>
+                  <p className="text-sm text-gray-900 mt-0.5">{task.contact.companyName || [task.contact.firstName, task.contact.lastName].filter(Boolean).join(" ")}</p>
                 </div>
               </div>
             )}
@@ -167,7 +167,7 @@ export function TaskDetailDrawer({ task, fallbackRequest, onClose }: TaskDetailD
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-green-900 truncate">{task.deliveryNote.deliveryNumber}</p>
                   {task.contact && (
-                    <p className="text-xs text-green-600 mt-0.5">{task.contact.companyName}</p>
+                    <p className="text-xs text-green-600 mt-0.5">{task.contact.companyName || [task.contact.firstName, task.contact.lastName].filter(Boolean).join(" ")}</p>
                   )}
                 </div>
                 <ExternalLink className="h-4 w-4 text-green-400 group-hover:text-green-600 flex-shrink-0 ml-3" />
@@ -187,7 +187,7 @@ export function TaskDetailDrawer({ task, fallbackRequest, onClose }: TaskDetailD
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-blue-900 truncate">{(task.request ?? fallbackRequest)!.title}</p>
                   {task.contact && (
-                    <p className="text-xs text-blue-600 mt-0.5">{task.contact.companyName}</p>
+                    <p className="text-xs text-blue-600 mt-0.5">{task.contact.companyName || [task.contact.firstName, task.contact.lastName].filter(Boolean).join(" ")}</p>
                   )}
                 </div>
                 <ExternalLink className="h-4 w-4 text-blue-400 group-hover:text-blue-600 flex-shrink-0 ml-3" />

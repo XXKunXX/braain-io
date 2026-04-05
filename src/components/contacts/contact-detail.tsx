@@ -74,15 +74,15 @@ const quoteStatusColors: Record<string, string> = {
 };
 
 const orderStatusLabels: Record<string, string> = {
-  PLANNED: "Geplant", ACTIVE: "Aktiv", PENDING: "Ausstehend", INVOICED: "In Abrechnung", COMPLETED: "Abgeschlossen",
+  OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "Verrechnet", ABGESCHLOSSEN: "Abgeschlossen",
 };
 
 const orderStatusColors: Record<string, string> = {
-  PLANNED: "bg-blue-50 text-blue-700",
-  ACTIVE: "bg-green-50 text-green-700",
-  PENDING: "bg-red-50 text-red-700",
-  INVOICED: "bg-orange-50 text-orange-700",
-  COMPLETED: "bg-gray-100 text-gray-600",
+  OPEN: "bg-blue-50 text-blue-700",
+  DISPONIERT: "bg-green-50 text-green-700",
+  IN_LIEFERUNG: "bg-amber-50 text-amber-700",
+  VERRECHNET: "bg-orange-50 text-orange-700",
+  ABGESCHLOSSEN: "bg-gray-100 text-gray-600",
 };
 
 type NoteWithRequest = ContactNote & { request: { id: string; title: string } | null };
@@ -132,6 +132,15 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get("tab") as TabId | null) ?? "anfragen";
+  const fromUrl = searchParams.get("from");
+  const fromLabel = searchParams.get("fromLabel");
+  const backLink = fromUrl ?? "/kontakte";
+  const backLabel = fromUrl
+    ? fromUrl.startsWith("/angebote") ? `Zum Angebot${fromLabel ? ` ${fromLabel}` : ""}`
+    : fromUrl.startsWith("/anfragen") ? `Zur Anfrage${fromLabel ? ` · ${fromLabel}` : ""}`
+    : fromUrl.startsWith("/auftraege") ? `Zum Auftrag${fromLabel ? ` · ${fromLabel}` : ""}`
+    : "Zurück"
+    : "Alle Kontakte";
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const { containerRef: tabContainerRef, showLabels } = useTabLabels();
   const isCompany = contact.type !== "PRIVATE";
@@ -400,9 +409,9 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
       {/* Header */}
       <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 bg-white">
         <div>
-          <Link href="/kontakte" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
+          <Link href={backLink} className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
             <ChevronLeft className="h-3.5 w-3.5" />
-            Alle Kontakte
+            {backLabel}
           </Link>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-gray-800 flex items-center justify-center flex-shrink-0">

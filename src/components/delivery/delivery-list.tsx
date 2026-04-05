@@ -23,6 +23,7 @@ import { sortItems } from "@/lib/sort";
 import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { getContactName } from "@/lib/utils";
 
 type DeliveryWithRelations = Omit<DeliveryNote, "quantity"> & {
   quantity: number;
@@ -40,7 +41,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
 
   const contacts = useMemo(() => {
     const map = new Map<string, string>();
-    for (const dn of deliveryNotes) map.set(dn.contact.id, dn.contact.companyName);
+    for (const dn of deliveryNotes) map.set(dn.contact.id, getContactName(dn.contact));
     return Array.from(map.entries());
   }, [deliveryNotes]);
 
@@ -52,7 +53,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
   const filtered = useMemo(() => {
     const base = deliveryNotes.filter((dn) => {
       const matchesContact = contactFilter === "ALL" || dn.contactId === contactFilter;
-      const matchesText = matchesSearch(search, dn.deliveryNumber, dn.contact.companyName, dn.material, dn.driver);
+      const matchesText = matchesSearch(search, dn.deliveryNumber, getContactName(dn.contact), dn.material, dn.driver);
       return matchesContact && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
@@ -159,7 +160,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-400 truncate mt-0.5">{dn.contact.companyName}</p>
+                      <p className="text-xs text-gray-400 truncate mt-0.5">{getContactName(dn.contact)}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
                         <span className="text-xs text-gray-600 truncate">{dn.material}</span>
                         <span className="text-xs font-semibold text-gray-900">
@@ -222,7 +223,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 truncate mt-0.5">{dn.contact.companyName}</p>
+                    <p className="text-xs text-gray-400 truncate mt-0.5">{getContactName(dn.contact)}</p>
                   </div>
                   <span className="text-sm text-gray-600 truncate">{dn.material}</span>
                   <span className="text-sm text-gray-600 whitespace-nowrap">

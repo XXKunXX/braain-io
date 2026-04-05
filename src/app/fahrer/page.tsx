@@ -25,13 +25,13 @@ export default async function FahrerPage({
   const serialized = baustellen.map((b) => ({
     id: b.id,
     name: b.name,
-    status: b.status as "PLANNED" | "ACTIVE" | "PENDING" | "INVOICED" | "COMPLETED",
+    status: b.status as "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN",
     startDate: b.entryStart.toISOString(),
     endDate: b.entryEnd.toISOString(),
     address: b.address ?? null,
     postalCode: b.postalCode ?? null,
     city: b.city ?? null,
-    contactName: b.contact?.companyName ?? null,
+    contactName: b.contact ? (b.contact.companyName || [b.contact.firstName, b.contact.lastName].filter(Boolean).join(" ") || null) : null,
     orderId: b.order?.id ?? null,
   }));
 

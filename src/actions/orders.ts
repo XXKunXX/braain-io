@@ -5,6 +5,7 @@ import { getNextNumber } from "@/lib/counter";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
+import { reportBetaError } from "@/lib/report-error";
 
 const orderSchema = z.object({
   title: z.string().min(1, "Titel ist erforderlich"),
@@ -22,42 +23,48 @@ export async function createOrder(data: OrderFormData) {
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
   const { startDate, endDate, quoteId, ...orderData } = parsed.data;
-  const orderNumber = await getNextNumber("order");
 
-  const order = await prisma.order.create({
-    data: {
-      ...orderData,
-      orderNumber,
-      quoteId: quoteId || undefined,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-    },
-  });
-
-  // If created from quote, mark quote as accepted
-  if (quoteId) {
-    await prisma.quote.update({
-      where: { id: quoteId },
-      data: { status: "ACCEPTED" },
-    });
-  }
-
-  // Notify all non-driver users about the new order
   try {
-    const userIds = await getNonDriverUserIds();
-    await createNotificationsForUsers(userIds, {
-      title: `Neuer Auftrag: ${orderData.title}`,
-      message: `Auftrag #${orderNumber} wurde erstellt.`,
-      type: "INFO",
-      link: `/auftraege/${order.id}`,
-    });
-  } catch {
-    // Notification errors must not block the main flow
-  }
+    const orderNumber = await getNextNumber("order");
 
-  revalidatePath("/auftraege");
-  revalidatePath("/disposition");
-  return { order };
+    const order = await prisma.order.create({
+      data: {
+        ...orderData,
+        orderNumber,
+        quoteId: quoteId || undefined,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+      },
+    });
+
+    // If created from quote, mark quote as accepted
+    if (quoteId) {
+      await prisma.quote.update({
+        where: { id: quoteId },
+        data: { status: "ACCEPTED" },
+      });
+    }
+
+    // Notify all non-driver users about the new order
+    try {
+      const userIds = await getNonDriverUserIds();
+      await createNotificationsForUsers(userIds, {
+        title: `Neuer Auftrag: ${orderData.title}`,
+        message: `Auftrag #${orderNumber} wurde erstellt.`,
+        type: "INFO",
+        link: `/auftraege/${order.id}`,
+      });
+    } catch {
+      // Notification errors must not block the main flow
+    }
+
+    revalidatePath("/auftraege");
+    revalidatePath("/disposition");
+    return { order };
+  } catch (err) {
+    await reportBetaError(err, { location: "createOrder" });
+    return { error: { _form: ["Auftrag konnte nicht erstellt werden."] } };
+  }
 }
 
 export async function updateOrder(id: string, data: OrderFormData) {
@@ -83,16 +90,16 @@ export async function updateOrder(id: string, data: OrderFormData) {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  PLANNED: "Geplant",
-  ACTIVE: "Aktiv",
-  PENDING: "Ausstehend",
-  INVOICED: "In Abrechnung",
-  COMPLETED: "Abgeschlossen",
+  OPEN: "Offen",
+  DISPONIERT: "Disponiert",
+  IN_LIEFERUNG: "In Lieferung",
+  VERRECHNET: "Verrechnet",
+  ABGESCHLOSSEN: "Abgeschlossen",
 };
 
 export async function updateOrderStatus(
   id: string,
-  status: "PLANNED" | "ACTIVE" | "PENDING" | "INVOICED" | "COMPLETED"
+  status: "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN"
 ) {
   const order = await prisma.order.update({
     where: { id },
@@ -127,7 +134,7 @@ export async function deleteOrder(id: string) {
 
 export async function getOrders(status?: string) {
   return prisma.order.findMany({
-    where: status ? { status: status as "PLANNED" | "ACTIVE" | "COMPLETED" } : undefined,
+    where: status ? { status: status as "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN" } : undefined,
     orderBy: { startDate: "asc" },
     include: { contact: true, quote: true },
   });
@@ -138,7 +145,7 @@ export async function getOrder(id: string) {
     where: { id },
     include: {
       contact: true,
-      quote: { include: { items: true } },
+      quote: { include: { items: true, request: true } },
       baustellen: {
         orderBy: { startDate: "asc" },
         select: {
@@ -209,7 +216,7 @@ export async function createOrderWithDetails(data: {
         city: data.baustelle.city || null,
         startDate: new Date(data.startDate),
         endDate: new Date(data.endDate),
-        status: "PLANNED",
+        status: "OPEN",
       },
     });
   }

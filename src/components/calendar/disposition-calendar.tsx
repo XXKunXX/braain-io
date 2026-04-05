@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   format,
   addDays,
@@ -19,7 +20,7 @@ import {
 import { de } from "date-fns/locale";
 import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightIcon,
-  Plus, Trash2, Search, X, ArrowLeft, Send, AlertTriangle, Lock, Printer,
+  Plus, Trash2, Search, X, ArrowLeft, Send, AlertTriangle, Lock, Printer, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -48,7 +49,7 @@ type BaustelleItem = {
   endDate: Date | null;
   city: string | null;
   orderId: string | null;
-  contact: { id: string; companyName: string } | null;
+  contact: { id: string; companyName: string | null; firstName?: string | null; lastName?: string | null } | null;
   order: { id: string; orderNumber: string; title: string } | null;
 };
 
@@ -66,7 +67,7 @@ type EntryWithRelations = {
     id: string;
     name: string;
     city: string | null;
-    contact: { id: string; companyName: string } | null;
+    contact: { id: string; companyName: string | null; firstName?: string | null; lastName?: string | null } | null;
   } | null;
 };
 
@@ -127,6 +128,8 @@ interface Props {
   initialView: ViewType;
   baustelleId?: string;
   baustelleName?: string;
+  orderId?: string;
+  orderTitle?: string;
 }
 
 export function DispositionCalendar({
@@ -137,6 +140,8 @@ export function DispositionCalendar({
   initialView,
   baustelleId,
   baustelleName,
+  orderId,
+  orderTitle,
 }: Props) {
   const router = useRouter();
   const today = new Date();
@@ -318,6 +323,8 @@ export function DispositionCalendar({
     const p = new URLSearchParams({ week, view: v });
     if (baustelleId) p.set("baustelleId", baustelleId);
     if (baustelleName) p.set("baustelleName", baustelleName);
+    if (orderId) p.set("orderId", orderId);
+    if (orderTitle) p.set("orderTitle", orderTitle);
     return `/disposition?${p.toString()}`;
   }
 
@@ -357,16 +364,24 @@ export function DispositionCalendar({
   // Baustellen panel
   const filteredBaustellen = useMemo(() => {
     const q = search.toLowerCase();
-    return localBaustellen.filter(b =>
+    const list = localBaustellen.filter(b =>
       !q ||
       b.name.toLowerCase().includes(q) ||
       (b.contact?.companyName ?? "").toLowerCase().includes(q) ||
       (b.city ?? "").toLowerCase().includes(q)
     );
-  }, [localBaustellen, search]);
-  const activeBaustellen = filteredBaustellen.filter(b => b.status === "ACTIVE");
-  const pendingBaustellen = filteredBaustellen.filter(b => b.status === "PENDING" || b.status === "INVOICED");
-  const plannedBaustellen = filteredBaustellen.filter(b => b.status === "PLANNED");
+    // When coming from an order, sort that order's Baustellen to top
+    if (orderId) {
+      return [
+        ...list.filter(b => b.orderId === orderId),
+        ...list.filter(b => b.orderId !== orderId),
+      ];
+    }
+    return list;
+  }, [localBaustellen, search, orderId]);
+  const activeBaustellen = filteredBaustellen.filter(b => b.status === "DISPONIERT" || b.status === "IN_LIEFERUNG");
+  const pendingBaustellen = filteredBaustellen.filter(b => b.status === "VERRECHNET");
+  const plannedBaustellen = filteredBaustellen.filter(b => b.status === "OPEN");
 
   const baustelleColorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -532,7 +547,7 @@ export function DispositionCalendar({
     }
     if (result.resetBaustelleId) {
       setLocalBaustellen(prev => prev.map(b =>
-        b.id === result.resetBaustelleId ? { ...b, status: "PLANNED" } : b
+        b.id === result.resetBaustelleId ? { ...b, status: "OPEN" } : b
       ));
     }
     toast.success("Eintrag gelöscht");
@@ -823,6 +838,18 @@ export function DispositionCalendar({
           </a>
         </div>
       )}
+      {/* ── Auftrag context banner ──────────────────────────────────────────── */}
+      {orderId && (
+        <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2 text-sm text-amber-800">
+            <span className="font-medium">Auftrag:</span>
+            <span className="font-semibold">{orderTitle ?? orderId}</span>
+          </div>
+          <a href={`/auftraege/${orderId}`} className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-medium">
+            <ArrowLeft className="h-3.5 w-3.5" />Zurück zum Auftrag
+          </a>
+        </div>
+      )}
 
       {/* ── View tabs + type filter + range label ──────────────────────────── */}
       <div className="px-4 md:px-6 py-2 bg-white border-b border-gray-100 flex items-center justify-between gap-2 md:gap-4 flex-shrink-0 overflow-x-auto">
@@ -980,16 +1007,28 @@ export function DispositionCalendar({
                   <div key={b.id} draggable
                     onDragStart={(e) => handleDragStart(e, b.id)}
                     onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
-                    className={`px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
+                    className={`group px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
+                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" :
+                      (orderId && b.orderId === orderId) ? "bg-amber-50 border-l-2 border-l-amber-400" : ""
                     }`}>
                     <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{b.name}</p>
                       <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                        {b.contact?.companyName ?? b.city ?? "–"}
+                        {b.contact?.companyName || [b.contact?.firstName, b.contact?.lastName].filter(Boolean).join(" ") || b.city || "–"}
                       </p>
                     </div>
+                    {(b.orderId || b.id) && (
+                      <Link
+                        href={b.orderId ? `/auftraege/${b.orderId}` : `/baustellen/${b.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        onDragStart={(e) => e.stopPropagation()}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded text-gray-300 hover:text-blue-500 mt-0.5"
+                        title={b.orderId ? "Zum Auftrag" : "Zur Baustelle"}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1006,16 +1045,28 @@ export function DispositionCalendar({
                   <div key={b.id} draggable
                     onDragStart={(e) => handleDragStart(e, b.id)}
                     onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
-                    className={`px-4 py-2.5 border-b border-gray-50 hover:bg-red-50/50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedBaustelleId === b.id ? "bg-red-50 border-l-2 border-l-red-400" : ""
+                    className={`group px-4 py-2.5 border-b border-gray-50 hover:bg-red-50/50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
+                      selectedBaustelleId === b.id ? "bg-red-50 border-l-2 border-l-red-400" :
+                      (orderId && b.orderId === orderId) ? "bg-amber-50 border-l-2 border-l-amber-400" : ""
                     }`}>
                     <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{b.name}</p>
                       <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                        {b.contact?.companyName ?? b.city ?? "–"}
+                        {b.contact?.companyName || [b.contact?.firstName, b.contact?.lastName].filter(Boolean).join(" ") || b.city || "–"}
                       </p>
                     </div>
+                    {(b.orderId || b.id) && (
+                      <Link
+                        href={b.orderId ? `/auftraege/${b.orderId}` : `/baustellen/${b.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        onDragStart={(e) => e.stopPropagation()}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded text-gray-300 hover:text-blue-500 mt-0.5"
+                        title={b.orderId ? "Zum Auftrag" : "Zur Baustelle"}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1032,16 +1083,28 @@ export function DispositionCalendar({
                   <div key={b.id} draggable
                     onDragStart={(e) => handleDragStart(e, b.id)}
                     onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
-                    className={`px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
+                    className={`group px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
+                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" :
+                      (orderId && b.orderId === orderId) ? "bg-amber-50 border-l-2 border-l-amber-400" : ""
                     }`}>
                     <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{b.name}</p>
                       <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                        {b.contact?.companyName ?? b.city ?? "–"}
+                        {b.contact?.companyName || [b.contact?.firstName, b.contact?.lastName].filter(Boolean).join(" ") || b.city || "–"}
                       </p>
                     </div>
+                    {(b.orderId || b.id) && (
+                      <Link
+                        href={b.orderId ? `/auftraege/${b.orderId}` : `/baustellen/${b.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        onDragStart={(e) => e.stopPropagation()}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded text-gray-300 hover:text-blue-500 mt-0.5"
+                        title={b.orderId ? "Zum Auftrag" : "Zur Baustelle"}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    )}
                   </div>
                 ))}
               </div>

@@ -62,6 +62,7 @@ export function EditContactButton({ contact, userNames = [] }: { contact: Contac
               owner: contact.owner ?? "",
               billingMode: contact.billingMode ?? "MANUELL",
               billingIntervalDays: contact.billingIntervalDays ?? null,
+              paymentTermSkonto: (contact.paymentTermSkonto ?? []) as { days: number; percent: number }[],
             }}
             onSubmit={handleSubmit}
             onCancel={() => setOpen(false)}

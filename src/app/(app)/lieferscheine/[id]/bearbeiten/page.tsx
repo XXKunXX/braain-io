@@ -24,7 +24,7 @@ export default async function LieferscheinBearbeitenPage({
   const deliveryNote = {
     id: raw.id,
     contactId: raw.contactId,
-    contactName: raw.contact.companyName,
+    contactName: raw.contact.companyName || [raw.contact.firstName, raw.contact.lastName].filter(Boolean).join(" "),
     baustelleId: raw.baustelleId,
     date: format(new Date(raw.date), "yyyy-MM-dd"),
     material: raw.material,

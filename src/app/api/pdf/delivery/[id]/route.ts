@@ -4,11 +4,15 @@ import { prisma } from "@/lib/prisma";
 import { DeliveryPDF } from "@/lib/pdf/delivery-pdf";
 import { createElement, type ReactElement } from "react";
 import type { DocumentProps } from "@react-pdf/renderer";
+import { currentUser } from "@clerk/nextjs/server";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const user = await currentUser();
+  if (!user) return NextResponse.json({ error: "Nicht angemeldet" }, { status: 401 });
+
   const { id } = await params;
 
   const dn = await prisma.deliveryNote.findUnique({

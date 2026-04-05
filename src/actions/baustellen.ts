@@ -9,7 +9,7 @@ const db = prisma as any;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type BaustelleStatusType = "PLANNED" | "ACTIVE" | "PENDING" | "INVOICED" | "COMPLETED";
+export type BaustelleStatusType = "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN";
 
 export type BaustelleRow = {
   id: string;
@@ -81,7 +81,7 @@ const baustelleSchema = z.object({
   country: z.string().optional(),
   startDate: z.string().min(1),
   endDate: z.string().optional(),
-  status: z.enum(["PLANNED", "ACTIVE", "PENDING", "INVOICED", "COMPLETED"]),
+  status: z.enum(["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET", "ABGESCHLOSSEN"]),
   bauleiter: z.string().optional(),
   contactPerson: z.string().optional(),
   phone: z.string().optional(),
@@ -290,8 +290,8 @@ export async function createBaustelleDispositionEntry(data: z.infer<typeof dispo
       include: { resource: { select: { id: true, name: true, type: true } } },
     }),
     db.order.updateMany({
-      where: { id: parsed.data.orderId, status: "PLANNED" },
-      data: { status: "ACTIVE" },
+      where: { id: parsed.data.orderId, status: "OPEN" },
+      data: { status: "DISPONIERT" },
     }),
   ]);
   revalidatePath(`/baustellen/${parsed.data.baustelleId}`);

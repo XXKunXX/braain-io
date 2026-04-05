@@ -38,7 +38,7 @@ export function DeliveryDetail({
     : baustelleId
     ? `Zurück zu ${baustelleName ?? "Baustelle"}`
     : contactId
-    ? `Zurück zu ${dn.contact.companyName}`
+    ? `Zurück zu ${dn.contact.companyName || [dn.contact.firstName, dn.contact.lastName].filter(Boolean).join(" ")}`
     : "Zurück zu Lieferscheine";
 
   return (
@@ -58,7 +58,7 @@ export function DeliveryDetail({
               href={`/kontakte/${dn.contact.id}`}
               className="text-sm text-blue-600 hover:underline"
             >
-              {dn.contact.companyName}
+              {dn.contact.companyName || [dn.contact.firstName, dn.contact.lastName].filter(Boolean).join(" ")}
             </Link>
           </div>
           <div className="flex gap-2">

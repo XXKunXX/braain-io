@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { ArrowLeft, Pencil, FileText, User, Clock, Paperclip, Upload, Activity, CheckCircle2, MessageSquare, Plus, Trash2, Ban } from "lucide-react";
+import { ProcessStepper } from "@/components/shared/process-stepper";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
@@ -104,11 +105,6 @@ export function RequestDetail({
   );
   const [inspectionStatus, setInspectionStatus] = useState(request.inspectionStatus ?? "PLANNED");
   const [noInspectionRequired, setNoInspectionRequired] = useState(request.noInspectionRequired ?? false);
-  const [inspectionEditing, setInspectionEditing] = useState(false);
-  const [inspectionDateEdit, setInspectionDateEdit] = useState(
-    request.inspectionDate ? format(new Date(request.inspectionDate), "yyyy-MM-dd'T'HH:mm") : ""
-  );
-  const [inspectionSaving, setInspectionSaving] = useState(false);
   const [inspectionJustSaved, setInspectionJustSaved] = useState(false);
   const [inspectionDoneModalOpen, setInspectionDoneModalOpen] = useState(false);
   const [inspectionDoneNote, setInspectionDoneNote] = useState("");
@@ -123,37 +119,25 @@ export function RequestDetail({
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  async function handleSaveInspection() {
-    if (!inspectionDateEdit) return;
-    setInspectionSaving(true);
-    const newStatus = ["NEU", "OPEN"].includes(request.status) ? "BESICHTIGUNG_GEPLANT" : request.status;
-    await updateRequest(request.id, {
-      inspectionDate: inspectionDateEdit,
-      inspectionStatus: "PLANNED",
-      status: newStatus as "NEU",
-    });
-    setInspectionStatus("PLANNED");
-    setInspectionEditing(false);
-    setInspectionSaving(false);
-    setInspectionJustSaved(true);
-    toast.success("Besichtigungstermin gespeichert");
-    router.refresh();
-  }
-
   async function handleSave() {
     setSaving(true);
+    let newStatus = status;
+    if (!noInspectionRequired && inspectionDate && ["NEU", "OPEN"].includes(status)) {
+      newStatus = "BESICHTIGUNG_GEPLANT";
+    }
     await updateRequest(request.id, {
       title,
       description,
-      status: status as "NEU",
+      status: newStatus as "NEU",
       priority,
       assignedTo: owner || undefined,
       siteAddress,
       sitePhone,
       inspectionDate: inspectionDate || undefined,
-      inspectionStatus,
+      inspectionStatus: inspectionDate ? "PLANNED" : undefined,
       noInspectionRequired,
     });
+    if (inspectionDate) setInspectionJustSaved(true);
     toast.success("Anfrage gespeichert");
     setSaving(false);
     setEditing(false);
@@ -293,52 +277,50 @@ export function RequestDetail({
     <>
     <div className="flex flex-col min-h-full">
       {/* Header */}
-      <div className="flex items-start justify-between px-6 py-5 border-b border-gray-200 bg-white">
-        <div>
-          <Link href="/anfragen" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Alle Anfragen
-          </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-semibold text-gray-900">{request.title}</h1>
-            <StatusBadge status={request.status} />
+      {(() => {
+        const inspectionDone = request.inspectionStatus === "DONE";
+        const inspectionPlanned = !inspectionDone && !!request.inspectionDate && !request.noInspectionRequired;
+        const inspectionComplete = inspectionDone || !!request.noInspectionRequired;
+        const hasQuote = request.quotes.length > 0;
+
+        return (
+          <div className="border-b border-gray-200 bg-white">
+            {/* Title + meta */}
+            <div className="px-6 pt-5 pb-4">
+              <Link href="/anfragen" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-2">
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Alle Anfragen
+              </Link>
+              <h1 className="text-xl font-semibold text-gray-900">{request.title}</h1>
+              <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500">
+                <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{request.contact.companyName || [request.contact.firstName, request.contact.lastName].filter(Boolean).join(" ")}</span>
+                <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{format(new Date(request.createdAt), "dd. MMMM yyyy", { locale: de })}</span>
+                {request.assignedTo && <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{request.assignedTo}</span>}
+              </div>
+            </div>
+
+            {/* Process Stepper */}
+            <div className="px-6 pb-4 border-t border-gray-100 pt-3">
+              <div className="grid grid-cols-[1fr_320px] gap-6 max-w-5xl">
+                <ProcessStepper
+                  requestId={request.id}
+                  requestCreatedAt={request.createdAt.toString()}
+                  inspectionDone={inspectionDone}
+                  inspectionPlanned={inspectionPlanned}
+                  inspectionDate={request.inspectionDate?.toString()}
+                  noInspectionRequired={request.noInspectionRequired}
+                  quoteId={hasQuote ? request.quotes[0].id : null}
+                  quoteCreatedAt={hasQuote ? request.quotes[0].createdAt?.toString() : null}
+                  quoteStatus={hasQuote ? request.quotes[0].status : null}
+                  contactId={request.contact.id}
+                  orderId={null}
+                />
+                <div />
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500">
-            <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{request.contact.companyName}</span>
-            <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{format(new Date(request.createdAt), "dd. MMMM yyyy", { locale: de })}</span>
-            {request.assignedTo && <span className="flex items-center gap-1"><User className="h-3.5 w-3.5" />{request.assignedTo}</span>}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {editing ? (
-            <>
-              <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
-              <LoadingButton className="rounded-lg" onClick={handleSave} loading={saving}>
-                Speichern
-              </LoadingButton>
-            </>
-          ) : (
-            <>
-              <Button variant="outline" className="rounded-lg gap-1.5" onClick={() => setEditing(true)}>
-                <Pencil className="h-3.5 w-3.5" />Bearbeiten
-              </Button>
-              {request.quotes.length === 0 ? (
-                <Link href={`/angebote/neu?requestId=${request.id}&contactId=${request.contact.id}`}>
-                  <Button className="rounded-lg gap-1.5">
-                    <FileText className="h-3.5 w-3.5" />Angebot erstellen
-                  </Button>
-                </Link>
-              ) : (
-                <Link href={`/angebote/${request.quotes[0].id}`}>
-                  <Button className="rounded-lg gap-1.5">
-                    <FileText className="h-3.5 w-3.5" />Zum Angebot
-                  </Button>
-                </Link>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+        );
+      })()}
 
       {/* Content */}
       <div className="flex-1 p-6">
@@ -346,10 +328,26 @@ export function RequestDetail({
           {/* Left */}
           <div className="space-y-5">
             {/* Anfrageinformationen */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
-              <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
-                <span className="text-base">📋</span>
-                <h2 className="text-sm font-semibold text-gray-900">Anfrageinformationen</h2>
+            <div id="anfrage" className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">📋</span>
+                  <h2 className="text-sm font-semibold text-gray-900">Anfrageinformationen</h2>
+                </div>
+                {editing ? (
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="rounded-lg h-8" onClick={() => setEditing(false)}>Abbrechen</Button>
+                    <LoadingButton size="sm" className="rounded-lg h-8" onClick={handleSave} loading={saving}>Speichern</LoadingButton>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
 
               {editing ? (
@@ -361,7 +359,7 @@ export function RequestDetail({
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Kontakt</Label>
-                      <p className="text-sm text-gray-900 py-2">{request.contact.companyName}</p>
+                      <p className="text-sm text-gray-900 py-2">{request.contact.companyName || [request.contact.firstName, request.contact.lastName].filter(Boolean).join(" ")}</p>
                     </div>
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Owner</Label>
@@ -376,6 +374,23 @@ export function RequestDetail({
                       </Select>
                     </div>
                   </div>
+                  {(request.contact.phone || request.contact.email || request.contact.firstName || request.contact.lastName || request.contact.address || request.contact.postalCode || request.contact.city) && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-sm space-y-1">
+                      <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Kontaktdaten</p>
+                      {(request.contact.firstName || request.contact.lastName) && (
+                        <p className="text-gray-700"><span className="text-gray-400">Ansprechpartner:</span> {[request.contact.firstName, request.contact.lastName].filter(Boolean).join(" ")}</p>
+                      )}
+                      {request.contact.phone && (
+                        <p className="text-gray-700"><span className="text-gray-400">Telefon:</span> {request.contact.phone}</p>
+                      )}
+                      {request.contact.email && (
+                        <p className="text-gray-700"><span className="text-gray-400">E-Mail:</span> {request.contact.email}</p>
+                      )}
+                      {(request.contact.address || request.contact.postalCode || request.contact.city) && (
+                        <p className="text-gray-700"><span className="text-gray-400">Adresse:</span> {[request.contact.address, [request.contact.postalCode, request.contact.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")}</p>
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
                       <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</Label>
@@ -421,7 +436,7 @@ export function RequestDetail({
                   <div className="grid grid-cols-2 gap-6">
                     <InfoRow label="Kontakt">
                       <Link href={`/kontakte/${request.contact.id}`} className="text-blue-600 hover:underline">
-                        {request.contact.companyName}
+                        {request.contact.companyName || [request.contact.firstName, request.contact.lastName].filter(Boolean).join(" ")}
                       </Link>
                     </InfoRow>
                     <InfoRow label="Owner">{request.assignedTo ?? "–"}</InfoRow>
@@ -450,7 +465,7 @@ export function RequestDetail({
             </div>
 
             {/* Besichtigung */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
+            <div id="besichtigung" className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <span className="text-base">📅</span>
@@ -465,18 +480,31 @@ export function RequestDetail({
               </div>
               {editing ? (
                 <div className="space-y-4">
-                  <button
-                    type="button"
-                    onClick={() => setNoInspectionRequired(!noInspectionRequired)}
-                    className={`inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
-                      noInspectionRequired
-                        ? "bg-red-50 border-red-200 text-red-700"
-                        : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
-                    }`}
-                  >
-                    <Ban className="h-3.5 w-3.5" />
-                    Keine Besichtigung notwendig
-                  </button>
+                  <div className="inline-flex rounded-lg border border-gray-200 p-0.5 bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={() => setNoInspectionRequired(false)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        !noInspectionRequired
+                          ? "bg-white text-gray-900 shadow-sm border border-gray-200"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      Termin festlegen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNoInspectionRequired(true)}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                        noInspectionRequired
+                          ? "bg-red-50 text-red-700 shadow-sm border border-red-200"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      <Ban className="h-3 w-3" />
+                      Keine Besichtigung
+                    </button>
+                  </div>
                   {!noInspectionRequired && (
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -504,63 +532,24 @@ export function RequestDetail({
                 </div>
               ) : (
                 <>
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Besichtigungstermin</p>
-                    {inspectionEditing ? (
-                      <div className="flex items-center gap-2 pt-0.5">
-                        <Input
-                          type="datetime-local"
-                          value={inspectionDateEdit}
-                          onChange={(e) => setInspectionDateEdit(e.target.value)}
-                          className="h-9 rounded-lg border-gray-200 text-sm flex-1"
-                          autoFocus
-                        />
-                        <Button
-                          size="sm"
-                          className="rounded-lg h-9 px-3"
-                          onClick={handleSaveInspection}
-                          disabled={inspectionSaving || !inspectionDateEdit}
-                        >
-                          {inspectionSaving ? "..." : "Speichern"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="rounded-lg h-9 px-3"
-                          onClick={() => { setInspectionEditing(false); setInspectionDateEdit(request.inspectionDate ? format(new Date(request.inspectionDate), "yyyy-MM-dd'T'HH:mm") : ""); }}
-                        >
-                          Abbrechen
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-3">
-                        <span
-                          className="text-sm text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
-                          onClick={() => { if (!inspectionDateEdit) { const d = new Date(); d.setHours(7, 0, 0, 0); setInspectionDateEdit(format(d, "yyyy-MM-dd'T'HH:mm")); } setInspectionEditing(true); }}
-                        >
-                          {request.inspectionDate
-                            ? `${format(new Date(request.inspectionDate), "dd.MM.yyyy HH:mm", { locale: de })} Uhr`
-                            : <span className="text-gray-400 hover:text-blue-500">Termin festlegen…</span>}
-                        </span>
-                        {request.inspectionDate && (
-                          <>
-                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                              inspectionStatus === "DONE"
-                                ? "border border-green-300 text-green-700 bg-green-50"
-                                : "border border-amber-400 text-amber-700 bg-amber-50"
-                            }`}>
-                              <Clock className="h-3 w-3" />
-                              {inspectionStatus === "DONE" ? "Erledigt" : "Geplant"}
-                            </span>
-                            <button onClick={() => setInspectionEditing(true)} className="text-gray-300 hover:text-gray-500 transition-colors">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+                  <div className="grid grid-cols-2 gap-6">
+                    <InfoRow label="Besichtigungstermin">
+                      {request.inspectionDate ? (
+                        <div className="flex items-center gap-2">
+                          <span>{format(new Date(request.inspectionDate), "dd.MM.yyyy HH:mm", { locale: de })} Uhr</span>
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                            inspectionStatus === "DONE"
+                              ? "border border-green-300 text-green-700 bg-green-50"
+                              : "border border-amber-400 text-amber-700 bg-amber-50"
+                          }`}>
+                            <Clock className="h-3 w-3" />
+                            {inspectionStatus === "DONE" ? "Erledigt" : "Geplant"}
+                          </span>
+                        </div>
+                      ) : "–"}
+                    </InfoRow>
+                    <InfoRow label="Zugewiesen an">{request.assignedTo ?? "–"}</InfoRow>
                   </div>
-                  <InfoRow label="Zugewiesen an">{request.assignedTo ?? "–"}</InfoRow>
                   {request.inspectionDate && (
                     <div className="flex items-center gap-2 pt-1 flex-wrap">
                       {request.inspectionStatus !== "DONE" && (
@@ -662,7 +651,7 @@ export function RequestDetail({
 
             {/* Quotes */}
             {request.quotes.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div id="angebote" className="bg-white border border-gray-200 rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-2">
                   <span>📄</span>
                   <h3 className="text-sm font-semibold text-gray-900">Angebote ({request.quotes.length})</h3>

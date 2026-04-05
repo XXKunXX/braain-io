@@ -8,6 +8,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import { toast } from "sonner";
 import { ArrowLeft, FileText, Mail, Pencil, Trash2, CheckCircle, Activity, Plus, Package, Wrench, X } from "lucide-react";
+import { ProcessStepper } from "@/components/shared/process-stepper";
 import { Button } from "@/components/ui/button";
 import { LoadingButton } from "@/components/ui/loading-button";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -30,12 +31,14 @@ import {
 import { updateQuote, updateQuoteStatus, deleteQuote, acceptQuoteAndCreateOrder } from "@/actions/quotes";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { sendQuoteEmail } from "@/actions/send-quote-email";
+import { updateContactEmail } from "@/actions/contacts";
 import type { Contact, Quote, QuoteItem, Request } from "@prisma/client";
 import type { MachineRow } from "@/actions/machines";
 
 type QuoteWithRelations = Quote & {
   contact: Contact;
   request: Request | null;
+  orders: { id: string }[];
   items: QuoteItem[];
 };
 
@@ -90,7 +93,10 @@ export function QuoteDetail({
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
   const [emailTo, setEmailTo] = useState(quote.contact?.email ?? "");
+  const [emailSubject, setEmailSubject] = useState(`Angebot ${quote.quoteNumber} – ${quote.title}`);
+  const [emailBody, setEmailBody] = useState(`Guten Tag,\n\nanbei erhalten Sie unser Angebot ${quote.quoteNumber} für ${quote.title}.\n\nBei Fragen stehen wir Ihnen gerne zur Verfügung.\n\nMit freundlichen Grüßen`);
   const [emailSending, setEmailSending] = useState(false);
+  const [saveEmailToContact, setSaveEmailToContact] = useState(true);
 
   const [title, setTitle] = useState(quote.title);
   const [siteAddress, setSiteAddress] = useState(quote.siteAddress ?? "");
@@ -203,10 +209,13 @@ export function QuoteDetail({
     if (!emailTo) return;
     setEmailSending(true);
     try {
-      const result = await sendQuoteEmail(quote.id, emailTo);
+      const result = await sendQuoteEmail(quote.id, emailTo, emailSubject, emailBody);
       if (result.error) {
         toast.error("Fehler beim Senden: " + result.error);
         return;
+      }
+      if (saveEmailToContact && !quote.contact.email && emailTo) {
+        await updateContactEmail(quote.contact.id, emailTo);
       }
       toast.success("Angebot per E-Mail versendet");
       setEmailOpen(false);
@@ -220,16 +229,25 @@ export function QuoteDetail({
 
   async function confirmDelete() {
     setDeleting(true);
-    await deleteQuote(quote.id);
+    const result = await deleteQuote(quote.id);
     toast.success("Angebot gelöscht");
-    router.push("/angebote");
+    router.push(result.requestId ? `/anfragen/${result.requestId}` : "/angebote");
   }
 
+  function makeInitials(name: string | null | undefined) {
+    if (!name) return "?";
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  }
+
+  const fallbackName = quote.assignedTo ?? null;
+  const createdByName = (quote as any).createdByName ?? fallbackName;
+  const statusChangedByName = (quote as any).statusChangedByName ?? fallbackName;
+
   const activities = [
-    { label: "Angebot erstellt", date: quote.createdAt, color: "bg-blue-500" },
-    ...(quote.status === "SENT" ? [{ label: "Angebot versendet", date: quote.updatedAt, color: "bg-blue-500" }] : []),
-    ...(quote.status === "ACCEPTED" ? [{ label: "Angebot angenommen", date: quote.updatedAt, color: "bg-green-500" }] : []),
-    ...(quote.status === "REJECTED" ? [{ label: "Angebot abgelehnt", date: quote.updatedAt, color: "bg-red-500" }] : []),
+    { label: "Angebot erstellt", date: quote.createdAt, dotColor: "bg-blue-500", user: createdByName, initials: makeInitials(createdByName) },
+    ...(quote.status === "SENT" ? [{ label: "Angebot versendet", date: quote.updatedAt, dotColor: "bg-blue-500", user: statusChangedByName, initials: makeInitials(statusChangedByName) }] : []),
+    ...(quote.status === "ACCEPTED" ? [{ label: "Angebot angenommen", date: quote.updatedAt, dotColor: "bg-green-500", user: statusChangedByName, initials: makeInitials(statusChangedByName) }] : []),
+    ...(quote.status === "REJECTED" ? [{ label: "Angebot abgelehnt", date: quote.updatedAt, dotColor: "bg-red-500", user: statusChangedByName, initials: makeInitials(statusChangedByName) }] : []),
   ];
 
   return (
@@ -246,8 +264,8 @@ export function QuoteDetail({
             <h1 className="text-xl font-semibold text-gray-900">{quote.quoteNumber}</h1>
             <StatusBadge status={quote.status} />
           </div>
-          <Link href={`/kontakte/${quote.contact.id}`} className="text-sm text-gray-500 hover:text-blue-600 transition-colors mt-0.5 block">
-            {quote.contact.companyName}
+          <Link href={`/kontakte/${quote.contact.id}?from=/angebote/${quote.id}&fromLabel=${encodeURIComponent(quote.quoteNumber)}`} className="text-sm text-gray-500 hover:text-blue-600 transition-colors mt-0.5 block">
+            {quote.contact.companyName || [quote.contact.firstName, quote.contact.lastName].filter(Boolean).join(" ") || "–"}
           </Link>
         </div>
 
@@ -269,6 +287,8 @@ export function QuoteDetail({
           >
             <Mail className="h-3.5 w-3.5" />Per E-Mail senden
           </Button>
+
+          {/* Angenommen / Abgelehnt */}
           {quote.status !== "ACCEPTED" && quote.status !== "REJECTED" && (
             <>
               <Button
@@ -288,20 +308,6 @@ export function QuoteDetail({
             </>
           )}
 
-          {/* Bearbeiten / Speichern */}
-          {editing ? (
-            <>
-              <Button variant="outline" className="rounded-lg" onClick={() => setEditing(false)}>Abbrechen</Button>
-              <LoadingButton className="rounded-lg" onClick={handleSave} loading={saving}>
-                Speichern
-              </LoadingButton>
-            </>
-          ) : (
-            <Button variant="outline" className="rounded-lg gap-1.5" onClick={() => setEditing(true)}>
-              <Pencil className="h-3.5 w-3.5" />Bearbeiten
-            </Button>
-          )}
-
           {/* Löschen */}
           <Button
             variant="outline"
@@ -314,39 +320,59 @@ export function QuoteDetail({
         </div>
       </div>
 
+      {/* Process Stepper */}
+      <div className={`px-6 pt-3 bg-white ${quote.status !== "ACCEPTED" && quote.status !== "REJECTED" ? "pb-3" : "pb-4 border-b border-gray-100"}`}>
+        <div className="grid grid-cols-[1fr_300px] gap-6 max-w-5xl">
+          <ProcessStepper
+            requestId={quote.request?.id ?? null}
+            requestCreatedAt={quote.request?.createdAt?.toString() ?? null}
+            inspectionDone={quote.request?.inspectionStatus === "DONE"}
+            inspectionPlanned={!!(quote.request?.inspectionDate && quote.request?.inspectionStatus !== "DONE" && !quote.request?.noInspectionRequired)}
+            inspectionDate={quote.request?.inspectionDate?.toString() ?? null}
+            noInspectionRequired={quote.request?.noInspectionRequired ?? false}
+            quoteId={quote.id}
+            quoteCreatedAt={quote.createdAt?.toString() ?? null}
+            quoteStatus={quote.status}
+            contactId={quote.contact.id}
+            onQuoteStatusChange={async (status) => {
+              if (status === "ACCEPTED") {
+                await handleAccept();
+              } else {
+                await handleStatusChange(status);
+              }
+            }}
+            onQuoteSendEmail={() => setEmailOpen(true)}
+            orderId={quote.orders?.[0]?.id ?? null}
+          />
+          <div />
+        </div>
+      </div>
+
       {/* Content */}
       <div className="flex-1 p-6">
         <div className="grid grid-cols-[1fr_300px] gap-6 max-w-5xl">
           {/* Left */}
           <div className="space-y-5">
-            {/* Anfrage als Referenz */}
-            <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-              <h2 className="text-base font-semibold text-gray-900">Anfrage als Referenz</h2>
-              <div className="border-t border-gray-100 pt-4">
-                <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2">Anfrage wählen</p>
-                {quote.request ? (
-                  <Link
-                    href={`/anfragen/${quote.request.id}`}
-                    className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 hover:bg-blue-100 transition-colors"
-                  >
-                    <FileText className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                    <span className="text-sm font-medium text-blue-900">
-                      {quote.contact.companyName} – {quote.request.title}
-                    </span>
-                  </Link>
-                ) : (
-                  <div className="text-sm text-gray-400 italic">Keine Anfrage verknüpft</div>
-                )}
-                <p className="text-xs text-gray-400 mt-2">
-                  Beim Auswählen einer Anfrage werden relevante Daten automatisch übernommen.
-                </p>
-              </div>
-            </div>
-
             {/* Angebotsinformationen */}
             <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
-              <h2 className="text-base font-semibold text-gray-900">Angebotsinformationen</h2>
-              <div className="border-t border-gray-100 pt-4">
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <h2 className="text-sm font-semibold text-gray-900">Angebotsinformationen</h2>
+                {editing ? (
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" className="rounded-lg h-8" onClick={() => setEditing(false)}>Abbrechen</Button>
+                    <LoadingButton size="sm" className="rounded-lg h-8" onClick={handleSave} loading={saving}>Speichern</LoadingButton>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="pt-1">
                 {editing ? (
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -387,9 +413,16 @@ export function QuoteDetail({
                     <InfoRow label="Projektname">{quote.title}</InfoRow>
                     <InfoRow label="Angebotsnummer">{quote.quoteNumber}</InfoRow>
                     <InfoRow label="Kontakt">
-                      <Link href={`/kontakte/${quote.contact.id}`} className="text-blue-600 hover:underline">
-                        {quote.contact.companyName}
+                      <Link href={`/kontakte/${quote.contact.id}?from=/angebote/${quote.id}&fromLabel=${encodeURIComponent(quote.quoteNumber)}`} className="text-blue-600 hover:underline">
+                        {quote.contact.companyName || [quote.contact.firstName, quote.contact.lastName].filter(Boolean).join(" ") || "–"}
                       </Link>
+                    </InfoRow>
+                    <InfoRow label="Anfrage">
+                      {quote.request ? (
+                        <Link href={`/anfragen/${quote.request.id}`} className="text-blue-600 hover:underline">
+                          {quote.request.title}
+                        </Link>
+                      ) : "–"}
                     </InfoRow>
                     <InfoRow label="Baustellenadresse">{quote.siteAddress ?? "–"}</InfoRow>
                     <InfoRow label="Angebotsdatum">
@@ -614,13 +647,19 @@ export function QuoteDetail({
                 <Activity className="h-4 w-4 text-gray-400" />
                 <h3 className="text-sm font-semibold text-gray-900">Aktivität</h3>
               </div>
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {activities.map((a, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${a.color}`} />
-                    <div>
-                      <p className="text-sm text-gray-700">{a.label}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-[11px] font-bold text-blue-700 leading-none">{a.initials}</span>
+                    </div>
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <p className="text-xs font-semibold text-gray-800 leading-tight">{a.user ?? <span className="text-gray-400 font-normal">–</span>}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1.5">
+                        <span className={`inline-block w-1.5 h-1.5 rounded-full flex-shrink-0 ${a.dotColor}`} />
+                        {a.label}
+                      </p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
                         {format(new Date(a.date), "dd. MMMM yyyy", { locale: de })}
                       </p>
                     </div>
@@ -645,7 +684,7 @@ export function QuoteDetail({
     {/* E-Mail Dialog */}
 
     <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Angebot per E-Mail senden</DialogTitle>
         </DialogHeader>
@@ -660,10 +699,48 @@ export function QuoteDetail({
               className="h-10 rounded-lg border-gray-200"
               autoFocus
             />
+            {!quote.contact.email && emailTo && /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailTo) && (
+              <label className="flex items-center gap-2 cursor-pointer mt-1.5">
+                <input
+                  type="checkbox"
+                  checked={saveEmailToContact}
+                  onChange={(e) => setSaveEmailToContact(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-xs text-gray-500">
+                  E-Mail bei <span className="font-medium text-gray-700">{quote.contact.companyName || [quote.contact.firstName, quote.contact.lastName].filter(Boolean).join(" ")}</span> speichern
+                </span>
+              </label>
+            )}
           </div>
-          <div className="bg-gray-50 rounded-lg px-4 py-3 text-sm text-gray-600 space-y-0.5">
-            <p className="font-medium text-gray-800">Betreff: Angebot {quote.quoteNumber} – {quote.title}</p>
-            <p className="text-xs text-gray-400">Anhang: {quote.quoteNumber}.pdf</p>
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Betreff</Label>
+            <Input
+              value={emailSubject}
+              onChange={(e) => setEmailSubject(e.target.value)}
+              className="h-10 rounded-lg border-gray-200"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Text</Label>
+            <Textarea
+              value={emailBody}
+              onChange={(e) => setEmailBody(e.target.value)}
+              rows={6}
+              className="rounded-lg border-gray-200 resize-none text-sm"
+            />
+          </div>
+          <div className="flex items-center gap-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2">
+            <FileText className="h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">Anhang: {quote.quoteNumber}.pdf</span>
+            <a
+              href={`/api/pdf/quote/${quote.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline font-medium"
+            >
+              PDF öffnen
+            </a>
           </div>
           <div className="flex justify-end gap-2 pt-1">
             <Button variant="outline" className="rounded-lg" onClick={() => setEmailOpen(false)}>

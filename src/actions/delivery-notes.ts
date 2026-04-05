@@ -81,6 +81,22 @@ export async function createDeliveryNote(data: DeliveryNoteFormData) {
     },
   });
 
+  // Automatically advance order status to IN_LIEFERUNG when a delivery note is created
+  if (noteData.baustelleId) {
+    const baustelle = await prisma.baustelle.findUnique({
+      where: { id: noteData.baustelleId },
+      select: { orderId: true },
+    });
+    if (baustelle?.orderId) {
+      await prisma.order.updateMany({
+        where: { id: baustelle.orderId, status: { in: ["OPEN", "DISPONIERT"] } },
+        data: { status: "IN_LIEFERUNG" },
+      });
+      revalidatePath("/auftraege");
+      revalidatePath(`/auftraege/${baustelle.orderId}`);
+    }
+  }
+
   revalidatePath("/lieferscheine");
   return { deliveryNote: { ...deliveryNote, quantity: Number(deliveryNote.quantity) } };
 }

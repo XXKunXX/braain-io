@@ -207,7 +207,7 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
         {/* Info (readonly) */}
         <Section title="Auftragsdaten">
           <ReadRow label="Datum" value={new Date(dn.date).toLocaleDateString("de-DE")} />
-          <ReadRow label="Kunde" value={dn.contact.companyName} />
+          <ReadRow label="Kunde" value={dn.contact.companyName || [dn.contact.firstName, dn.contact.lastName].filter(Boolean).join(" ")} />
           <div>
             <label className={LBL}>Baustelle</label>
             <input className={IC} value={siteAddress} onChange={e => setSiteAddress(e.target.value)} placeholder="Baustellenadresse..." />

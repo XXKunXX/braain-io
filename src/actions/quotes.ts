@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getNextNumber } from "@/lib/counter";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { currentUser } from "@clerk/nextjs/server";
 
 const quoteItemSchema = z.object({
   description: z.string().min(1, "Beschreibung erforderlich"),
@@ -39,12 +40,17 @@ export async function createQuote(data: QuoteFormData) {
   );
 
   const quoteNumber = await getNextNumber("quote");
+  const clerkUser = await currentUser();
+  const createdByName = clerkUser
+    ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || clerkUser.emailAddresses[0]?.emailAddress
+    : undefined;
 
   const quote = await prisma.quote.create({
     data: {
       ...quoteData,
       quoteNumber,
       totalPrice,
+      createdByName,
       validUntil: validUntil ? new Date(validUntil) : undefined,
       items: {
         create: items.map((item, idx) => ({
@@ -138,9 +144,14 @@ export async function updateQuoteStatus(
   id: string,
   status: "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED"
 ) {
+  const clerkUser = await currentUser();
+  const statusChangedByName = clerkUser
+    ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || clerkUser.emailAddresses[0]?.emailAddress
+    : undefined;
+
   const quote = await prisma.quote.update({
     where: { id },
-    data: { status },
+    data: { status, statusChangedByName },
     select: { id: true, status: true, requestId: true },
   });
 
@@ -185,7 +196,7 @@ export async function acceptQuoteAndCreateOrder(quoteId: string) {
         startDate,
         endDate: endDate < startDate ? startDate : endDate,
         notes: quote.notes ?? undefined,
-        status: "PLANNED",
+        status: "OPEN",
       },
     }),
   ]);
@@ -205,9 +216,27 @@ export async function acceptQuoteAndCreateOrder(quoteId: string) {
 }
 
 export async function deleteQuote(id: string) {
+  const quote = await prisma.quote.findUnique({
+    where: { id },
+    select: { requestId: true, request: { select: { inspectionStatus: true } } },
+  });
+
   await prisma.quote.delete({ where: { id } });
+
+  // Request-Status zurücksetzen
+  if (quote?.requestId) {
+    const resetStatus = quote.request?.inspectionStatus === "DONE"
+      ? "BESICHTIGUNG_DURCHGEFUEHRT"
+      : "NEU";
+    await prisma.request.update({
+      where: { id: quote.requestId },
+      data: { status: resetStatus },
+    });
+    revalidatePath(`/anfragen/${quote.requestId}`);
+  }
+
   revalidatePath("/angebote");
-  return { success: true };
+  return { success: true, requestId: quote?.requestId ?? null };
 }
 
 export async function getQuotes(status?: string) {
@@ -224,6 +253,7 @@ export async function getQuote(id: string) {
     include: {
       contact: true,
       request: true,
+      orders: { select: { id: true } },
       items: { orderBy: { position: "asc" } },
     },
   });

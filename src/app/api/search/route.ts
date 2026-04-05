@@ -71,22 +71,22 @@ export async function GET(req: NextRequest) {
     prisma.request.findMany({
       where: { OR: [...containsAny("title", variants), ...containsAny("description", variants), { contact: { OR: contactVariants(variants) } }] },
       take: 10,
-      select: { id: true, title: true, status: true, contact: { select: { companyName: true } } },
+      select: { id: true, title: true, status: true, contact: { select: { companyName: true, firstName: true, lastName: true } } },
     }),
     prisma.quote.findMany({
       where: { OR: [...containsAny("title", variants), ...containsAny("quoteNumber", variants), { contact: { OR: contactVariants(variants) } }] },
       take: 10,
-      select: { id: true, title: true, quoteNumber: true, status: true, contact: { select: { companyName: true } } },
+      select: { id: true, title: true, quoteNumber: true, status: true, contact: { select: { companyName: true, firstName: true, lastName: true } } },
     }),
     prisma.order.findMany({
       where: { OR: [...containsAny("title", variants), ...containsAny("orderNumber", variants), { contact: { OR: contactVariants(variants) } }] },
       take: 10,
-      select: { id: true, title: true, orderNumber: true, status: true, contact: { select: { companyName: true } } },
+      select: { id: true, title: true, orderNumber: true, status: true, contact: { select: { companyName: true, firstName: true, lastName: true } } },
     }),
     prisma.deliveryNote.findMany({
       where: { OR: [...containsAny("deliveryNumber", variants), ...containsAny("material", variants), { contact: { OR: contactVariants(variants) } }] },
       take: 10,
-      select: { id: true, deliveryNumber: true, material: true, contact: { select: { companyName: true } } },
+      select: { id: true, deliveryNumber: true, material: true, contact: { select: { companyName: true, firstName: true, lastName: true } } },
     }),
     prisma.task.findMany({
       where: { OR: [...containsAny("title", variants), ...containsAny("description", variants)] },
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest) {
     prisma.attachment.findMany({
       where: { OR: containsAny("fileName", variants) },
       take: 8,
-      select: { id: true, fileName: true, contact: { select: { companyName: true } } },
+      select: { id: true, fileName: true, contact: { select: { companyName: true, firstName: true, lastName: true } } },
     }),
     prisma.baustelle.findMany({
       where: { OR: [...containsAny("name", variants), ...containsAny("address", variants), ...containsAny("city", variants), ...containsAny("bauleiter", variants)] },

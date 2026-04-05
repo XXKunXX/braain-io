@@ -11,7 +11,7 @@ export default async function OffenePostenPage({ searchParams }: { searchParams:
       where: { status: { in: ["ENTWURF", "VERSENDET"] } },
       orderBy: { dueDate: "asc" },
       include: {
-        contact: { select: { id: true, companyName: true, paymentReminderDays: true } },
+        contact: { select: { id: true, companyName: true, firstName: true, lastName: true, paymentReminderDays: true } },
         order: { select: { id: true, orderNumber: true, title: true } },
       },
     }),
@@ -19,7 +19,7 @@ export default async function OffenePostenPage({ searchParams }: { searchParams:
       where: { invoiceId: null },
       orderBy: { date: "desc" },
       include: {
-        contact: { select: { id: true, companyName: true } },
+        contact: { select: { id: true, companyName: true, firstName: true, lastName: true } },
         order: { select: { id: true, orderNumber: true, title: true } },
       },
     }),

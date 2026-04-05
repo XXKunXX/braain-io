@@ -263,7 +263,7 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
                 {cfg.label}
               </span>
             </div>
-            <p className="text-sm text-gray-500">{invoice.contact.companyName}</p>
+            <p className="text-sm text-gray-500">{invoice.contact.companyName || [invoice.contact.firstName, invoice.contact.lastName].filter(Boolean).join(" ")}</p>
             {invoice.order && (
               <Link href={`/auftraege/${invoice.order.id}`} className="text-xs text-blue-600 hover:underline">
                 {invoice.order.orderNumber} – {invoice.order.title}

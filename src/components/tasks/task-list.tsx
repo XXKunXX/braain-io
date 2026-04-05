@@ -278,12 +278,12 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                         {task.dueDate && (
                           <RelativeDate
                             date={task.dueDate}
-                            overdue={overdue}
+                            overdue={overdue ?? undefined}
                             className="text-xs"
                           />
                         )}
-                        {task.contact?.companyName && (
-                          <span className="text-xs text-gray-400">{task.contact.companyName}</span>
+                        {task.contact && (task.contact.companyName || task.contact.firstName || task.contact.lastName) && (
+                          <span className="text-xs text-gray-400">{task.contact.companyName || [task.contact.firstName, task.contact.lastName].filter(Boolean).join(" ")}</span>
                         )}
                         {task.assignedTo && (
                           <span className="text-xs text-gray-400">→ {task.assignedTo}</span>
@@ -367,7 +367,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                   <div className="flex items-center gap-1.5">
                     <RelativeDate
                       date={task.dueDate}
-                      overdue={overdue}
+                      overdue={overdue ?? undefined}
                       className="text-sm"
                     />
                   </div>

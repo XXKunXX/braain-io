@@ -10,7 +10,12 @@ import type { DocumentProps } from "@react-pdf/renderer";
 import path from "path";
 import fs from "fs";
 
-export async function sendQuoteEmail(quoteId: string, toEmail: string) {
+export async function sendQuoteEmail(
+  quoteId: string,
+  toEmail: string,
+  customSubject?: string,
+  customBody?: string,
+) {
   try {
     const [quote, rawSettings] = await Promise.all([
       prisma.quote.findUnique({
@@ -49,16 +54,15 @@ export async function sendQuoteEmail(quoteId: string, toEmail: string) {
       },
     });
 
+    const subject = customSubject ?? `Angebot ${quote.quoteNumber} – ${quote.title}`;
+    const bodyText = customBody ?? `Guten Tag,\n\nanbei erhalten Sie unser Angebot ${quote.quoteNumber} für ${quote.title}.\n\nBei Fragen stehen wir Ihnen gerne zur Verfügung.\n\nMit freundlichen Grüßen`;
+    const bodyHtml = bodyText.split("\n").map((line) => line ? `<p>${line}</p>` : "<br>").join("");
+
     await transporter.sendMail({
       from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
       to: toEmail,
-      subject: `Angebot ${quote.quoteNumber} – ${quote.title}`,
-      html: `
-        <p>Guten Tag,</p>
-        <p>anbei erhalten Sie unser Angebot <strong>${quote.quoteNumber}</strong> für <strong>${quote.title}</strong>.</p>
-        <p>Bei Fragen stehen wir Ihnen gerne zur Verfügung.</p>
-        <p>Mit freundlichen Grüßen</p>
-      `,
+      subject,
+      html: bodyHtml,
       attachments: [
         {
           filename: `${quote.quoteNumber}.pdf`,

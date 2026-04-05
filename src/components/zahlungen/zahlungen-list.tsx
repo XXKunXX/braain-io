@@ -10,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { format, differenceInDays } from "date-fns";
 import { de } from "date-fns/locale";
+import { getContactName } from "@/lib/utils";
 
 type Invoice = {
   id: string;
@@ -18,7 +19,7 @@ type Invoice = {
   dueDate: Date | null;
   status: string;
   totalAmount: number;
-  contact: { id: string; companyName: string; paymentReminderDays?: number | null };
+  contact: { id: string; companyName: string | null; firstName?: string | null; lastName?: string | null; paymentReminderDays?: number | null };
   order: { id: string; orderNumber: string; title: string } | null;
 };
 
@@ -29,7 +30,7 @@ type DeliveryNote = {
   material: string;
   quantity: number;
   unit: string;
-  contact: { id: string; companyName: string };
+  contact: { id: string; companyName: string | null; firstName?: string | null; lastName?: string | null };
   order: { id: string; orderNumber: string; title: string } | null;
 };
 
@@ -105,7 +106,7 @@ export function OffenePostenList({
       if (!map.has(key)) {
         map.set(key, {
           contactId: dn.contact.id,
-          companyName: dn.contact.companyName,
+          companyName: getContactName(dn.contact),
           orderId: dn.order?.id ?? null,
           orderTitle: dn.order?.title ?? null,
           orderNumber: dn.order?.orderNumber ?? null,
@@ -126,7 +127,7 @@ export function OffenePostenList({
         false;
       const matchesSearch = !q ||
         inv.invoiceNumber.toLowerCase().includes(q) ||
-        inv.contact.companyName.toLowerCase().includes(q) ||
+        getContactName(inv.contact).toLowerCase().includes(q) ||
         (inv.order?.title ?? "").toLowerCase().includes(q);
       return matchesTab && matchesSearch;
     });
@@ -223,7 +224,7 @@ export function OffenePostenList({
                     <div className="md:hidden flex items-start gap-3 px-4 py-3.5">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-semibold text-gray-900 truncate">{inv.contact.companyName}</p>
+                          <p className="text-sm font-semibold text-gray-900 truncate">{getContactName(inv.contact)}</p>
                           {cfg.label && (
                             <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${cfg.badge}`}>
                               <StatusIcon className="h-3 w-3" />
@@ -239,7 +240,7 @@ export function OffenePostenList({
 
                     {/* Desktop */}
                     <div className="hidden md:grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_110px_110px_130px_1fr_56px] gap-3 px-5 py-3.5 items-center">
-                      <p className="text-sm font-medium text-gray-900 truncate">{inv.contact.companyName}</p>
+                      <p className="text-sm font-medium text-gray-900 truncate">{getContactName(inv.contact)}</p>
                       <div className="min-w-0">
                         {inv.order && <p className="text-xs text-gray-400 truncate">{inv.order.orderNumber} – {inv.order.title}</p>}
                         <p className="text-xs font-mono text-gray-500">{inv.invoiceNumber}</p>

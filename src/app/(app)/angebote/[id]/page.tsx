@@ -20,6 +20,12 @@ export default async function AngebotDetailPage({
     validUntil: quote.validUntil ? quote.validUntil.toISOString() : null,
     createdAt: quote.createdAt.toISOString(),
     updatedAt: quote.updatedAt.toISOString(),
+    contact: quote.contact
+      ? { ...quote.contact, createdAt: quote.contact.createdAt.toISOString(), updatedAt: quote.contact.updatedAt.toISOString() }
+      : null,
+    request: quote.request
+      ? { ...quote.request, createdAt: quote.request.createdAt.toISOString(), updatedAt: quote.request.updatedAt.toISOString(), inspectionDate: quote.request.inspectionDate?.toISOString() ?? null }
+      : null,
     items: quote.items.map((i) => ({
       ...i,
       quantity: Number(i.quantity),

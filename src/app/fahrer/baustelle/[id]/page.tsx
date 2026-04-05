@@ -53,8 +53,8 @@ export default async function FahrerBaustelleDetailPage({
             Baustellen
           </Link>
           <h1 className="text-[22px] font-black text-gray-900 tracking-tight leading-tight">{baustelle.name}</h1>
-          {baustelle.contact?.companyName && (
-            <p className="text-[14px] text-gray-400 mt-0.5 font-medium">{baustelle.contact.companyName}</p>
+          {(baustelle.contact?.companyName || baustelle.contact?.firstName || baustelle.contact?.lastName) && (
+            <p className="text-[14px] text-gray-400 mt-0.5 font-medium">{baustelle.contact.companyName || [baustelle.contact.firstName, baustelle.contact.lastName].filter(Boolean).join(" ")}</p>
           )}
         </div>
 
@@ -101,8 +101,8 @@ export default async function FahrerBaustelleDetailPage({
           <div className="space-y-4">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{baustelle.name}</h1>
-              {baustelle.contact?.companyName && (
-                <p className="text-gray-400 mt-0.5">{baustelle.contact.companyName}</p>
+              {(baustelle.contact?.companyName || baustelle.contact?.firstName || baustelle.contact?.lastName) && (
+                <p className="text-gray-400 mt-0.5">{baustelle.contact.companyName || [baustelle.contact.firstName, baustelle.contact.lastName].filter(Boolean).join(" ")}</p>
               )}
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -27,11 +27,6 @@ export default async function AuftragDetailPage({
       })),
     } : null,
     baustellen: order.baustellen,
-    paymentMilestones: (order.paymentMilestones ?? []).map((m) => ({
-      ...m,
-      amount: m.amount.toNumber(),
-      skontoPercent: m.skontoPercent ? m.skontoPercent.toNumber() : null,
-    })),
     deliveryNotes: (order.deliveryNotes ?? []).map((dn) => ({
       ...dn,
       quantity: dn.quantity != null ? Number(dn.quantity) : null,

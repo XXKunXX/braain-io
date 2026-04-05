@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Pencil, Trash2, X, AlertTriangle, FileText,
-  Wrench, Activity, Info, ExternalLink,
+  Wrench, Activity, Info, ExternalLink, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatLicensePlate } from "@/lib/license-plate";

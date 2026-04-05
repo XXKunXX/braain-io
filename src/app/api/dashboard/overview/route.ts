@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     prisma.quote.count({ where: { createdAt: { gte, lte } } }),
     prisma.quote.count({ where: { status: "SENT", updatedAt: { gte, lte } } }),
     prisma.quote.count({ where: { status: "ACCEPTED", updatedAt: { gte, lte } } }),
-    prisma.order.count({ where: { status: "COMPLETED", updatedAt: { gte, lte } } }),
+    prisma.order.count({ where: { status: "ABGESCHLOSSEN", updatedAt: { gte, lte } } }),
   ]);
 
   return NextResponse.json({ requests, quotesCreated, quotesSent, quotesAccepted, ordersCompleted });

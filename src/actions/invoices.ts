@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getNextNumber } from "@/lib/counter";
 import { generatePaymentTermText, parseSkontoFromJson } from "@/lib/payment-terms";
 import { getSettings } from "@/actions/settings";
+import { reportBetaError } from "@/lib/report-error";
 import nodemailer from "nodemailer";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { InvoicePDF } from "@/lib/pdf/invoice-pdf";
@@ -60,7 +61,7 @@ export async function getInvoices() {
   const invoices = await prisma.invoice.findMany({
     orderBy: { invoiceDate: "desc" },
     include: {
-      contact: { select: { id: true, companyName: true, email: true } },
+      contact: { select: { id: true, companyName: true, firstName: true, lastName: true, email: true } },
       order: { select: { id: true, orderNumber: true, title: true } },
       items: { orderBy: { position: "asc" } },
     },
@@ -97,42 +98,57 @@ export async function getInvoice(id: string) {
 }
 
 export async function createInvoice(data: CreateInvoiceInput) {
-  const settings = await getSettings();
-  const vatRate = data.vatRate ?? Number(settings.vatRate);
-  const { subtotal, vatAmount, totalAmount } = calcTotals(data.items, vatRate);
-  const invoiceNumber = await getNextNumber("invoice");
+  try {
+    const settings = await getSettings();
+    const vatRate = data.vatRate ?? Number(settings.vatRate);
+    const { subtotal, vatAmount, totalAmount } = calcTotals(data.items, vatRate);
+    const invoiceNumber = await getNextNumber("invoice");
 
-  const invoice = await prisma.invoice.create({
-    data: {
-      invoiceNumber,
-      contactId: data.contactId,
-      orderId: data.orderId ?? null,
-      invoiceDate: data.invoiceDate ? new Date(data.invoiceDate) : new Date(),
-      dueDate: data.dueDate ? new Date(data.dueDate) : null,
-      headerText: data.headerText ?? null,
-      footerText: data.footerText ?? settings.defaultPaymentTerms,
-      notes: data.notes ?? null,
-      vatRate,
-      subtotal,
-      vatAmount,
-      totalAmount,
-      items: {
-        create: data.items.map((item, idx) => ({
-          position: idx + 1,
-          description: item.description,
-          note: item.note ?? null,
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: item.unitPrice,
-          vatRate: item.vatRate ?? vatRate,
-          total: item.quantity * item.unitPrice,
-        })),
+    const invoice = await prisma.invoice.create({
+      data: {
+        invoiceNumber,
+        contactId: data.contactId,
+        orderId: data.orderId ?? null,
+        invoiceDate: data.invoiceDate ? new Date(data.invoiceDate) : new Date(),
+        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        headerText: data.headerText ?? null,
+        footerText: data.footerText ?? settings.defaultPaymentTerms,
+        notes: data.notes ?? null,
+        vatRate,
+        subtotal,
+        vatAmount,
+        totalAmount,
+        items: {
+          create: data.items.map((item, idx) => ({
+            position: idx + 1,
+            description: item.description,
+            note: item.note ?? null,
+            quantity: item.quantity,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+            vatRate: item.vatRate ?? vatRate,
+            total: item.quantity * item.unitPrice,
+          })),
+        },
       },
-    },
-  });
+    });
 
-  revalidatePath("/rechnungen");
-  return { invoice };
+    // Automatically advance order status to VERRECHNET when an invoice is created
+    if (data.orderId) {
+      await prisma.order.updateMany({
+        where: { id: data.orderId, status: { in: ["OPEN", "DISPONIERT", "IN_LIEFERUNG"] } },
+        data: { status: "VERRECHNET" },
+      });
+      revalidatePath("/auftraege");
+      revalidatePath(`/auftraege/${data.orderId}`);
+    }
+
+    revalidatePath("/rechnungen");
+    return { invoice };
+  } catch (err) {
+    await reportBetaError(err, { location: "createInvoice", extra: { contactId: data.contactId, orderId: data.orderId } });
+    return { error: "Rechnung konnte nicht erstellt werden." };
+  }
 }
 
 export async function createInvoiceFromDeliveryNotes(
@@ -214,6 +230,16 @@ export async function createInvoiceFromDeliveryNotes(
 
     return inv;
   });
+
+  // Automatically advance order status to VERRECHNET when an invoice is created
+  if (orderId) {
+    await prisma.order.updateMany({
+      where: { id: orderId, status: { in: ["OPEN", "DISPONIERT", "IN_LIEFERUNG"] } },
+      data: { status: "VERRECHNET" },
+    });
+    revalidatePath("/auftraege");
+    revalidatePath(`/auftraege/${orderId}`);
+  }
 
   revalidatePath("/rechnungen");
   revalidatePath("/lieferscheine");

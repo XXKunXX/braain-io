@@ -15,7 +15,7 @@ import { DispositionCalendar } from "@/components/calendar/disposition-calendar"
 export default async function DispositionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ week?: string; view?: string; baustelleId?: string; baustelleName?: string }>;
+  searchParams: Promise<{ week?: string; view?: string; baustelleId?: string; baustelleName?: string; orderId?: string; orderTitle?: string }>;
 }) {
   const params = await searchParams;
   const view = (params.view ?? "woche") as "tag" | "woche" | "monat" | "timeline" | "6wochen";
@@ -56,6 +56,8 @@ export default async function DispositionPage({
       initialView={view}
       baustelleId={params.baustelleId}
       baustelleName={params.baustelleName}
+      orderId={params.orderId}
+      orderTitle={params.orderTitle}
     />
   );
 }

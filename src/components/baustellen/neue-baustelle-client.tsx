@@ -22,6 +22,7 @@ type OrderOption = {
   startDate: Date;
   endDate: Date;
   contact: {
+    id: string;
     address: string | null;
     postalCode: string | null;
     city: string | null;
@@ -29,6 +30,7 @@ type OrderOption = {
     lastName: string | null;
     phone: string | null;
   };
+  notes: string | null;
 };
 
 type ContactOption = {
@@ -60,7 +62,7 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
   useEscapeKey(() => router.back(), true);
 
   // ── Contact ───────────────────────────────────────────────────────────────────
-  const [contactId, setContactId] = useState("");
+  const [contactId, setContactId] = useState(prefillOrder?.contact.id ?? "");
 
   function handleContactChange(id: string) {
     setContactId(id);
@@ -105,12 +107,12 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
   const [city, setCity] = useState(prefillOrder?.contact.city ?? "");
   const [startDate, setStartDate] = useState(toDateInput(prefillOrder?.startDate));
   const [endDate, setEndDate] = useState(toDateInput(prefillOrder?.endDate));
-  const [status, setStatus] = useState<BaustelleStatusType>("PLANNED");
+  const [status, setStatus] = useState<BaustelleStatusType>("OPEN");
   const [bauleiter, setBauleiter] = useState("");
   const [contactPerson, setContactPerson] = useState([prefillOrder?.contact.firstName, prefillOrder?.contact.lastName].filter(Boolean).join(" "));
   const [phone, setPhone] = useState(prefillOrder?.contact.phone ?? "");
   const [description, setDescription] = useState("");
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(prefillOrder?.notes ?? "");
 
   // ── Select order and auto-fill ───────────────────────────────────────────────
   function selectOrder(o: OrderOption) {
@@ -120,12 +122,14 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
     setName(o.title);
     setStartDate(toDateInput(o.startDate));
     if (o.endDate) setEndDate(toDateInput(o.endDate));
+    if (o.contact.id) setContactId(o.contact.id);
     if (o.contact.address) setAddress(o.contact.address);
     if (o.contact.postalCode) setPostalCode(o.contact.postalCode);
     if (o.contact.city) setCity(o.contact.city);
     const orderContactName = [o.contact.firstName, o.contact.lastName].filter(Boolean).join(" ");
     if (orderContactName) setContactPerson(orderContactName);
     if (o.contact.phone) setPhone(o.contact.phone);
+    if (o.notes) setNotes(o.notes);
   }
 
   // ── Submit ───────────────────────────────────────────────────────────────────
@@ -155,7 +159,7 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
 
     if ("error" in result && result.error) { toast.error("Fehler beim Erstellen"); return; }
     toast.success("Baustelle erstellt");
-    router.push(`/baustellen/${result.baustelle?.id}`);
+    router.push(orderId ? `/auftraege/${orderId}?tab=Baustellen` : `/baustellen/${result.baustelle?.id}`);
   }
 
   return (
@@ -300,11 +304,11 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</Label>
                   <select className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={status} onChange={(e) => setStatus(e.target.value as BaustelleStatusType)}>
-                    <option value="PLANNED">Geplant</option>
-                    <option value="ACTIVE">Aktiv</option>
-                    <option value="PENDING">Ausstehend</option>
-                    <option value="INVOICED">In Abrechnung</option>
-                    <option value="COMPLETED">Abgeschlossen</option>
+                    <option value="OPEN">Offen</option>
+                    <option value="DISPONIERT">Disponiert</option>
+                    <option value="IN_LIEFERUNG">In Lieferung</option>
+                    <option value="VERRECHNET">Verrechnet</option>
+                    <option value="ABGESCHLOSSEN">Abgeschlossen</option>
                   </select>
                 </div>
               </div>

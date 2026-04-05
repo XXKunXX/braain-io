@@ -20,16 +20,17 @@ import { sortItems } from "@/lib/sort";
 import { matchesSearch } from "@/lib/phonetic";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { getContactName } from "@/lib/utils";
 
 type OrderWithRelations = Order & { contact: Contact; quote: Quote | null };
 
 const STATUS_TABS = [
   { key: "ALL", label: "Alle", icon: Files },
-  { key: "PLANNED", label: "Geplant", icon: Calendar },
-  { key: "ACTIVE", label: "Aktiv", icon: Zap },
-  { key: "PENDING", label: "Ausstehend", icon: AlertCircle },
-  { key: "INVOICED", label: "In Abrechnung", icon: Receipt },
-  { key: "COMPLETED", label: "Abgeschlossen", icon: CheckCircle2 },
+  { key: "OPEN", label: "Offen", icon: Calendar },
+  { key: "DISPONIERT", label: "Disponiert", icon: Zap },
+  { key: "IN_LIEFERUNG", label: "In Lieferung", icon: AlertCircle },
+  { key: "VERRECHNET", label: "Verrechnet", icon: Receipt },
+  { key: "ABGESCHLOSSEN", label: "Abgeschlossen", icon: CheckCircle2 },
 ] as const;
 
 export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
@@ -56,12 +57,12 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
   const filtered = useMemo(() => {
     const base = orders.filter((o) => {
       const matchesStatus = activeTab === "ALL" || o.status === activeTab;
-      const matchesText = matchesSearch(search, o.title, o.contact.companyName, o.quote?.siteAddress);
+      const matchesText = matchesSearch(search, o.title, getContactName(o.contact), o.quote?.siteAddress);
       return matchesStatus && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "title") return item.title;
-      if (key === "contact") return item.contact.companyName;
+      if (key === "contact") return getContactName(item.contact);
       if (key === "totalPrice") return item.quote ? Number(item.quote.totalPrice) : 0;
       if (key === "status") return item.status;
       if (key === "startDate") return new Date(item.startDate);
@@ -159,7 +160,7 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{order.title}</p>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
-                        <span className="text-xs text-gray-400 truncate">{order.contact.companyName}</span>
+                        <span className="text-xs text-gray-400 truncate">{getContactName(order.contact)}</span>
                         <span className="text-xs text-gray-400 whitespace-nowrap">
                           {format(new Date(order.startDate), "dd.MM.yy", { locale: de })} – {format(new Date(order.endDate), "dd.MM.yy", { locale: de })}
                         </span>
@@ -207,7 +208,7 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
                   }`}
                 >
                   <span className="text-sm font-medium text-gray-900 truncate">{order.title}</span>
-                  <span className="text-sm text-gray-500 truncate">{order.contact.companyName}</span>
+                  <span className="text-sm text-gray-500 truncate">{getContactName(order.contact)}</span>
                   <span className="text-sm text-gray-500 whitespace-nowrap">
                     {format(new Date(order.startDate), "dd.MM.yy", { locale: de })} – {format(new Date(order.endDate), "dd.MM.yy", { locale: de })}
                   </span>

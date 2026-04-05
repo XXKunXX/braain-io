@@ -103,8 +103,10 @@ model Quote {
   totalPrice  Decimal     @default(0) @db.Decimal(12, 2)
   notes       String?
   validUntil  DateTime?
-  siteAddress String?
-  assignedTo  String?
+  siteAddress          String?
+  assignedTo           String?
+  createdByName        String?
+  statusChangedByName  String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -145,7 +147,7 @@ model Order {
   title       String
   startDate   DateTime
   endDate     DateTime
-  status      OrderStatus @default(PLANNED)
+  status      OrderStatus @default(OPEN)
   notes       String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -160,11 +162,11 @@ model Order {
 }
 
 enum OrderStatus {
-  PLANNED
-  ACTIVE
-  PENDING
-  INVOICED
-  COMPLETED
+  OPEN
+  DISPONIERT
+  IN_LIEFERUNG
+  VERRECHNET
+  ABGESCHLOSSEN
 }
 
 
@@ -454,11 +456,11 @@ model Counter {
 // ─── Baustellen (Construction Sites) ─────────────────────────────────────────
 
 enum BaustelleStatus {
-  PLANNED
-  ACTIVE
-  PENDING
-  INVOICED
-  COMPLETED
+  OPEN
+  DISPONIERT
+  IN_LIEFERUNG
+  VERRECHNET
+  ABGESCHLOSSEN
 }
 
 model Baustelle {
@@ -473,7 +475,7 @@ model Baustelle {
   country       String          @default("Österreich")
   startDate     DateTime
   endDate       DateTime?
-  status        BaustelleStatus @default(PLANNED)
+  status        BaustelleStatus @default(OPEN)
   bauleiter     String?
   contactPerson String?
   phone         String?
@@ -624,6 +626,9 @@ model AppSettings {
   invoicePrefix       String  @default("RE")
   defaultPaymentTerms String  @default("Zahlbar netto nach Auftragserteilung.")
   defaultQuoteNotes   String  @default("")
+
+  // Rollen & Berechtigungen
+  rolePermissions     Json    @default("{}")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

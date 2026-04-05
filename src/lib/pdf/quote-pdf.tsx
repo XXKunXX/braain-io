@@ -37,22 +37,24 @@ export type CompanySettings = {
   defaultPaymentTerms: string;
 };
 
+// Angebot uses blue accent to differentiate from invoice (gold #c8a84b)
+const ACCENT = "#2563eb";
+
 const s = StyleSheet.create({
   page: {
     fontFamily: "Helvetica",
     fontSize: 9,
     color: "#1a1a1a",
     paddingTop: 0,
-    paddingBottom: 56,
+    paddingBottom: 64,
     paddingHorizontal: 0,
   },
 
-  // ── Top header band ──────────────────────────────────────────────
   headerBand: {
     paddingHorizontal: 40,
     paddingTop: 24,
     paddingBottom: 10,
-    borderBottom: "3 solid #c8a84b",
+    borderBottom: `3 solid ${ACCENT}`,
   },
   companyBig: {
     fontFamily: "Helvetica-Bold",
@@ -61,7 +63,7 @@ const s = StyleSheet.create({
     letterSpacing: 1,
   },
   sloganBar: {
-    backgroundColor: "#c8a84b",
+    backgroundColor: ACCENT,
     paddingHorizontal: 40,
     paddingVertical: 4,
   },
@@ -72,7 +74,6 @@ const s = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // ── Address / meta block ─────────────────────────────────────────
   addressMeta: {
     flexDirection: "row",
     paddingHorizontal: 40,
@@ -84,6 +85,13 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 9.5,
     lineHeight: 1.55,
+  },
+  senderLine: {
+    fontSize: 7,
+    color: "#888",
+    borderBottom: "0.5 solid #ccc",
+    paddingBottom: 3,
+    marginBottom: 5,
   },
   recipientName: {
     fontFamily: "Helvetica-Bold",
@@ -99,7 +107,6 @@ const s = StyleSheet.create({
     color: "#666",
   },
 
-  // ── Document title block ─────────────────────────────────────────
   titleBlock: {
     paddingHorizontal: 40,
     paddingBottom: 12,
@@ -109,12 +116,23 @@ const s = StyleSheet.create({
   docTitle: {
     fontFamily: "Helvetica-Bold",
     fontSize: 15,
-    color: "#2c2c2c",
+    color: ACCENT,
     marginBottom: 2,
   },
   docSubline: {
     fontSize: 8.5,
     color: "#666",
+  },
+
+  headerTextBlock: {
+    paddingHorizontal: 40,
+    paddingTop: 10,
+    paddingBottom: 4,
+  },
+  headerTextContent: {
+    fontSize: 9,
+    color: "#333",
+    lineHeight: 1.5,
   },
 
   // ── Table ────────────────────────────────────────────────────────
@@ -143,20 +161,33 @@ const s = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
 
-  colPos:   { width: "5%",  fontSize: 8, color: "#777" },
-  colDesc:  { width: "43%", fontFamily: "Helvetica-Bold" },
-  colDescH: { width: "43%" },
-  colQty:   { width: "12%", textAlign: "right" },
-  colUnit:  { width: "8%",  textAlign: "center", color: "#555" },
-  colEP:    { width: "16%", textAlign: "right" },
-  colGP:    { width: "16%", textAlign: "right", fontFamily: "Helvetica-Bold" },
+  colPos:     { width: "5%",  fontSize: 8, color: "#777" },
+  colDesc:    { width: "45%", fontFamily: "Helvetica-Bold" },
+  colDescH:   { width: "45%" },
+  colQtyUnit: { width: "18%", textAlign: "right" },
+  colEP:      { width: "16%", textAlign: "right" },
+  colGP:      { width: "16%", textAlign: "right", fontFamily: "Helvetica-Bold" },
 
   headText: { fontSize: 8, color: "#555" },
+
+  // ── Payment term line ─────────────────────────────────────────────
+  paymentLine: {
+    paddingHorizontal: 40,
+    marginTop: 10,
+    paddingTop: 8,
+    paddingBottom: 6,
+    borderTop: "1 solid #e8e8e8",
+  },
+  paymentLineText: {
+    fontSize: 8.5,
+    color: "#555",
+    fontFamily: "Helvetica-Bold",
+  },
 
   // ── Totals ───────────────────────────────────────────────────────
   totalsWrap: {
     paddingHorizontal: 40,
-    marginTop: 10,
+    marginTop: 6,
     alignItems: "flex-end",
   },
   totalsTable: {
@@ -171,12 +202,11 @@ const s = StyleSheet.create({
   },
   totalsRowFinal: {
     flexDirection: "row",
-    backgroundColor: "#f2f2f2",
+    backgroundColor: "#e8f0fe",
     paddingVertical: 5,
     paddingHorizontal: 8,
   },
   totalsLabel: {
-    flex: 1,
     fontSize: 8.5,
     color: "#555",
   },
@@ -184,13 +214,14 @@ const s = StyleSheet.create({
     fontSize: 8.5,
     fontFamily: "Helvetica-Bold",
     textAlign: "right",
-    minWidth: 70,
+    flex: 1,
   },
   totalsValueFinal: {
     fontSize: 10,
     fontFamily: "Helvetica-Bold",
     textAlign: "right",
-    minWidth: 70,
+    flex: 1,
+    color: ACCENT,
   },
 
   // ── Notes ────────────────────────────────────────────────────────
@@ -212,19 +243,41 @@ const s = StyleSheet.create({
     lineHeight: 1.5,
   },
 
-  // ── Footer ───────────────────────────────────────────────────────
-  paymentNote: {
+  // ── Footer: bank info + legal ─────────────────────────────────────
+  footerTextBlock: {
     paddingHorizontal: 40,
     marginTop: 20,
     paddingTop: 10,
     borderTop: "1 solid #ddd",
   },
-  paymentText: {
-    fontSize: 8,
-    color: "#555",
-    lineHeight: 1.55,
-    textAlign: "center",
+  footerBankRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: 4,
   },
+  footerBankLabel: {
+    fontSize: 7.5,
+    fontFamily: "Helvetica-Bold",
+    color: "#444",
+    width: 60,
+  },
+  footerBankValue: {
+    fontSize: 7.5,
+    color: "#555",
+    flex: 1,
+  },
+  footerDivider: {
+    borderTop: "0.5 solid #ddd",
+    marginVertical: 5,
+  },
+  footerLegalText: {
+    fontSize: 7,
+    color: "#888",
+    textAlign: "center",
+    lineHeight: 1.5,
+  },
+
+  // ── Bottom strip ──────────────────────────────────────────────────
   footerStrip: {
     position: "absolute",
     bottom: 0,
@@ -285,22 +338,32 @@ export function QuotePDF({
 
         {/* ── Address + Meta ── */}
         <View style={s.addressMeta}>
-          {/* Recipient */}
           <View style={s.recipient}>
-            <Text style={s.recipientName}>{contact.companyName}</Text>
-            {(contact.firstName || contact.lastName) ? <Text>{[contact.firstName, contact.lastName].filter(Boolean).join(" ")}</Text> : null}
+            <Text style={s.senderLine}>
+              {company.companyName} · {company.street} · {company.postalCode} {company.city}
+            </Text>
+            {contact.companyName ? (
+              <>
+                <Text style={s.recipientName}>{contact.companyName}</Text>
+                {(contact.firstName || contact.lastName) ? (
+                  <Text>{[contact.firstName, contact.lastName].filter(Boolean).join(" ")}</Text>
+                ) : null}
+              </>
+            ) : (
+              <Text style={s.recipientName}>
+                {[contact.firstName, contact.lastName].filter(Boolean).join(" ")}
+              </Text>
+            )}
             {contact.address ? <Text>{contact.address}</Text> : null}
             {(contact.postalCode || contact.city) ? (
               <Text>{contact.postalCode} {contact.city}</Text>
             ) : null}
           </View>
 
-          {/* Company meta right */}
           <View style={s.metaRight}>
             <Text><Text style={s.metaLabel}>UID-Nr.: </Text>{company.uid}</Text>
             <Text><Text style={s.metaLabel}>GLN-Nr.: </Text>{company.gln}</Text>
-            <Text style={{ marginTop: 4 }}><Text style={s.metaLabel}>Seite </Text>1 von 1</Text>
-            <Text><Text style={s.metaLabel}>Datum: </Text>{dateStr}</Text>
+            <Text style={{ marginTop: 4 }}><Text style={s.metaLabel}>Datum: </Text>{dateStr}</Text>
             {quote.validUntil && (
               <Text><Text style={s.metaLabel}>Gültig bis: </Text>
                 {format(new Date(quote.validUntil), "dd.MM.yyyy", { locale: de })}
@@ -320,17 +383,14 @@ export function QuotePDF({
         {/* ── Table ── */}
         <View style={s.tableWrap}>
           <View style={s.tableOuter}>
-            {/* Head */}
             <View style={s.tableHead}>
-              <Text style={[s.colPos,   s.headText]}>Pos</Text>
-              <Text style={[s.colDescH, s.headText]}>Beschreibung</Text>
-              <Text style={[s.colQty,   s.headText]}>Menge</Text>
-              <Text style={[s.colUnit,  s.headText]}>Einh.</Text>
-              <Text style={[s.colEP,    s.headText]}>EP €</Text>
-              <Text style={[s.colGP,    s.headText]}>GP €</Text>
+              <Text style={[s.colPos,     s.headText]}>Pos</Text>
+              <Text style={[s.colDescH,   s.headText]}>Beschreibung</Text>
+              <Text style={[s.colQtyUnit, s.headText]}>Menge Eh</Text>
+              <Text style={[s.colEP,      s.headText]}>EP €</Text>
+              <Text style={[s.colGP,      s.headText]}>GP €</Text>
             </View>
 
-            {/* Rows */}
             {items.map((item, idx) => (
               <View key={item.id} style={[s.tableRow, idx % 2 === 1 ? s.tableRowAlt : {}]}>
                 <Text style={s.colPos}>{item.position}</Text>
@@ -338,13 +398,19 @@ export function QuotePDF({
                   <Text>{item.description}</Text>
                   {item.note ? <Text style={{ fontSize: 8, color: "#6b7280", marginTop: 2 }}>{item.note}</Text> : null}
                 </View>
-                <Text style={s.colQty}>{fmt(item.quantity, 3).replace(/\.?0+$/, "")}</Text>
-                <Text style={s.colUnit}>{item.unit}</Text>
+                <Text style={s.colQtyUnit}>
+                  {fmt(item.quantity, 3).replace(/[,.]?0+$/, "")} {item.unit}
+                </Text>
                 <Text style={s.colEP}>{fmt(item.unitPrice)}</Text>
                 <Text style={s.colGP}>{fmt(item.total)}</Text>
               </View>
             ))}
           </View>
+        </View>
+
+        {/* ── Payment term line ── */}
+        <View style={s.paymentLine}>
+          <Text style={s.paymentLineText}>{company.defaultPaymentTerms}</Text>
         </View>
 
         {/* ── Totals ── */}
@@ -359,7 +425,7 @@ export function QuotePDF({
               <Text style={s.totalsValue}>{fmt(vat)} €</Text>
             </View>
             <View style={s.totalsRowFinal}>
-              <Text style={[s.totalsLabel, { fontFamily: "Helvetica-Bold", fontSize: 9 }]}>Gesamtbetrag</Text>
+              <Text style={[s.totalsLabel, { fontFamily: "Helvetica-Bold", fontSize: 9, color: "#1a1a1a" }]}>Gesamtbetrag</Text>
               <Text style={s.totalsValueFinal}>{fmt(gross)} €</Text>
             </View>
           </View>
@@ -373,14 +439,17 @@ export function QuotePDF({
           </View>
         ) : null}
 
-        {/* ── Payment note ── */}
-        <View style={s.paymentNote}>
-          <Text style={s.paymentText}>
-            {company.defaultPaymentTerms}{"\n"}
-            {company.bankName}: IBAN: {company.iban}, BIC: {company.bic}
-          </Text>
-          <Text style={[s.paymentText, { marginTop: 5 }]}>
-            Wir danken für Ihr Vertrauen und freuen uns auf eine gute Zusammenarbeit!
+        {/* ── Footer: bank info + legal ── */}
+        <View style={s.footerTextBlock}>
+          <View style={s.footerBankRow}>
+            <Text style={s.footerBankLabel}>{company.bankName}</Text>
+            <Text style={s.footerBankValue}>
+              IBAN: {company.iban}{"   "}BIC: {company.bic}{"   "}BLZ: {company.blz}{"   "}Kto.Nr.: {company.kto}
+            </Text>
+          </View>
+          <View style={s.footerDivider} />
+          <Text style={s.footerLegalText}>
+            {company.fn ? `${company.fn} | ` : ""}{company.court ? `${company.court} | ` : ""}UID-Nr.: {company.uid}
           </Text>
         </View>
 
@@ -388,8 +457,6 @@ export function QuotePDF({
         <View style={s.footerStrip} fixed>
           <Text style={s.footerText}>
             {company.companyName} | {company.street} | {company.postalCode} {company.city} | Tel.: {company.phone} | {company.email} | {company.website}
-            {"\n"}
-            {company.court} | {company.fn} | {company.bankName}: IBAN: {company.iban}, BIC: {company.bic}, BLZ: {company.blz}, Kto.Nr.: {company.kto}
           </Text>
         </View>
 

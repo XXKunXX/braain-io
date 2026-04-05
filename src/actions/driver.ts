@@ -77,7 +77,7 @@ async function fetchBaustellenForEntries(dateStr: string, resourceId?: string) {
     include: {
       baustelle: {
         include: {
-          contact: { select: { companyName: true } },
+          contact: { select: { companyName: true, firstName: true, lastName: true } },
           order: {
             select: {
               id: true,
@@ -123,7 +123,7 @@ export async function getBaustelleForDriverApp(id: string) {
   return prisma.baustelle.findUnique({
     where: { id },
     include: {
-      contact: { select: { companyName: true, address: true, postalCode: true, city: true } },
+      contact: { select: { companyName: true, firstName: true, lastName: true, address: true, postalCode: true, city: true } },
       order: {
         select: {
           id: true,
@@ -225,7 +225,7 @@ export async function createSignedDeliveryNote(data: {
   // Mark order as completed
   await prisma.order.update({
     where: { id: data.orderId },
-    data: { status: "COMPLETED" },
+    data: { status: "ABGESCHLOSSEN" },
   });
 
   // Create invoice task (idempotent — prevents duplicates)

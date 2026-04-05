@@ -54,7 +54,7 @@ export default async function FahrerLieferscheinDetailPage({
               </div>
               <div>
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Empfänger</p>
-                <p className="text-[14px] font-semibold text-gray-900">{dn.contact.companyName}</p>
+                <p className="text-[14px] font-semibold text-gray-900">{dn.contact.companyName || [dn.contact.firstName, dn.contact.lastName].filter(Boolean).join(" ")}</p>
               </div>
             </div>
           </div>

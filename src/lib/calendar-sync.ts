@@ -282,7 +282,7 @@ export async function syncOrderToCalendars(orderId: string, clerkUserId: string)
     title: `Auftrag: ${order.title}`,
     description: [
       `Auftragsnummer: ${order.orderNumber}`,
-      `Kunde: ${order.contact.companyName}`,
+      `Kunde: ${order.contact.companyName || [order.contact.firstName, order.contact.lastName].filter(Boolean).join(" ")}`,
       order.notes ? `Notizen: ${order.notes}` : "",
     ]
       .filter(Boolean)

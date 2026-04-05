@@ -65,9 +65,9 @@ export async function getResources() {
 
 export async function getBaustellenForDisposition() {
   return (prisma as any).baustelle.findMany({
-    where: { status: { in: ["PLANNED", "ACTIVE", "PENDING", "INVOICED"] } },
+    where: { status: { in: ["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET"] } },
     include: {
-      contact: { select: { id: true, companyName: true } },
+      contact: { select: { id: true, companyName: true, firstName: true, lastName: true } },
       order: { select: { id: true, orderNumber: true, title: true } },
     },
     orderBy: { startDate: "asc" },
@@ -79,7 +79,7 @@ export async function getBaustellenForDisposition() {
     endDate: Date | null;
     city: string | null;
     orderId: string | null;
-    contact: { id: string; companyName: string } | null;
+    contact: { id: string; companyName: string | null; firstName: string | null; lastName: string | null } | null;
     order: { id: string; orderNumber: string; title: string } | null;
   }>>;
 }
@@ -94,7 +94,7 @@ export async function getDispositionEntries(weekStart: Date, weekEnd: Date) {
       resource: { select: { id: true, name: true, type: true } },
       baustelle: {
         include: {
-          contact: { select: { id: true, companyName: true } },
+          contact: { select: { id: true, companyName: true, firstName: true, lastName: true } },
         },
       },
       order: { include: { contact: true } },
@@ -142,7 +142,7 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
     },
     include: {
       resource: true,
-      baustelle: { include: { contact: { select: { id: true, companyName: true } } } },
+      baustelle: { include: { contact: { select: { id: true, companyName: true, firstName: true, lastName: true } } } },
       order: { include: { contact: true } },
     },
   });
@@ -168,19 +168,19 @@ export async function createDispositionEntry(data: z.infer<typeof entrySchema>) 
     }
   }
 
-  // Set Baustelle status to ACTIVE when a disposition entry is created
+  // Set Baustelle status to DISPONIERT when a disposition entry is created
   if (parsed.data.baustelleId) {
     await (prisma as any).baustelle.update({
       where: { id: parsed.data.baustelleId },
-      data: { status: "ACTIVE" },
+      data: { status: "DISPONIERT" },
     });
   }
 
-  // Set Order status to ACTIVE when a disposition entry is created for it
+  // Set Order status to DISPONIERT when a disposition entry is created for it
   if (orderId) {
     await (prisma as any).order.update({
       where: { id: orderId },
-      data: { status: "ACTIVE" },
+      data: { status: "DISPONIERT" },
     });
     revalidatePath("/auftraege");
     revalidatePath(`/auftraege/${orderId}`);
@@ -204,7 +204,7 @@ export async function updateDispositionEntry(id: string, data: { startDate: stri
     },
     include: {
       resource: true,
-      baustelle: { include: { contact: { select: { id: true, companyName: true } } } },
+      baustelle: { include: { contact: { select: { id: true, companyName: true, firstName: true, lastName: true } } } },
       order: { include: { contact: true } },
     },
   });
@@ -253,14 +253,9 @@ export async function deleteDispositionEntry(id: string) {
       where: { baustelleId: entry.baustelleId, endDate: { gte: now } },
     });
     if (remainingBaustelleEntries === 0) {
-      // PENDING if the baustelle had active work but has no delivery notes yet
-      const deliveryNoteCount = await (prisma as any).deliveryNote.count({
-        where: { baustelleId: entry.baustelleId },
-      });
-      const newBaustelleStatus = deliveryNoteCount === 0 ? "PENDING" : "PLANNED";
       await (prisma as any).baustelle.update({
         where: { id: entry.baustelleId },
-        data: { status: newBaustelleStatus },
+        data: { status: "OPEN" },
       });
       resetBaustelleId = entry.baustelleId;
       revalidatePath("/baustellen");
@@ -276,13 +271,9 @@ export async function deleteDispositionEntry(id: string) {
           where: { orderId: baustelle.orderId, endDate: { gte: now } },
         });
         if (remainingOrderEntries === 0) {
-          const orderDeliveryNoteCount = await (prisma as any).deliveryNote.count({
-            where: { orderId: baustelle.orderId },
-          });
-          const newOrderStatus = orderDeliveryNoteCount === 0 ? "PENDING" : "PLANNED";
           await (prisma as any).order.update({
             where: { id: baustelle.orderId },
-            data: { status: newOrderStatus },
+            data: { status: "OPEN" },
           });
           revalidatePath("/auftraege");
           revalidatePath(`/auftraege/${baustelle.orderId}`);
@@ -297,13 +288,9 @@ export async function deleteDispositionEntry(id: string) {
       where: { orderId: entry.orderId, endDate: { gte: now } },
     });
     if (remainingEntries === 0) {
-      const orderDeliveryNoteCount = await (prisma as any).deliveryNote.count({
-        where: { orderId: entry.orderId },
-      });
-      const newOrderStatus = orderDeliveryNoteCount === 0 ? "PENDING" : "PLANNED";
       await (prisma as any).order.update({
         where: { id: entry.orderId },
-        data: { status: newOrderStatus },
+        data: { status: "OPEN" },
       });
       revalidatePath("/auftraege");
       revalidatePath(`/auftraege/${entry.orderId}`);
