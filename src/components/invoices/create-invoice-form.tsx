@@ -20,6 +20,7 @@ import { createInvoice } from "@/actions/invoices";
 import { toast } from "sonner";
 import type { Contact } from "@prisma/client";
 import { generatePaymentTermText, parseSkontoFromJson } from "@/lib/payment-terms";
+import { getContactName } from "@/lib/utils";
 
 const UNITS = ["Stk", "t", "m³", "m²", "m", "Std", "Psch", "Pos"];
 
@@ -64,18 +65,22 @@ function addDays(dateStr: string, days: number) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
+type PrefillItem = { description: string; note: string; quantity: string; unit: string; unitPrice: string };
+
 export function CreateInvoiceForm({
   contacts,
   orders,
   defaultVatRate,
   prefillOrderId,
   prefillContactId,
+  prefillItems,
 }: {
   contacts: Contact[];
   orders: OrderOption[];
   defaultVatRate: number;
   prefillOrderId?: string;
   prefillContactId?: string;
+  prefillItems?: PrefillItem[];
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -106,7 +111,11 @@ export function CreateInvoiceForm({
   const [notes, setNotes] = useState("");
   const [vatRate, setVatRate] = useState(String(Math.round(defaultVatRate * 100)));
 
-  const [items, setItems] = useState<Item[]>([newItem()]);
+  const [items, setItems] = useState<Item[]>(() =>
+    prefillItems && prefillItems.length > 0
+      ? prefillItems.map((i) => ({ id: nextId++, ...i }))
+      : [newItem()]
+  );
 
   function handleOrderChange(val: string) {
     setOrderId(val);
@@ -170,13 +179,30 @@ export function CreateInvoiceForm({
 
   return (
     <div className="p-4 md:p-6 max-w-4xl">
-      <Link
-        href="/rechnungen"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-5"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Zurück zu Rechnungen
-      </Link>
+      <div className="flex items-center gap-4 mb-5">
+        <Link
+          href="/rechnungen"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Zurück zu Rechnungen
+        </Link>
+        {prefillOrderId && (() => {
+          const order = orders.find((o) => o.id === prefillOrderId);
+          return (
+            <>
+              <span className="text-gray-300">|</span>
+              <Link
+                href={`/auftraege/${prefillOrderId}`}
+                className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Zurück zu Auftrag {order?.orderNumber}{order?.title ? ` – ${order.title}` : ""}
+              </Link>
+            </>
+          );
+        })()}
+      </div>
 
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900">Neue Rechnung erstellen</h1>
@@ -214,7 +240,7 @@ export function CreateInvoiceForm({
                 </SelectTrigger>
                 <SelectContent>
                   {contacts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.companyName}</SelectItem>
+                    <SelectItem key={c.id} value={c.id}>{getContactName(c)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
 import { ArrowLeft, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ function newItem(): Item {
 
 export function CreateOrderForm({ contacts }: { contacts: Contact[] }) {
   const router = useRouter();
+  useEscapeKey(() => router.back(), true);
   const [loading, setLoading] = useState(false);
   const [contactId, setContactId] = useState("");
 

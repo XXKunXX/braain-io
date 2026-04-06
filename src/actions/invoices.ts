@@ -144,7 +144,7 @@ export async function createInvoice(data: CreateInvoiceInput) {
     }
 
     revalidatePath("/rechnungen");
-    return { invoice };
+    return { invoice: { id: invoice.id } };
   } catch (err) {
     await reportBetaError(err, { location: "createInvoice", extra: { contactId: data.contactId, orderId: data.orderId } });
     return { error: "Rechnung konnte nicht erstellt werden." };
@@ -158,9 +158,15 @@ export async function createInvoiceFromDeliveryNotes(
 ) {
   if (deliveryNoteIds.length === 0) return { error: "Keine Lieferscheine ausgewählt" };
 
-  const [settings, contact] = await Promise.all([
+  const [settings, contact, quoteItems] = await Promise.all([
     getSettings(),
     prisma.contact.findUnique({ where: { id: contactId }, select: { paymentTermDays: true, paymentTermSkonto: true, paymentTermCustom: true } }),
+    orderId
+      ? prisma.quoteItem.findMany({
+          where: { quote: { orders: { some: { id: orderId } } } },
+          select: { description: true, unitPrice: true },
+        })
+      : Promise.resolve([]),
   ]);
   const vatRate = Number(settings.vatRate);
   const invoiceNumber = await getNextNumber("invoice");
@@ -209,23 +215,47 @@ export async function createInvoiceFromDeliveryNotes(
     // Delete placeholder items and create real ones from delivery notes
     await tx.invoiceItem.deleteMany({ where: { invoiceId: inv.id } });
     await tx.invoiceItem.createMany({
-      data: notes.map((dn, idx) => ({
-        invoiceId: inv.id,
-        position: idx + 1,
-        description: dn.material,
-        note: `Lieferschein ${dn.deliveryNumber} – ${new Date(dn.date).toLocaleDateString("de-DE")}`,
-        quantity: Number(dn.quantity),
-        unit: dn.unit,
-        unitPrice: 0,
-        vatRate,
-        total: 0,
-      })),
+      data: notes.map((dn, idx) => {
+        const matchedItem = quoteItems.find(
+          (qi) => qi.description.toLowerCase() === dn.material.toLowerCase()
+        );
+        const unitPrice = matchedItem ? Number(matchedItem.unitPrice) : 0;
+        const total = Number(dn.quantity) * unitPrice;
+        return {
+          invoiceId: inv.id,
+          position: idx + 1,
+          description: dn.material,
+          note: `Lieferschein ${dn.deliveryNumber} – ${new Date(dn.date).toLocaleDateString("de-DE")}`,
+          quantity: Number(dn.quantity),
+          unit: dn.unit,
+          unitPrice,
+          vatRate,
+          total,
+        };
+      }),
     });
 
     // Link delivery notes to this invoice
     await tx.deliveryNote.updateMany({
       where: { id: { in: deliveryNoteIds } },
       data: { invoiceId: inv.id },
+    });
+
+    // Update invoice totals based on actual items
+    const itemsForTotals = notes.map((dn) => {
+      const matchedItem = quoteItems.find(
+        (qi) => qi.description.toLowerCase() === dn.material.toLowerCase()
+      );
+      const unitPrice = matchedItem ? Number(matchedItem.unitPrice) : 0;
+      return { quantity: Number(dn.quantity), unitPrice };
+    });
+    const { subtotal, vatAmount, totalAmount } = calcTotals(
+      itemsForTotals.map((i) => ({ ...i, description: "", unit: "" })),
+      vatRate
+    );
+    await tx.invoice.update({
+      where: { id: inv.id },
+      data: { subtotal, vatAmount, totalAmount },
     });
 
     return inv;
@@ -243,7 +273,7 @@ export async function createInvoiceFromDeliveryNotes(
 
   revalidatePath("/rechnungen");
   revalidatePath("/lieferscheine");
-  return { invoice };
+  return { invoice: { id: invoice.id } };
 }
 
 export async function updateInvoice(id: string, data: UpdateInvoiceInput) {
@@ -315,10 +345,32 @@ export async function getOffenePostenCount() {
 }
 
 export async function deleteInvoice(id: string) {
+  const invoice = await prisma.invoice.findUnique({
+    where: { id },
+    select: { orderId: true },
+  });
+
   await prisma.$transaction([
     prisma.deliveryNote.updateMany({ where: { invoiceId: id }, data: { invoiceId: null } }),
     prisma.invoice.delete({ where: { id } }),
   ]);
+
+  // If invoice was linked to an order, revert order status from VERRECHNET → IN_LIEFERUNG
+  // (only if no other invoices remain for that order)
+  if (invoice?.orderId) {
+    const remainingInvoices = await prisma.invoice.count({
+      where: { orderId: invoice.orderId },
+    });
+    if (remainingInvoices === 0) {
+      await prisma.order.updateMany({
+        where: { id: invoice.orderId, status: "VERRECHNET" },
+        data: { status: "IN_LIEFERUNG" },
+      });
+      revalidatePath(`/auftraege/${invoice.orderId}`);
+      revalidatePath("/auftraege");
+    }
+  }
+
   revalidatePath("/rechnungen");
   revalidatePath("/kontakte");
   revalidatePath("/lieferscheine");

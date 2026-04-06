@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
 import { ArrowLeft, Plus, Ban } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -20,12 +21,13 @@ import { ContactCombobox } from "./contact-combobox";
 import { createRequest } from "@/actions/requests";
 import { toast } from "sonner";
 import type { Contact } from "@prisma/client";
+import { getContactName } from "@/lib/utils";
 
 const statusOptions = [
   { value: "NEU", label: "Neu" },
   { value: "BESICHTIGUNG_GEPLANT", label: "Besichtigung geplant" },
+  { value: "BESICHTIGUNG_DURCHGEFUEHRT", label: "Besichtigung durchgeführt" },
   { value: "ANGEBOT_ERSTELLT", label: "Angebot erstellt" },
-  { value: "IN_PROGRESS", label: "In Bearbeitung" },
   { value: "DONE", label: "Erledigt" },
 ];
 
@@ -52,6 +54,7 @@ interface NewRequestClientProps {
 
 export function NewRequestClient({ contacts, userNames, preselectedContactId }: NewRequestClientProps) {
   const router = useRouter();
+  useEscapeKey(() => router.back(), true);
   const [loading, setLoading] = useState(false);
   const [contactId, setContactId] = useState(preselectedContactId ?? "");
   const [status, setStatus] = useState("NEU");
@@ -132,7 +135,7 @@ export function NewRequestClient({ contacts, userNames, preselectedContactId }: 
           </span>
         </div>
         <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500">
-          {selectedContact && <span>{selectedContact.companyName}</span>}
+          {selectedContact && <span>{getContactName(selectedContact)}</span>}
           {owner && <span>{owner}</span>}
         </div>
       </div>

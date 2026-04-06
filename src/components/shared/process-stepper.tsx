@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { Check, Pencil, X, Mail, Truck, Receipt, CalendarCheck, Circle, CheckCircle2 } from "lucide-react";
+import { Check, Pencil, X, Mail, Truck, Receipt, CalendarCheck, Circle, CheckCircle2, ChevronDown } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface ProcessStepperProps {
@@ -238,10 +238,11 @@ function OrderStepLabel({
       {onStatusChange ? (
         <button
           onClick={() => setOpen((o) => !o)}
-          className="text-[11px] font-semibold text-gray-700 mt-1.5 whitespace-nowrap hover:text-blue-600 transition-colors"
+          className="text-[11px] font-semibold text-gray-700 mt-1.5 whitespace-nowrap hover:text-blue-600 transition-colors flex items-center gap-0.5"
           disabled={loading}
         >
           Auftrag
+          <ChevronDown className="h-3 w-3 text-gray-400" />
         </button>
       ) : (
         <Link
@@ -257,54 +258,27 @@ function OrderStepLabel({
       </span>
 
       {open && (
-        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-3 min-w-[200px]">
-          {/* Mini stepper */}
-          <div className="flex items-center mb-3 px-1">
-            {ORDER_STEPS.map((step, i) => {
-              const done = i < currentIdx;
-              const active = i === currentIdx;
-              return (
-                <div key={step.key} className="flex items-center flex-1">
-                  <button
-                    onClick={() => handleSelect(step.key as "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN")}
-                    disabled={active}
-                    title={step.label}
-                    className={`w-4 h-4 rounded-full flex-shrink-0 transition-all ${
-                      done ? "bg-green-400 hover:bg-green-500 cursor-pointer" :
-                      active ? `${orderStatusCircleClass(step.key)} cursor-default` :
-                      "bg-gray-100 border border-gray-300 hover:bg-gray-200 cursor-pointer"
-                    }`}
-                  />
-                  {i < ORDER_STEPS.length - 1 && (
-                    <div className={`flex-1 h-px mx-1 ${done ? "bg-green-300" : "bg-gray-200"}`} />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-          {/* Status buttons */}
-          <div className="border-t border-gray-100 pt-1">
-            {ORDER_STEPS.map((step, i) => {
-              const done = i < currentIdx;
-              const active = i === currentIdx;
-              const StepIcon = step.icon;
-              return (
-                <button
-                  key={step.key}
-                  onClick={() => handleSelect(step.key as "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN")}
-                  disabled={active}
-                  className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-2 ${
-                    active ? "text-gray-400 cursor-default" :
-                    done ? "text-gray-500 hover:bg-gray-50" :
-                    "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
-                  }`}
-                >
-                  <StepIcon className={`h-3.5 w-3.5 flex-shrink-0 ${done ? "text-green-500" : active ? step.color : "text-gray-300"}`} />
-                  {step.label}
-                </button>
-              );
-            })}
-          </div>
+        <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[200px]">
+          {ORDER_STEPS.map((step, i) => {
+            const done = i < currentIdx;
+            const active = i === currentIdx;
+            const StepIcon = step.icon;
+            return (
+              <button
+                key={step.key}
+                onClick={() => handleSelect(step.key as "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN")}
+                disabled={active}
+                className={`w-full text-left px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-2 ${
+                  active ? "text-gray-400 cursor-default" :
+                  done ? "text-gray-500 hover:bg-gray-50" :
+                  "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                }`}
+              >
+                <StepIcon className={`h-3.5 w-3.5 flex-shrink-0 ${done ? "text-green-500" : active ? step.color : "text-gray-300"}`} />
+                {step.label}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

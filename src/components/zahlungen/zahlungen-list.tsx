@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search, CheckCircle, AlertTriangle, Clock,
-  ChevronRight, FileText, Package, Plus, Receipt, Bell,
+  ChevronRight, FileText, Package, Plus, Receipt, Bell, Trash2,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format, differenceInDays } from "date-fns";
@@ -150,7 +150,7 @@ export function OffenePostenList({
   }), [invoices, deliveryNoteGroups]);
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-5xl space-y-4">
       {/* Tabs */}
       <div className="flex items-center gap-1 flex-wrap">
         {TABS.map(({ key, label, icon: Icon }) => (
@@ -270,7 +270,8 @@ export function OffenePostenList({
                         )}
                       </div>
                       <span className="text-sm font-semibold text-gray-900 tabular-nums text-right">{fmt(inv.totalAmount)}</span>
-                      <div className="flex items-center justify-end">
+                      <div className="flex items-center justify-end gap-1">
+                        <span className="p-1"><Trash2 className="h-3.5 w-3.5 text-gray-200" /></span>
                         <ChevronRight className="h-4 w-4 text-gray-300" />
                       </div>
                     </div>

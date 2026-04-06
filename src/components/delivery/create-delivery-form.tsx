@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ChevronDown, Check } from "lucide-react";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import {
 import { createDeliveryNote } from "@/actions/delivery-notes";
 import { toast } from "sonner";
 import type { Contact } from "@prisma/client";
+import { getContactName } from "@/lib/utils";
 
 const UNITS = ["t", "m³", "m²", "m", "Stk", "Fuhre"];
 const MATERIALS = ["Sand", "Kies", "Schotter", "Humus", "Bauschutt", "Erdaushub", "Recycling"];
@@ -49,6 +51,9 @@ interface Props {
   vehicles: ResourceItem[];
   baustelleId?: string;
   baustelleContactId?: string;
+  orderBaustellen?: ResourceItem[];
+  defaultDriverId?: string;
+  defaultVehicleId?: string;
 }
 
 function ResourceCombobox({
@@ -150,15 +155,17 @@ function ResourceCombobox({
   );
 }
 
-export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustelleId, baustelleContactId }: Props) {
+export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustelleId: initialBaustelleId, baustelleContactId, orderBaustellen = [], defaultDriverId = "", defaultVehicleId = "" }: Props) {
   const router = useRouter();
+  useEscapeKey(() => router.back(), true);
   const [loading, setLoading] = useState(false);
 
   // Shared fields
   const [contactId, setContactId] = useState(order?.contactId ?? baustelleContactId ?? "");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [driverId, setDriverId] = useState("");
-  const [vehicleId, setVehicleId] = useState("");
+  const [baustelleId, setBaustelleId] = useState(initialBaustelleId ?? (orderBaustellen.length === 1 ? orderBaustellen[0].id : ""));
+  const [driverId, setDriverId] = useState(defaultDriverId);
+  const [vehicleId, setVehicleId] = useState(defaultVehicleId);
   const [notes, setNotes] = useState("");
 
   // Multi-item selection: { [itemId]: { quantity, unit } }
@@ -169,7 +176,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
   const [customUnit, setCustomUnit] = useState("t");
   const [customQuantity, setCustomQuantity] = useState("");
 
-  const contactName = contacts.find((c) => c.id === contactId)?.companyName ?? "";
+  const contactName = getContactName(contacts.find((c) => c.id === contactId), "");
   const selectedIds = Object.keys(selectedItems);
   const hasOrder = !!order;
   const hasItems = order && order.quoteItems.length > 0;
@@ -210,6 +217,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
         const entry = selectedItems[itemId];
         const result = await createDeliveryNote({
           contactId,
+          orderId: order?.id,
           baustelleId,
           date,
           material: item.description,
@@ -225,6 +233,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
       // Single custom delivery note
       const result = await createDeliveryNote({
         contactId,
+        orderId: order?.id,
         baustelleId,
         date,
         material: customMaterial,
@@ -302,7 +311,7 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
                   </SelectTrigger>
                   <SelectContent>
                     {contacts.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>{c.companyName}</SelectItem>
+                      <SelectItem key={c.id} value={c.id}>{getContactName(c)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -320,6 +329,28 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
               />
             </div>
           </div>
+
+          {orderBaustellen.length > 0 && (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-700">Baustelle</Label>
+              {orderBaustellen.length === 1 ? (
+                <div className="h-10 px-3 flex items-center border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-900 font-medium">
+                  {orderBaustellen[0].name}
+                </div>
+              ) : (
+                <Select value={baustelleId} onValueChange={(v) => setBaustelleId(v ?? "")}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Baustelle wählen..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orderBaustellen.map((b) => (
+                      <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">

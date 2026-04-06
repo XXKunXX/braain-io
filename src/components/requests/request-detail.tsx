@@ -36,11 +36,9 @@ type RequestWithRelations = Request & {
 
 const statusOptions = [
   { value: "NEU", label: "Neu" },
-  { value: "OPEN", label: "Offen" },
   { value: "BESICHTIGUNG_GEPLANT", label: "Besichtigung geplant" },
   { value: "BESICHTIGUNG_DURCHGEFUEHRT", label: "Besichtigung durchgeführt" },
   { value: "ANGEBOT_ERSTELLT", label: "Angebot erstellt" },
-  { value: "IN_PROGRESS", label: "In Bearbeitung" },
   { value: "DONE", label: "Erledigt" },
 ];
 
@@ -122,7 +120,7 @@ export function RequestDetail({
   async function handleSave() {
     setSaving(true);
     let newStatus = status;
-    if (!noInspectionRequired && inspectionDate && ["NEU", "OPEN"].includes(status)) {
+    if (!noInspectionRequired && inspectionDate && status === "NEU") {
       newStatus = "BESICHTIGUNG_GEPLANT";
     }
     await updateRequest(request.id, {

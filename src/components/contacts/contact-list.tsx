@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Building2, User, Package2, Files, ChevronRight, Search, Plus, Trash2 } from "lucide-react";
+import { Building2, User, Package2, ChevronRight, Search, Plus, Trash2 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { sortItems } from "@/lib/sort";
 import { matchesSearch } from "@/lib/phonetic";
@@ -22,12 +22,13 @@ import { deleteContact } from "@/actions/contacts";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
-const TYPE_TABS = [
-  { key: "ALL", label: "Alle", icon: Files },
+const TYPE_FILTERS = [
   { key: "COMPANY", label: "Firma", icon: Building2 },
   { key: "PRIVATE", label: "Privatkunde", icon: User },
   { key: "SUPPLIER", label: "Lieferant", icon: Package2 },
 ] as const;
+
+const ACTIVE_DEFAULT = ["COMPANY", "PRIVATE", "SUPPLIER"];
 
 const typeLabels: Record<string, string> = {
   COMPANY: "Firma",
@@ -48,7 +49,7 @@ interface ContactListProps {
 export function ContactList({ contacts }: ContactListProps) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("ALL");
+  const [activeFilters, setActiveFilters] = useState<string[]>(ACTIVE_DEFAULT);
   const [ownerFilter, setOwnerFilter] = useState("ALL");
   const [sortKey, setSortKey] = useState<string | null>("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -59,8 +60,8 @@ export function ContactList({ contacts }: ContactListProps) {
     return [...new Set(names)].sort();
   }, [contacts]);
 
-  const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: contacts.length };
+  const typeCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const c of contacts) {
       counts[c.type] = (counts[c.type] ?? 0) + 1;
     }
@@ -76,9 +77,17 @@ export function ContactList({ contacts }: ContactListProps) {
     else { setSortKey(key); setSortDir("asc"); }
   }
 
+  function toggleFilter(key: string) {
+    setActiveFilters(prev =>
+      prev.includes(key)
+        ? prev.length === 1 ? prev : prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  }
+
   const filtered = useMemo(() => {
     const base = contacts.filter((c) => {
-      if (activeTab !== "ALL" && c.type !== activeTab) return false;
+      if (!activeFilters.includes(c.type)) return false;
       if (ownerFilter !== "ALL" && c.owner !== ownerFilter) return false;
       if (!matchesSearch(search, c.companyName, c.firstName, c.lastName, c.city)) return false;
       return true;
@@ -92,7 +101,7 @@ export function ContactList({ contacts }: ContactListProps) {
       if (key === "owner") return (item as Contact & { owner?: string }).owner ?? "";
       return (item as Record<string, unknown>)[key];
     });
-  }, [contacts, search, activeTab, ownerFilter, sortKey, sortDir]);
+  }, [contacts, search, activeFilters, ownerFilter, sortKey, sortDir]);
 
   function handleDelete(e: React.MouseEvent, id: string) {
     e.preventDefault();
@@ -116,29 +125,30 @@ export function ContactList({ contacts }: ContactListProps) {
         description="Dieser Kontakt wird unwiderruflich gelöscht."
         onConfirm={confirmDelete}
       />
-      <div className="space-y-5">
-        {/* Type Tabs */}
-        <div className="overflow-hidden">
-          <div className="flex items-center gap-1">
-            {TYPE_TABS.filter(({ key }) => key === "ALL" || (tabCounts[key] ?? 0) > 0).map(({ key, label, icon: Icon }) => (
+      <div className="max-w-5xl space-y-5">
+        {/* Type Filter */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {TYPE_FILTERS.map(({ key, label, icon: Icon }) => {
+            const active = activeFilters.includes(key);
+            const count = typeCounts[key] ?? 0;
+            return (
               <button
                 key={key}
-                onClick={() => setActiveTab(key)}
-                title={label}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-                  activeTab === key
+                onClick={() => toggleFilter(key)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap ${
+                  active
                     ? "bg-white border-gray-300 text-gray-900 shadow-sm"
                     : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{label}</span>
-                {(tabCounts[key] ?? 0) > 0 && (
-                  <span className="text-xs text-gray-400">({tabCounts[key]})</span>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                {label}
+                {count > 0 && (
+                  <span className={`text-xs ${active ? "text-gray-500" : "text-gray-400"}`}>{count}</span>
                 )}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
         {/* Search + Owner filter + CTA */}
@@ -229,7 +239,7 @@ export function ContactList({ contacts }: ContactListProps) {
 
             {/* Desktop Table Layout */}
             <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              <div className="grid grid-cols-[minmax(0,2fr)_100px_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                 <SortHeader label="Kontakt" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
                 <SortHeader label="Typ" sortKey="type" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
                 <SortHeader label="Owner" sortKey="owner" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
@@ -243,7 +253,7 @@ export function ContactList({ contacts }: ContactListProps) {
                   <Link
                     key={contact.id}
                     href={`/kontakte/${contact.id}`}
-                    className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
+                    className={`grid grid-cols-[minmax(0,2fr)_100px_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
                       i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                     }`}
                   >

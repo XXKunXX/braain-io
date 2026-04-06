@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { currentUser } from "@clerk/nextjs/server";
 
 export async function POST(req: NextRequest) {
   const { fileName, fileSize, mimeType, url, requestId, contactId } = await req.json();
@@ -7,6 +8,11 @@ export async function POST(req: NextRequest) {
   if (!fileName || !url) {
     return NextResponse.json({ error: "fileName und url erforderlich" }, { status: 400 });
   }
+
+  const clerkUser = await currentUser();
+  const createdByName = clerkUser
+    ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || clerkUser.emailAddresses[0]?.emailAddress
+    : null;
 
   const attachment = await prisma.attachment.create({
     data: {
@@ -16,6 +22,7 @@ export async function POST(req: NextRequest) {
       url,
       requestId: requestId ?? null,
       contactId: contactId ?? null,
+      createdByName,
     },
   });
 

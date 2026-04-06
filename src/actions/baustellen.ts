@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { currentUser } from "@clerk/nextjs/server";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -197,6 +198,11 @@ export async function createBaustelle(data: z.infer<typeof baustelleSchema>) {
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
   // contactId: use explicit value, then fall back to the linked order's contact
+  const clerkUser = await currentUser();
+  const createdByName = clerkUser
+    ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || clerkUser.emailAddresses[0]?.emailAddress
+    : null;
+
   const order = parsed.data.orderId
     ? await db.order.findUnique({ where: { id: parsed.data.orderId }, select: { contactId: true } })
     : null;
@@ -219,6 +225,7 @@ export async function createBaustelle(data: z.infer<typeof baustelleSchema>) {
       contactPerson: parsed.data.contactPerson || null,
       phone: parsed.data.phone || null,
       notes: parsed.data.notes || null,
+      createdByName,
     },
     include: {
       order: { select: { id: true, orderNumber: true, title: true } },

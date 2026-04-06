@@ -71,6 +71,7 @@ model Request {
   inspectionDate        DateTime?
   inspectionStatus      String?       @default("PLANNED")
   noInspectionRequired  Boolean       @default(false)
+  createdByName         String?
   createdAt             DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
@@ -82,12 +83,10 @@ model Request {
 }
 
 enum RequestStatus {
-  OPEN
   NEU
   BESICHTIGUNG_GEPLANT
   BESICHTIGUNG_DURCHGEFUEHRT
   ANGEBOT_ERSTELLT
-  IN_PROGRESS
   DONE
 }
 
@@ -149,6 +148,8 @@ model Order {
   endDate     DateTime
   status      OrderStatus @default(OPEN)
   notes       String?
+  createdByName       String?
+  statusChangedByName String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -253,6 +254,7 @@ model DeliveryNote {
   pdfUrl         String?
   signatureUrl   String?
   invoiceId      String?
+  createdByName  String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -300,14 +302,15 @@ enum TaskStatus {
 // ─── Attachments ─────────────────────────────────────────────────────────────
 
 model Attachment {
-  id        String   @id @default(cuid())
-  fileName  String
-  fileSize  Int
-  mimeType  String
-  url       String
-  requestId String?
-  contactId String?
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  fileName      String
+  fileSize      Int
+  mimeType      String
+  url           String
+  requestId     String?
+  contactId     String?
+  createdByName String?
+  createdAt     DateTime @default(now())
 
   request Request? @relation(fields: [requestId], references: [id], onDelete: Cascade)
   contact Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
@@ -480,6 +483,7 @@ model Baustelle {
   contactPerson String?
   phone         String?
   notes         String?
+  createdByName String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
 

@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { updateOrderStatus, updateOrder } from "@/actions/orders";
 import { createInvoiceFromDeliveryNotes, deleteInvoice } from "@/actions/invoices";
+import { deleteDeliveryNote } from "@/actions/delivery-notes";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ProcessStepper } from "@/components/shared/process-stepper";
 import type { Contact, Order, Quote, QuoteItem, Request } from "@prisma/client";
@@ -45,6 +46,7 @@ type OrderDeliveryNote = {
   quantity: number | null;
   unit: string;
   driver: string | null;
+  signatureUrl: string | null;
   invoice: { id: string; invoiceNumber: string } | null;
 };
 
@@ -151,13 +153,18 @@ export function OrderDetail({
   const [editStatus, setEditStatus] = useState(order.status);
 
   // Lieferschein selection state
-  const openDeliveryNotes = order.deliveryNotes.filter((dn) => !dn.invoice);
+  // Nur unterschriebene & noch nicht verrechnete Lieferscheine sind verrechenbar
+  const openDeliveryNotes = order.deliveryNotes.filter((dn) => !dn.invoice && dn.signatureUrl);
+  const unsignedDeliveryNotes = order.deliveryNotes.filter((dn) => !dn.invoice && !dn.signatureUrl);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedDnIds, setSelectedDnIds] = useState<Set<string>>(new Set());
   const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [dnFilter, setDnFilter] = useState<"all" | "open" | "billed">("all");
+  const [dnFilters, setDnFilters] = useState<("open" | "billed")[]>(["open", "billed"]);
   const [confirmDeleteInvoiceId, setConfirmDeleteInvoiceId] = useState<string | null>(null);
+  const [confirmDeleteDnId, setConfirmDeleteDnId] = useState<string | null>(null);
   const [showNoBaustelleDialog, setShowNoBaustelleDialog] = useState(false);
+  const [showNoLieferscheinDialog, setShowNoLieferscheinDialog] = useState(false);
+  const [showOffeneLieferscheineDialog, setShowOffeneLieferscheineDialog] = useState(false);
 
   function toggleDn(id: string) {
     setSelectedDnIds((prev) => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -187,6 +194,18 @@ export function OrderDetail({
     await deleteInvoice(confirmDeleteInvoiceId);
     toast.success("Rechnung gelöscht");
     setConfirmDeleteInvoiceId(null);
+    router.refresh();
+  }
+
+  async function handleDeleteDn() {
+    if (!confirmDeleteDnId) return;
+    const result = await deleteDeliveryNote(confirmDeleteDnId);
+    if (!result.success) {
+      toast.error(result.error ?? "Lieferschein konnte nicht gelöscht werden.");
+      return;
+    }
+    toast.success("Lieferschein gelöscht");
+    setConfirmDeleteDnId(null);
     router.refresh();
   }
 
@@ -300,7 +319,19 @@ export function OrderDetail({
                         await updateOrderStatus(order.id, "DISPONIERT");
                         toast.success(`Status auf „Disponiert" gesetzt`);
                         router.push(`/disposition?orderId=${order.id}&orderTitle=${encodeURIComponent(order.title)}`);
+                      } else if (step.key === "IN_LIEFERUNG") {
+                        if (order.deliveryNotes.length === 0) {
+                          setShowNoLieferscheinDialog(true);
+                          return;
+                        }
+                        await updateOrderStatus(order.id, "IN_LIEFERUNG");
+                        toast.success(`Status auf „In Lieferung" gesetzt`);
+                        router.refresh();
                       } else if (step.key === "VERRECHNET") {
+                        if (openDeliveryNotes.length > 0) {
+                          setShowOffeneLieferscheineDialog(true);
+                          return;
+                        }
                         router.push(`/rechnungen/neu?orderId=${order.id}`);
                       } else {
                         await updateOrderStatus(order.id, step.key);
@@ -340,8 +371,16 @@ export function OrderDetail({
                 setShowNoBaustelleDialog(true);
                 return;
               }
+              if (status === "IN_LIEFERUNG" && order.deliveryNotes.length === 0) {
+                setShowNoLieferscheinDialog(true);
+                return;
+              }
+              if (status === "VERRECHNET" && (openDeliveryNotes.length > 0 || unsignedDeliveryNotes.length > 0)) {
+                setShowOffeneLieferscheineDialog(true);
+                return;
+              }
               await updateOrderStatus(order.id, status);
-              toast.success(`Status auf „${status}" gesetzt`);
+              toast.success(`Status auf „${statusLabels[status]}" gesetzt`);
               if (status === "DISPONIERT") {
                 router.push(`/disposition?orderId=${order.id}&orderTitle=${encodeURIComponent(order.title)}`);
               } else {
@@ -366,21 +405,31 @@ export function OrderDetail({
       {/* ── Tabs ── */}
       <div className="overflow-x-auto border-b border-gray-200 bg-white">
       <div ref={tabContainerRef} className="px-4 md:px-6 flex gap-1 min-w-max md:min-w-0">
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            title={label}
-            className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === key
-                ? "border-gray-900 text-gray-900"
-                : "border-transparent text-gray-400 hover:text-gray-600"
-            }`}
-          >
-            <Icon className="h-3.5 w-3.5 shrink-0" />
-            <span data-tab-label className={showLabels ? "inline" : "hidden"}>{label}</span>
-          </button>
-        ))}
+        {TABS.map(({ key, label, icon: Icon }) => {
+          const count =
+            key === "Baustellen" ? order.baustellen.length :
+            key === "Lieferscheine" ? order.deliveryNotes.length :
+            key === "Rechnungen" ? order.invoices.length :
+            null;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              title={label}
+              className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === key
+                  ? "border-gray-900 text-gray-900"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span data-tab-label className={showLabels ? "inline" : "hidden"}>{label}</span>
+              {count !== null && count > 0 && (
+                <span data-tab-label className={showLabels ? "inline text-xs text-gray-400" : "hidden"}>({count})</span>
+              )}
+            </button>
+          );
+        })}
       </div>
       </div>
 
@@ -552,24 +601,33 @@ export function OrderDetail({
             ) : (
               <>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex-1" />
-                  {(["all", "open", "billed"] as const).map((f) => {
-                    const openCount = order.deliveryNotes.filter((dn) => !dn.invoice).length;
-                    const billedCount = order.deliveryNotes.filter((dn) => dn.invoice).length;
-                    const labels = { all: `Alle (${order.deliveryNotes.length})`, open: `Offen (${openCount})`, billed: `Verrechnet (${billedCount})` };
-                    return (
-                      <button key={f} onClick={() => setDnFilter(f)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${dnFilter === f ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}>
-                        {labels[f]}
-                      </button>
-                    );
-                  })}
+                  <div className="flex-1 flex items-center gap-2">
+                    {(["open", "billed"] as const).map((f) => {
+                      const openCount = order.deliveryNotes.filter((dn) => !dn.invoice).length;
+                      const billedCount = order.deliveryNotes.filter((dn) => dn.invoice).length;
+                      const labels = { open: `Offen (${openCount})`, billed: `Verrechnet (${billedCount})` };
+                      const active = dnFilters.includes(f);
+                      return (
+                        <button key={f}
+                          onClick={() => setDnFilters(prev => prev.includes(f) ? prev.length === 1 ? prev : prev.filter(k => k !== f) : [...prev, f])}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border whitespace-nowrap ${active ? "bg-white border-gray-300 text-gray-900 shadow-sm" : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"}`}>
+                          {labels[f]}
+                        </button>
+                      );
+                    })}
+                  </div>
                   {openDeliveryNotes.length > 0 && (
                     <button onClick={enterSelectionMode}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors">
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-medium transition-colors">
                       <Receipt className="h-3.5 w-3.5" />Rechnung erstellen
                     </button>
                   )}
+                  <Link href={`/lieferscheine/neu?orderId=${order.id}`}>
+                    <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
+                      <Plus className="h-4 w-4" />
+                      Neuer Lieferschein
+                    </Button>
+                  </Link>
                 </div>
                 {order.deliveryNotes.length === 0 ? (
                   <div className="bg-white border border-gray-200 rounded-xl px-5 py-14 flex flex-col items-center gap-2 text-center">
@@ -578,29 +636,42 @@ export function OrderDetail({
                   </div>
                 ) : (
                   <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
-                    <div className="grid grid-cols-[80px_1fr_110px_100px_90px_56px] px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                    <div className="grid grid-cols-[80px_1fr_110px_100px_90px_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                       {["Nr.", "Material", "Datum", "Menge", "Status", ""].map((h) => (
                         <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
                       ))}
                     </div>
                     {(() => {
-                      const filtered = dnFilter === "open"
-                        ? order.deliveryNotes.filter((dn) => !dn.invoice)
-                        : dnFilter === "billed"
-                        ? order.deliveryNotes.filter((dn) => dn.invoice)
-                        : order.deliveryNotes;
+                      const filtered = order.deliveryNotes.filter((dn) =>
+                        (dnFilters.includes("open") && !dn.invoice) ||
+                        (dnFilters.includes("billed") && dn.invoice)
+                      );
                       return filtered.map((dn, i) => (
                         <Link key={dn.id} href={`/lieferscheine/${dn.id}?orderId=${order.id}`}
-                          className={`grid grid-cols-[80px_1fr_110px_100px_90px_56px] px-5 py-3.5 items-center hover:bg-gray-50 transition-colors group ${i < filtered.length - 1 ? "border-b border-gray-100" : ""}`}>
+                          className={`grid grid-cols-[80px_1fr_110px_100px_90px_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors group ${i < filtered.length - 1 ? "border-b border-gray-100" : ""}`}>
                           <span className="font-mono text-xs text-gray-400">{dn.deliveryNumber}</span>
                           <span className="text-sm font-medium text-gray-900 truncate pr-3">{dn.material}</span>
                           <span className="text-sm text-gray-400">{format(new Date(dn.date), "dd.MM.yyyy", { locale: de })}</span>
                           <span className="text-sm text-gray-500 font-mono">{dn.quantity != null ? dn.quantity.toLocaleString("de-DE") : "–"} {dn.unit}</span>
                           {dn.invoice
                             ? <span className="text-xs font-medium text-green-600 truncate">{dn.invoice.invoiceNumber}</span>
-                            : <span className="text-xs font-medium text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full w-fit">Offen</span>
+                            : dn.signatureUrl
+                              ? <span className="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full w-fit">Unterschrieben</span>
+                              : <span className="text-xs font-medium text-orange-500 bg-orange-50 px-2 py-0.5 rounded-full w-fit">Offen</span>
                           }
-                          <div className="flex items-center justify-end">
+                          <div className="flex items-center justify-end gap-1" onClick={(e) => e.preventDefault()}>
+                            {(() => {
+                              const blocked = !!dn.invoice;
+                              return (
+                                <button
+                                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!blocked) setConfirmDeleteDnId(dn.id); }}
+                                  className={`p-1.5 transition-colors ${blocked ? "text-gray-200 cursor-not-allowed" : "text-gray-300 hover:text-red-400"}`}
+                                  title={blocked ? "Verrecheneter Lieferschein kann nicht gelöscht werden" : "Löschen"}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              );
+                            })()}
                             <ChevronRight className="h-4 w-4 text-gray-200 group-hover:text-gray-400 transition-colors" />
                           </div>
                         </Link>
@@ -667,12 +738,9 @@ export function OrderDetail({
 
         {activeTab === "Baustellen" && (
           <div className="max-w-4xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-gray-900">
-                Baustellen ({order.baustellen.length})
-              </h3>
+            <div className="flex items-center justify-end mb-4">
               <Link href={`/baustellen/neu?orderId=${order.id}`}>
-                <Button className="gap-1.5">
+                <Button className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
                   <Plus className="h-4 w-4" />
                   Neue Baustelle
                 </Button>
@@ -686,24 +754,24 @@ export function OrderDetail({
               </div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_80px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+                <div className="grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                   {["Baustellenname", "Status", "Start", "Ende", ""].map((h) => (
                     <span key={h} className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">{h}</span>
                   ))}
                 </div>
                 {order.baustellen.map((b, i) => {
                   const statusColors: Record<string, string> = {
-                    PLANNED: "bg-gray-100 text-gray-600",
-                    ACTIVE: "bg-blue-50 text-blue-700",
-                    PENDING: "bg-red-50 text-red-700",
-                    INVOICED: "bg-orange-50 text-orange-700",
-                    COMPLETED: "bg-green-50 text-green-700",
+                    OPEN: "bg-gray-100 text-gray-600",
+                    DISPONIERT: "bg-blue-50 text-blue-700",
+                    IN_LIEFERUNG: "bg-emerald-50 text-emerald-700",
+                    VERRECHNET: "bg-emerald-100 text-emerald-800",
+                    ABGESCHLOSSEN: "bg-green-50 text-green-700",
                   };
                   const statusLabelsB: Record<string, string> = {
-                    PLANNED: "Geplant", ACTIVE: "Aktiv", PENDING: "Ausstehend", INVOICED: "In Abrechnung", COMPLETED: "Abgeschlossen",
+                    OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "Verrechnet", ABGESCHLOSSEN: "Abgeschlossen",
                   };
                   return (
-                    <div key={b.id} className={`grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_80px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${i !== order.baustellen.length - 1 ? "border-b border-gray-100" : ""}`}>
+                    <Link key={b.id} href={`/baustellen/${b.id}`} className={`grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors group ${i !== order.baustellen.length - 1 ? "border-b border-gray-100" : ""}`}>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">{b.name}</p>
                         {(b.address || b.city) && (
@@ -715,12 +783,11 @@ export function OrderDetail({
                       </span>
                       <span className="text-sm text-gray-500">{format(new Date(b.startDate), "dd.MM.yyyy", { locale: de })}</span>
                       <span className="text-sm text-gray-500">{b.endDate ? format(new Date(b.endDate), "dd.MM.yyyy", { locale: de }) : "–"}</span>
-                      <div className="flex justify-end">
-                        <Link href={`/baustellen/${b.id}`} className="text-gray-300 hover:text-blue-600 transition-colors" title="Bearbeiten">
-                          <Pencil className="h-4 w-4" />
-                        </Link>
+                      <div className="flex items-center justify-end gap-1">
+                        <span className="p-1"><Trash2 className="h-3.5 w-3.5 text-gray-200" /></span>
+                        <ChevronRight className="h-4 w-4 text-gray-200 group-hover:text-gray-400 transition-colors" />
                       </div>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -738,8 +805,16 @@ export function OrderDetail({
         open={!!confirmDeleteInvoiceId}
         onOpenChange={(open) => { if (!open) setConfirmDeleteInvoiceId(null); }}
         title="Rechnung löschen"
-        description="Die Rechnung wird unwiderruflich gelöscht. Alle verknüpften Lieferscheine werden wieder auf offen gesetzt."
+        description="Die Rechnung wird unwiderruflich gelöscht. Verknüpfte Lieferscheine bleiben unterschrieben und sind wieder verrechenbar."
         onConfirm={handleDeleteInvoice}
+      />
+
+      <ConfirmDialog
+        open={!!confirmDeleteDnId}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteDnId(null); }}
+        title="Lieferschein löschen"
+        description="Dieser Lieferschein wird unwiderruflich gelöscht."
+        onConfirm={handleDeleteDn}
       />
 
       <ConfirmDialog
@@ -752,6 +827,36 @@ export function OrderDetail({
         onConfirm={() => {
           setShowNoBaustelleDialog(false);
           router.push(`/baustellen/neu?orderId=${order.id}`);
+        }}
+      />
+
+      <ConfirmDialog
+        open={showNoLieferscheinDialog}
+        onOpenChange={(open) => { if (!open) setShowNoLieferscheinDialog(false); }}
+        title="Kein Lieferschein vorhanden"
+        description={'Bevor du den Auftrag auf \u201eIn Lieferung\u201c setzen kannst, muss zuerst ein Lieferschein angelegt werden.'}
+        confirmLabel="Lieferschein anlegen"
+        cancelLabel="Abbrechen"
+        onConfirm={() => {
+          setShowNoLieferscheinDialog(false);
+          setActiveTab("Lieferscheine");
+        }}
+      />
+
+      <ConfirmDialog
+        open={showOffeneLieferscheineDialog}
+        onOpenChange={(open) => { if (!open) setShowOffeneLieferscheineDialog(false); }}
+        title="Lieferscheine noch nicht verrechnet"
+        description={
+          unsignedDeliveryNotes.length > 0
+            ? `Es gibt noch ${unsignedDeliveryNotes.length} nicht unterschriebene${unsignedDeliveryNotes.length !== 1 ? " Lieferscheine" : "n Lieferschein"}. Nur unterschriebene Lieferscheine können verrechnet werden.`
+            : `Es gibt noch ${openDeliveryNotes.length} unterschriebene${openDeliveryNotes.length !== 1 ? " Lieferscheine" : "n Lieferschein"}, die noch nicht verrechnet wurden. Bitte zuerst eine Rechnung erstellen.`
+        }
+        confirmLabel="Zu den Lieferscheinen"
+        cancelLabel="Abbrechen"
+        onConfirm={() => {
+          setShowOffeneLieferscheineDialog(false);
+          setActiveTab("Lieferscheine");
         }}
       />
     </div>

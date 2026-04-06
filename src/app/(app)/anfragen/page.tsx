@@ -8,7 +8,7 @@ export default async function AnfragenPage({ searchParams }: { searchParams: Pro
     getContacts(),
     searchParams,
   ]);
-  const initialStatus = params.status ?? "ALL";
+  const initialStatus = params.status;
 
   return (
     <div className="p-4 md:p-6 space-y-5">

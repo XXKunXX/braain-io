@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { getDeliveryNote } from "@/actions/delivery-notes";
 import { DeliveryDetail } from "@/components/delivery/delivery-detail";
+import { DeliveryDetailActions } from "@/components/delivery/delivery-detail-actions";
 
 export default async function LieferscheinDetailPage({
   params,
@@ -22,7 +23,13 @@ export default async function LieferscheinDetailPage({
 
   return (
     <>
-      <Header title={`Lieferschein ${deliveryNote.deliveryNumber}`} />
+      <Header title={`Lieferschein ${deliveryNote.deliveryNumber}`}>
+        <DeliveryDetailActions
+          id={deliveryNote.id}
+          contactId={deliveryNote.contact.id}
+          invoiceId={invoiceId}
+        />
+      </Header>
       <div className="p-4 md:p-6">
         <DeliveryDetail deliveryNote={deliveryNote} contactId={contactId} baustelleId={baustelleId} baustelleName={baustelleName} invoiceId={invoiceId} />
       </div>

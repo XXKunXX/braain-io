@@ -6,6 +6,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
 import { reportBetaError } from "@/lib/report-error";
+import { currentUser } from "@clerk/nextjs/server";
+
+async function getActorName(): Promise<string | null> {
+  const user = await currentUser();
+  if (!user) return null;
+  return `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || user.emailAddresses[0]?.emailAddress || null;
+}
 
 const orderSchema = z.object({
   title: z.string().min(1, "Titel ist erforderlich"),
@@ -25,7 +32,7 @@ export async function createOrder(data: OrderFormData) {
   const { startDate, endDate, quoteId, ...orderData } = parsed.data;
 
   try {
-    const orderNumber = await getNextNumber("order");
+    const [orderNumber, createdByName] = await Promise.all([getNextNumber("order"), getActorName()]);
 
     const order = await prisma.order.create({
       data: {
@@ -34,6 +41,7 @@ export async function createOrder(data: OrderFormData) {
         quoteId: quoteId || undefined,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
+        createdByName,
       },
     });
 
@@ -101,9 +109,10 @@ export async function updateOrderStatus(
   id: string,
   status: "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN"
 ) {
+  const statusChangedByName = await getActorName();
   const order = await prisma.order.update({
     where: { id },
-    data: { status },
+    data: { status, statusChangedByName },
   });
 
   // Notify all non-driver users about the status change
@@ -141,7 +150,7 @@ export async function getOrders(status?: string) {
 }
 
 export async function getOrder(id: string) {
-  return prisma.order.findUnique({
+  const order = await prisma.order.findUnique({
     where: { id },
     include: {
       contact: true,
@@ -158,16 +167,38 @@ export async function getOrder(id: string) {
           city: true,
         },
       },
-      deliveryNotes: {
-        orderBy: { date: "desc" },
-        include: { invoice: { select: { id: true, invoiceNumber: true } } },
-      },
       invoices: {
         orderBy: { invoiceDate: "desc" },
         select: { id: true, invoiceNumber: true, invoiceDate: true, totalAmount: true, status: true },
       },
     },
   });
+
+  if (!order) return null;
+
+  const baustellenIds = order.baustellen.map((b) => b.id);
+  const deliveryNotes = await prisma.deliveryNote.findMany({
+    where: {
+      OR: [
+        { orderId: id },
+        { baustelleId: { in: baustellenIds } },
+      ],
+    },
+    orderBy: { date: "desc" },
+    select: {
+      id: true,
+      deliveryNumber: true,
+      date: true,
+      material: true,
+      quantity: true,
+      unit: true,
+      driver: true,
+      signatureUrl: true,
+      invoice: { select: { id: true, invoiceNumber: true } },
+    },
+  });
+
+  return { ...order, deliveryNotes };
 }
 
 export async function createOrderWithDetails(data: {
@@ -191,7 +222,7 @@ export async function createOrderWithDetails(data: {
     unitPrice: number;
   }[];
 }) {
-  const orderNumber = await getNextNumber("order");
+  const [orderNumber, createdByName] = await Promise.all([getNextNumber("order"), getActorName()]);
 
   const order = await prisma.order.create({
     data: {
@@ -201,6 +232,7 @@ export async function createOrderWithDetails(data: {
       startDate: new Date(data.startDate),
       endDate: new Date(data.endDate),
       notes: data.notes || null,
+      createdByName,
     },
   });
 

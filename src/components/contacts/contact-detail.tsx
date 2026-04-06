@@ -44,21 +44,18 @@ const typeBadgeColors: Record<string, string> = {
 };
 
 const requestStatusLabels: Record<string, string> = {
-  NEU: "Neu", OPEN: "Offen",
+  NEU: "Neu",
   BESICHTIGUNG_GEPLANT: "Besichtigung geplant",
   BESICHTIGUNG_DURCHGEFUEHRT: "Besichtigung durchgeführt",
   ANGEBOT_ERSTELLT: "Angebot erstellt",
-  IN_PROGRESS: "In Bearbeitung",
   DONE: "Erledigt",
 };
 
 const requestStatusColors: Record<string, string> = {
   NEU: "bg-blue-50 text-blue-700 border border-blue-200",
-  OPEN: "bg-blue-50 text-blue-700 border border-blue-200",
   BESICHTIGUNG_GEPLANT: "bg-amber-50 text-amber-700 border border-amber-200",
-  BESICHTIGUNG_DURCHGEFUEHRT: "bg-green-50 text-green-700 border border-green-200",
-  ANGEBOT_ERSTELLT: "bg-amber-50 text-amber-700 border border-amber-200",
-  IN_PROGRESS: "bg-purple-50 text-purple-700 border border-purple-200",
+  BESICHTIGUNG_DURCHGEFUEHRT: "bg-teal-50 text-teal-700 border border-teal-200",
+  ANGEBOT_ERSTELLT: "bg-purple-50 text-purple-700 border border-purple-200",
   DONE: "bg-green-50 text-green-700 border border-green-200",
 };
 

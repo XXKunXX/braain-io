@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { clerkClient } from "@clerk/nextjs/server";
+import { clerkClient, currentUser } from "@clerk/nextjs/server";
 import { sendEmail } from "@/lib/email";
 import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
 
@@ -12,7 +12,7 @@ const requestSchema = z.object({
   description: z.string().optional(),
   contactId: z.string().min(1, "Kontakt ist erforderlich"),
   assignedTo: z.string().optional(),
-  status: z.enum(["OPEN", "NEU", "BESICHTIGUNG_GEPLANT", "BESICHTIGUNG_DURCHGEFUEHRT", "ANGEBOT_ERSTELLT", "IN_PROGRESS", "DONE"]).optional(),
+  status: z.enum(["NEU", "BESICHTIGUNG_GEPLANT", "BESICHTIGUNG_DURCHGEFUEHRT", "ANGEBOT_ERSTELLT", "DONE"]).optional(),
   priority: z.string().optional(),
   siteAddress: z.string().optional(),
   sitePhone: z.string().optional(),
@@ -29,6 +29,11 @@ export async function createRequest(data: RequestFormData) {
 
   const { inspectionDate, ...rest } = parsed.data;
 
+  const clerkUser = await currentUser();
+  const createdByName = clerkUser
+    ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || clerkUser.emailAddresses[0]?.emailAddress
+    : null;
+
   const [request, contact] = await Promise.all([
     prisma.request.create({
       data: {
@@ -36,6 +41,7 @@ export async function createRequest(data: RequestFormData) {
         status: rest.status ?? "NEU",
         inspectionDate: inspectionDate ? new Date(inspectionDate) : undefined,
         noInspectionRequired: rest.noInspectionRequired ?? false,
+        createdByName,
       },
     }),
     prisma.contact.findUnique({ where: { id: rest.contactId }, select: { companyName: true } }),
@@ -139,7 +145,7 @@ export async function getNewRequestCount() {
 
 export async function getRequests(status?: string) {
   return prisma.request.findMany({
-    where: status ? { status: status as "OPEN" | "NEU" | "BESICHTIGUNG_GEPLANT" | "ANGEBOT_ERSTELLT" | "IN_PROGRESS" | "DONE" } : undefined,
+    where: status ? { status: status as "NEU" | "BESICHTIGUNG_GEPLANT" | "BESICHTIGUNG_DURCHGEFUEHRT" | "ANGEBOT_ERSTELLT" | "DONE" } : undefined,
     orderBy: { createdAt: "desc" },
     include: { contact: true },
   });

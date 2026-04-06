@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import {
   Trash2, Search, ChevronRight, ClipboardCheck, Plus,
-  Files, Calendar, Zap, AlertCircle, Receipt, CheckCircle2,
+  Calendar, Zap, AlertCircle, Receipt, CheckCircle2,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -24,8 +24,7 @@ import { getContactName } from "@/lib/utils";
 
 type OrderWithRelations = Order & { contact: Contact; quote: Quote | null };
 
-const STATUS_TABS = [
-  { key: "ALL", label: "Alle", icon: Files },
+const STATUS_FILTERS = [
   { key: "OPEN", label: "Offen", icon: Calendar },
   { key: "DISPONIERT", label: "Disponiert", icon: Zap },
   { key: "IN_LIEFERUNG", label: "In Lieferung", icon: AlertCircle },
@@ -33,10 +32,12 @@ const STATUS_TABS = [
   { key: "ABGESCHLOSSEN", label: "Abgeschlossen", icon: CheckCircle2 },
 ] as const;
 
+const ACTIVE_DEFAULT = ["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET"];
+
 export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("ALL");
+  const [activeFilters, setActiveFilters] = useState<string[]>(ACTIVE_DEFAULT);
   const [sortKey, setSortKey] = useState<string | null>("startDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -46,8 +47,16 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
     else { setSortKey(key); setSortDir("asc"); }
   }
 
-  const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: orders.length };
+  function toggleFilter(key: string) {
+    setActiveFilters(prev =>
+      prev.includes(key)
+        ? prev.length === 1 ? prev : prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  }
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const o of orders) {
       counts[o.status] = (counts[o.status] ?? 0) + 1;
     }
@@ -56,7 +65,7 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
 
   const filtered = useMemo(() => {
     const base = orders.filter((o) => {
-      const matchesStatus = activeTab === "ALL" || o.status === activeTab;
+      const matchesStatus = activeFilters.includes(o.status);
       const matchesText = matchesSearch(search, o.title, getContactName(o.contact), o.quote?.siteAddress);
       return matchesStatus && matchesText;
     });
@@ -68,7 +77,7 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
       if (key === "startDate") return new Date(item.startDate);
       return (item as Record<string, unknown>)[key];
     });
-  }, [orders, search, activeTab, sortKey, sortDir]);
+  }, [orders, search, activeFilters, sortKey, sortDir]);
 
   function handleDelete(e: React.MouseEvent, id: string) {
     e.preventDefault();
@@ -92,30 +101,30 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
         description="Dieser Auftrag wird unwiderruflich gelöscht."
         onConfirm={confirmDelete}
       />
-      <div className="space-y-5">
-        {/* Status Chips — horizontal scrollable (native app style) */}
-        <div className="-mx-4 sm:mx-0">
-          <div className="flex items-center gap-2 overflow-x-auto px-4 sm:px-0 pb-0.5 scrollbar-hide">
-            {STATUS_TABS.filter(({ key }) => key === "ALL" || (tabCounts[key] ?? 0) > 0).map(({ key, label, icon: Icon }) => (
+      <div className="max-w-5xl space-y-5">
+        {/* Status Filter */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {STATUS_FILTERS.map(({ key, label, icon: Icon }) => {
+            const active = activeFilters.includes(key);
+            const count = statusCounts[key] ?? 0;
+            return (
               <button
                 key={key}
-                onClick={() => setActiveTab(key)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap flex-shrink-0 ${
-                  activeTab === key
-                    ? "bg-gray-900 border-gray-900 text-white"
-                    : "bg-white border-gray-200 text-gray-500 hover:border-gray-300 hover:text-gray-800"
+                onClick={() => toggleFilter(key)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap ${
+                  active
+                    ? "bg-white border-gray-300 text-gray-900 shadow-sm"
+                    : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
                 }`}
               >
                 <Icon className="h-3.5 w-3.5 shrink-0" />
                 {label}
-                {(tabCounts[key] ?? 0) > 0 && (
-                  <span className={`text-xs ${activeTab === key ? "text-gray-300" : "text-gray-400"}`}>
-                    {tabCounts[key]}
-                  </span>
+                {count > 0 && (
+                  <span className={`text-xs ${active ? "text-gray-500" : "text-gray-400"}`}>{count}</span>
                 )}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
         {/* Search + CTA */}
@@ -166,7 +175,16 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-2">
-                        <StatusBadge status={order.status} />
+                        {(order.status === "DISPONIERT" || order.status === "IN_LIEFERUNG") ? (
+                          <span
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/disposition?orderId=${order.id}&orderTitle=${encodeURIComponent(order.title)}`); }}
+                            className="cursor-pointer hover:opacity-80 transition-opacity"
+                          >
+                            <StatusBadge status={order.status} />
+                          </span>
+                        ) : (
+                          <StatusBadge status={order.status} />
+                        )}
                         {order.quote && (
                           <span className="text-xs text-gray-500 font-mono">
                             {Number(order.quote.totalPrice).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
@@ -190,7 +208,7 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
 
             {/* Desktop Table Layout */}
             <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_160px_110px_minmax(0,1fr)_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                 <SortHeader label="Projekt" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
                 <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
                 <SortHeader label="Zeitraum" sortKey="startDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
@@ -203,7 +221,7 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
                 <Link
                   key={order.id}
                   href={`/auftraege/${order.id}`}
-                  className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
+                  className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_160px_110px_minmax(0,1fr)_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
                     i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                   }`}
                 >
@@ -218,7 +236,16 @@ export function OrderList({ orders }: { orders: OrderWithRelations[] }) {
                       : "–"}
                   </span>
                   <div>
-                    <StatusBadge status={order.status} />
+                    {(order.status === "DISPONIERT" || order.status === "IN_LIEFERUNG") ? (
+                      <span
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/disposition?orderId=${order.id}&orderTitle=${encodeURIComponent(order.title)}`); }}
+                        className="cursor-pointer hover:opacity-80 transition-opacity"
+                      >
+                        <StatusBadge status={order.status} />
+                      </span>
+                    ) : (
+                      <StatusBadge status={order.status} />
+                    )}
                   </div>
                   <div className="flex items-center justify-end gap-1" onClick={(e) => e.preventDefault()}>
                     <button

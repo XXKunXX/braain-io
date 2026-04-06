@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useEscapeKey } from "@/hooks/use-escape-key";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { ContactForm } from "@/components/contacts/contact-form";
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 
 export function NewContactClient({ userNames, returnTo }: { userNames: string[]; returnTo?: string }) {
   const router = useRouter();
+  useEscapeKey(() => router.back(), true);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(data: ContactFormData) {

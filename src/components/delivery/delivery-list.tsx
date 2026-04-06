@@ -29,7 +29,30 @@ type DeliveryWithRelations = Omit<DeliveryNote, "quantity"> & {
   quantity: number;
   contact: Contact;
   invoice: { id: string; invoiceNumber: string; status: string } | null;
+  signatureUrl: string | null;
 };
+
+function DeliveryStatusBadge({ dn }: { dn: DeliveryWithRelations }) {
+  if (dn.invoice) {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 border border-green-200 whitespace-nowrap">
+        verrechnet
+      </span>
+    );
+  }
+  if (dn.signatureUrl) {
+    return (
+      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+        unterschrieben
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-200 whitespace-nowrap">
+      offen
+    </span>
+  );
+}
 
 export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRelations[] }) {
   const router = useRouter();
@@ -90,7 +113,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
         description="Dieser Lieferschein wird unwiderruflich gelöscht."
         onConfirm={confirmDelete}
       />
-      <div className="space-y-5">
+      <div className="max-w-5xl space-y-5">
         {/* Search + Filter + CTA */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">
@@ -150,15 +173,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-gray-900">{dn.deliveryNumber}</p>
-                        {dn.invoice ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 border border-green-200">
-                            verrechnet
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-200">
-                            offen
-                          </span>
-                        )}
+                        <DeliveryStatusBadge dn={dn} />
                       </div>
                       <p className="text-xs text-gray-400 truncate mt-0.5">{getContactName(dn.contact)}</p>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
@@ -193,7 +208,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
 
             {/* Desktop Table Layout */}
             <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[minmax(0,2fr)_1.5fr_1fr_1fr_1fr_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_100px_100px_minmax(0,1fr)_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                 <SortHeader label="Lieferschein" sortKey="number" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
                 <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Material</span>
                 <SortHeader label="Datum" sortKey="deliveryDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
@@ -206,22 +221,14 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
                 <Link
                   key={dn.id}
                   href={`/lieferscheine/${dn.id}`}
-                  className={`grid grid-cols-[minmax(0,2fr)_1.5fr_1fr_1fr_1fr_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
+                  className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_100px_100px_minmax(0,1fr)_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
                     i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                   }`}
                 >
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-semibold text-gray-900 truncate">{dn.deliveryNumber}</p>
-                      {dn.invoice ? (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-700 border border-green-200 whitespace-nowrap">
-                          verrechnet
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-600 border border-orange-200 whitespace-nowrap">
-                          offen
-                        </span>
-                      )}
+                      <DeliveryStatusBadge dn={dn} />
                     </div>
                     <p className="text-xs text-gray-400 truncate mt-0.5">{getContactName(dn.contact)}</p>
                   </div>

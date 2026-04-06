@@ -40,7 +40,7 @@ import {
   sendInvoiceEmail,
 } from "@/actions/invoices";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn, getContactName } from "@/lib/utils";
 import { toast } from "sonner";
 
 const UNITS = ["Stk", "t", "m³", "m²", "m", "Std", "Psch", "Pos"];
@@ -645,8 +645,8 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
       <div className="bg-white border border-gray-200 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-gray-900 mb-3">Empfänger</h2>
         <div className="space-y-1 text-sm text-gray-700">
-          <p className="font-medium">{invoice.contact.companyName}</p>
-          {(invoice.contact.firstName || invoice.contact.lastName) && <p>{[invoice.contact.firstName, invoice.contact.lastName].filter(Boolean).join(" ")}</p>}
+          <p className="font-medium">{getContactName(invoice.contact)}</p>
+          {invoice.contact.companyName && (invoice.contact.firstName || invoice.contact.lastName) && <p>{[invoice.contact.firstName, invoice.contact.lastName].filter(Boolean).join(" ")}</p>}
           {invoice.contact.address && <p>{invoice.contact.address}</p>}
           {(invoice.contact.postalCode || invoice.contact.city) && (
             <p>{invoice.contact.postalCode} {invoice.contact.city}</p>

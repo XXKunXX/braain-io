@@ -32,6 +32,7 @@ import {
   createResource,
   sendTagesplan,
 } from "@/actions/disposition";
+import { getContactName } from "@/lib/utils";
 
 type ResourceItem = {
   id: string;
@@ -72,7 +73,7 @@ type EntryWithRelations = {
 };
 
 type ViewType = "tag" | "woche" | "monat" | "timeline" | "6wochen";
-type TypeFilter = "ALL" | "FAHRER" | "FAHRZEUG" | "MASCHINE";
+type ResourceType = "FAHRER" | "FAHRZEUG" | "MASCHINE";
 
 // Hourly view constants (tag view)
 const HOUR_START = 6;
@@ -111,12 +112,13 @@ const CELL_WIDTH: Record<ViewType, number | undefined> = {
   tag: HOUR_WIDTH, woche: undefined, monat: 52, timeline: 80, "6wochen": 36,
 };
 
-const TYPE_FILTERS: { key: TypeFilter; label: string }[] = [
-  { key: "ALL",      label: "Alle" },
+const TYPE_FILTERS: { key: ResourceType; label: string }[] = [
   { key: "FAHRER",   label: "Fahrer" },
   { key: "FAHRZEUG", label: "Fahrzeuge" },
   { key: "MASCHINE", label: "Maschinen" },
 ];
+
+const ALL_TYPES: ResourceType[] = ["FAHRER", "FAHRZEUG", "MASCHINE"];
 
 const TYPE_ORDER = ["FAHRER", "FAHRZEUG", "MASCHINE", "OTHER"];
 
@@ -148,8 +150,10 @@ export function DispositionCalendar({
   const rangeStart = parseISO(rangeStartISO);
 
   const [view, setView] = useState<ViewType>(initialView);
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("ALL");
-  const [selectedBaustelleId, setSelectedBaustelleId] = useState<string | null>(null);
+  const [activeTypeFilters, setActiveTypeFilters] = useState<ResourceType[]>(ALL_TYPES);
+  const [selectedBaustelleId, setSelectedBaustelleId] = useState<string | null>(
+    () => orderId ? (baustellen.find(b => b.orderId === orderId)?.id ?? null) : null
+  );
   const [search, setSearch] = useState("");
   const [showAddEntry, setShowAddEntry] = useState(false);
   const [showAddResource, setShowAddResource] = useState(false);
@@ -264,9 +268,8 @@ export function DispositionCalendar({
   }, [view, rangeStart]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Collapsed sections
-  const [activeCollapsed, setActiveCollapsed] = useState(false);
-  const [pendingCollapsed, setPendingCollapsed] = useState(false);
-  const [plannedCollapsed, setPlannedCollapsed] = useState(false);
+  const [offenCollapsed, setOffenCollapsed] = useState(false);
+  const [disponierterCollapsed, setDisponierterCollapsed] = useState(false);
 
   const [entryForm, setEntryForm] = useState({
     resourceId: "", baustelleId: baustelleId ?? "",
@@ -302,12 +305,18 @@ export function DispositionCalendar({
   const numDays = days.length;
   const cellWidth = CELL_WIDTH[view];
 
+  function toggleTypeFilter(key: ResourceType) {
+    setActiveTypeFilters(prev =>
+      prev.includes(key)
+        ? prev.length === 1 ? prev : prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  }
+
   // Filtered + grouped resources (exclude PRODUKT)
   const visibleResources = useMemo(() => {
-    let r = resources.filter(res => res.type !== "PRODUKT");
-    if (typeFilter !== "ALL") r = r.filter(res => res.type === typeFilter);
-    return r;
-  }, [resources, typeFilter]);
+    return resources.filter(res => res.type !== "PRODUKT" && activeTypeFilters.includes(res.type as ResourceType));
+  }, [resources, activeTypeFilters]);
 
   const groupedResources = useMemo(() => {
     const map: Record<string, ResourceItem[]> = {};
@@ -379,9 +388,8 @@ export function DispositionCalendar({
     }
     return list;
   }, [localBaustellen, search, orderId]);
-  const activeBaustellen = filteredBaustellen.filter(b => b.status === "DISPONIERT" || b.status === "IN_LIEFERUNG");
-  const pendingBaustellen = filteredBaustellen.filter(b => b.status === "VERRECHNET");
-  const plannedBaustellen = filteredBaustellen.filter(b => b.status === "OPEN");
+  const offeneBaustellen = filteredBaustellen.filter(b => b.status === "OPEN");
+  const disponierterBaustellen = filteredBaustellen.filter(b => b.status === "DISPONIERT" || b.status === "IN_LIEFERUNG");
 
   const baustelleColorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -838,18 +846,6 @@ export function DispositionCalendar({
           </a>
         </div>
       )}
-      {/* ── Auftrag context banner ──────────────────────────────────────────── */}
-      {orderId && (
-        <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 flex items-center justify-between flex-shrink-0">
-          <div className="flex items-center gap-2 text-sm text-amber-800">
-            <span className="font-medium">Auftrag:</span>
-            <span className="font-semibold">{orderTitle ?? orderId}</span>
-          </div>
-          <a href={`/auftraege/${orderId}`} className="inline-flex items-center gap-1 text-xs text-amber-700 hover:text-amber-900 font-medium">
-            <ArrowLeft className="h-3.5 w-3.5" />Zurück zum Auftrag
-          </a>
-        </div>
-      )}
 
       {/* ── View tabs + type filter + range label ──────────────────────────── */}
       <div className="px-4 md:px-6 py-2 bg-white border-b border-gray-100 flex items-center justify-between gap-2 md:gap-4 flex-shrink-0 overflow-x-auto">
@@ -864,14 +860,17 @@ export function DispositionCalendar({
           ))}
         </div>
         <div className="hidden sm:flex items-center gap-1 flex-shrink-0">
-          {TYPE_FILTERS.map(({ key, label }) => (
-            <button key={key} onClick={() => setTypeFilter(key)}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors border ${
-                typeFilter === key ? "bg-gray-900 text-white border-gray-900" : "border-gray-200 text-gray-500 hover:border-gray-400 hover:text-gray-700"
+          {TYPE_FILTERS.map(({ key, label }) => {
+            const active = activeTypeFilters.includes(key);
+            return (
+            <button key={key} onClick={() => toggleTypeFilter(key)}
+              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors border whitespace-nowrap ${
+                active ? "bg-white border-gray-300 text-gray-900 shadow-sm" : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
               }`}>
               {label}
             </button>
-          ))}
+            );
+          })}
         </div>
         <span className="text-xs font-medium text-gray-500 capitalize whitespace-nowrap flex-shrink-0">{rangeLabel}</span>
       </div>
@@ -996,20 +995,19 @@ export function DispositionCalendar({
               </p>
             )}
 
-            {activeBaustellen.length > 0 && (
+            {disponierterBaustellen.length > 0 && (
               <div>
-                <button onClick={() => setActiveCollapsed(v => !v)}
+                <button onClick={() => setDisponierterCollapsed(v => !v)}
                   className="w-full flex items-center justify-between px-4 py-1.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
-                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Aktiv ({activeBaustellen.length})</span>
-                  {activeCollapsed ? <ChevronRightIcon className="h-3 w-3 text-gray-300" /> : <ChevronDown className="h-3 w-3 text-gray-300" />}
+                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Disponiert ({disponierterBaustellen.length})</span>
+                  {disponierterCollapsed ? <ChevronRightIcon className="h-3 w-3 text-gray-300" /> : <ChevronDown className="h-3 w-3 text-gray-300" />}
                 </button>
-                {!activeCollapsed && activeBaustellen.map((b) => (
+                {!disponierterCollapsed && disponierterBaustellen.map((b) => (
                   <div key={b.id} draggable
                     onDragStart={(e) => handleDragStart(e, b.id)}
                     onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
                     className={`group px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" :
-                      (orderId && b.orderId === orderId) ? "bg-amber-50 border-l-2 border-l-amber-400" : ""
+                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
                     }`}>
                     <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
                     <div className="min-w-0 flex-1">
@@ -1034,58 +1032,19 @@ export function DispositionCalendar({
               </div>
             )}
 
-            {pendingBaustellen.length > 0 && (
+            {offeneBaustellen.length > 0 && (
               <div>
-                <button onClick={() => setPendingCollapsed(v => !v)}
-                  className="w-full flex items-center justify-between px-4 py-1.5 hover:bg-red-50 transition-colors border-b border-red-100">
-                  <span className="text-[10px] font-bold tracking-widest text-red-500 uppercase">Ausstehend ({pendingBaustellen.length})</span>
-                  {pendingCollapsed ? <ChevronRightIcon className="h-3 w-3 text-red-300" /> : <ChevronDown className="h-3 w-3 text-red-300" />}
-                </button>
-                {!pendingCollapsed && pendingBaustellen.map((b) => (
-                  <div key={b.id} draggable
-                    onDragStart={(e) => handleDragStart(e, b.id)}
-                    onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
-                    className={`group px-4 py-2.5 border-b border-gray-50 hover:bg-red-50/50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedBaustelleId === b.id ? "bg-red-50 border-l-2 border-l-red-400" :
-                      (orderId && b.orderId === orderId) ? "bg-amber-50 border-l-2 border-l-amber-400" : ""
-                    }`}>
-                    <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-semibold text-gray-900 truncate leading-tight">{b.name}</p>
-                      <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                        {b.contact?.companyName || [b.contact?.firstName, b.contact?.lastName].filter(Boolean).join(" ") || b.city || "–"}
-                      </p>
-                    </div>
-                    {(b.orderId || b.id) && (
-                      <Link
-                        href={b.orderId ? `/auftraege/${b.orderId}` : `/baustellen/${b.id}`}
-                        onClick={(e) => e.stopPropagation()}
-                        onDragStart={(e) => e.stopPropagation()}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 p-0.5 rounded text-gray-300 hover:text-blue-500 mt-0.5"
-                        title={b.orderId ? "Zum Auftrag" : "Zur Baustelle"}
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </Link>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {plannedBaustellen.length > 0 && (
-              <div>
-                <button onClick={() => setPlannedCollapsed(v => !v)}
+                <button onClick={() => setOffenCollapsed(v => !v)}
                   className="w-full flex items-center justify-between px-4 py-1.5 hover:bg-gray-50 transition-colors border-b border-gray-100">
-                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Geplant ({plannedBaustellen.length})</span>
-                  {plannedCollapsed ? <ChevronRightIcon className="h-3 w-3 text-gray-300" /> : <ChevronDown className="h-3 w-3 text-gray-300" />}
+                  <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Offen ({offeneBaustellen.length})</span>
+                  {offenCollapsed ? <ChevronRightIcon className="h-3 w-3 text-gray-300" /> : <ChevronDown className="h-3 w-3 text-gray-300" />}
                 </button>
-                {!plannedCollapsed && plannedBaustellen.map((b) => (
+                {!offenCollapsed && offeneBaustellen.map((b) => (
                   <div key={b.id} draggable
                     onDragStart={(e) => handleDragStart(e, b.id)}
                     onClick={() => setSelectedBaustelleId(selectedBaustelleId === b.id ? null : b.id)}
                     className={`group px-4 py-2.5 border-b border-gray-50 hover:bg-gray-50 transition-colors flex items-start gap-2.5 cursor-grab active:cursor-grabbing select-none ${
-                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" :
-                      (orderId && b.orderId === orderId) ? "bg-amber-50 border-l-2 border-l-amber-400" : ""
+                      selectedBaustelleId === b.id ? "bg-blue-50 border-l-2 border-l-blue-400" : ""
                     }`}>
                     <div className={`mt-1.5 h-1.5 w-1.5 rounded-full flex-shrink-0 ${BAUSTELLE_STATUS_DOT[b.status]}`} />
                     <div className="min-w-0 flex-1">
@@ -1380,9 +1339,9 @@ export function DispositionCalendar({
               {visibleResources.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
                   <p className="text-sm text-gray-400 mb-3">
-                    {typeFilter !== "ALL" ? `Keine ${TYPE_LABEL[typeFilter]} vorhanden` : "Noch keine Ressourcen angelegt"}
+                    {activeTypeFilters.length < ALL_TYPES.length ? "Keine Ressourcen für diesen Filter vorhanden" : "Noch keine Ressourcen angelegt"}
                   </p>
-                  {typeFilter === "ALL" && (
+                  {activeTypeFilters.length === ALL_TYPES.length && (
                     <Button variant="outline" size="sm" className="text-xs" onClick={() => setShowAddResource(true)}>
                       <Plus className="h-3.5 w-3.5 mr-1" />Ressource hinzufügen
                     </Button>
@@ -1474,7 +1433,7 @@ export function DispositionCalendar({
                                 const label = entry.blockType
                                   ? (BLOCK_TYPE_LABEL[entry.blockType] ?? entry.blockType)
                                   : (entry.baustelle?.name ?? "Eintrag");
-                                const sublabel = entry.blockType ? null : (entry.baustelle?.contact?.companyName ?? entry.baustelle?.city ?? null);
+                                const sublabel = entry.blockType ? null : (getContactName(entry.baustelle?.contact, "") || entry.baustelle?.city || null);
                                 const hasConflict = !entry.blockType && localEntries.some(other =>
                                   other.id !== entry.id &&
                                   other.resourceId === entry.resourceId &&
@@ -1550,7 +1509,7 @@ export function DispositionCalendar({
                 <label className="block text-xs font-medium text-gray-700 mb-1">Baustelle *</label>
                 <select className={INP} value={entryForm.baustelleId} onChange={(e) => setEntryForm(d => ({ ...d, baustelleId: e.target.value }))}>
                   <option value="">– Baustelle wählen –</option>
-                  {baustellen.map(b => <option key={b.id} value={b.id}>{b.name}{b.contact ? ` — ${b.contact.companyName}` : ""}</option>)}
+                  {baustellen.map(b => <option key={b.id} value={b.id}>{b.name}{b.contact ? ` — ${getContactName(b.contact)}` : ""}</option>)}
                 </select>
               </div>
               {/* Ganztag toggle */}

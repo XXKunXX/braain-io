@@ -19,7 +19,7 @@ type StatusVariant =
   | "DRAFT" | "SENT" | "ACCEPTED" | "REJECTED"
   // Requests
   | "NEU" | "BESICHTIGUNG_GEPLANT" | "BESICHTIGUNG_DURCHGEFUEHRT"
-  | "ANGEBOT_ERSTELLT" | "IN_PROGRESS" | "DONE"
+  | "ANGEBOT_ERSTELLT" | "DONE"
   // Payments
   | "OFFEN" | "BEZAHLT" | "OVERDUE"
   // Tasks
@@ -48,7 +48,6 @@ const STATUS_CONFIG: Record<StatusVariant, { label: string; className: string; i
   BESICHTIGUNG_GEPLANT:       { label: "Besichtigung geplant",      className: "bg-amber-50 text-amber-700 border border-amber-200" },
   BESICHTIGUNG_DURCHGEFUEHRT: { label: "Besichtigung durchgeführt", className: "bg-teal-50 text-teal-700 border border-teal-200" },
   ANGEBOT_ERSTELLT:           { label: "Angebot erstellt",          className: "bg-purple-50 text-purple-700 border border-purple-200" },
-  IN_PROGRESS:                { label: "In Bearbeitung",            className: "bg-amber-50 text-amber-700 border border-amber-200" },
   DONE:                       { label: "Erledigt",                  className: "bg-green-50 text-green-700 border border-green-200" },
   // Payments
   OFFEN:   { label: "Offen",      className: "bg-amber-50 text-amber-700 border border-amber-200" },

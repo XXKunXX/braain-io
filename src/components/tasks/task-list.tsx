@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import { RelativeDate } from "@/components/ui/relative-date";
 import { Search, Trash2, ChevronRight, CheckSquare, AlertCircle, Clock, Circle, CheckCircle2, LayoutList } from "lucide-react";
+import { getContactName } from "@/lib/utils";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { updateTaskStatus, deleteTask } from "@/actions/tasks";
@@ -86,7 +87,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "title") return item.title;
-      if (key === "contact") return item.contact?.companyName ?? "";
+      if (key === "contact") return getContactName(item.contact, "");
       if (key === "dueDate") return item.dueDate ? new Date(item.dueDate) : new Date("9999");
       if (key === "priority") return ({ HIGH: 0, MEDIUM: 1, LOW: 2 } as Record<string, number>)[item.priority] ?? 3;
       if (key === "status") return item.status;
@@ -157,7 +158,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
         : null}
       onClose={() => setSelectedTask(null)}
     />
-    <div className="space-y-5">
+    <div className="max-w-5xl space-y-5">
       {/* Stat cards */}
       <div className="grid grid-cols-3 gap-4">
         <StatCard
@@ -308,10 +309,9 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
           {/* Desktop Table Layout */}
           <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
             {/* Header */}
-            <div className="grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_80px_64px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+            <div className="grid grid-cols-[40px_minmax(0,2fr)_minmax(0,1fr)_100px_90px_80px_56px] gap-3 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
               <span />
               <SortHeader label="Titel" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
-              <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Zugewiesen an" sortKey="assignedTo" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Fälligkeit" sortKey="dueDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Priorität" sortKey="priority" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
@@ -327,7 +327,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                 <div
                   key={task.id}
                   onClick={() => setSelectedTask(task)}
-                  className={`grid grid-cols-[40px_minmax(0,2fr)_1fr_1fr_1fr_1fr_80px_64px] gap-3 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
+                  className={`grid grid-cols-[40px_minmax(0,2fr)_minmax(0,1fr)_100px_90px_80px_56px] gap-3 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors cursor-pointer ${
                     i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                   }`}
                 >
@@ -352,11 +352,6 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
                       <p className="text-xs text-gray-400 truncate">{task.description}</p>
                     )}
                   </div>
-
-                  {/* Contact */}
-                  <span className="text-sm text-gray-500 truncate">
-                    {task.contact?.companyName ?? "—"}
-                  </span>
 
                   {/* Assigned to */}
                   <span className="text-sm text-gray-500 truncate">

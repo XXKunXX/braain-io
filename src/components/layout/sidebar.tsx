@@ -23,6 +23,7 @@ import {
   Receipt,
   CalendarCog,
   Archive,
+  Truck,
 } from "lucide-react";
 
 const navSections = [
@@ -45,6 +46,7 @@ const navSections = [
     label: "Ausführung",
     items: [
       { href: "/auftraege", label: "Aufträge", icon: ClipboardList, badgeKey: "" },
+      { href: "/lieferscheine", label: "Lieferscheine", icon: Truck, badgeKey: "" },
       { href: "/baustellen", label: "Baustellen", icon: MapPin, badgeKey: "" },
       { href: "/disposition", label: "Disposition", icon: CalendarDays, badgeKey: "" },
       { href: "/fahrer", label: "Fahrer App", icon: Smartphone, badgeKey: "" },

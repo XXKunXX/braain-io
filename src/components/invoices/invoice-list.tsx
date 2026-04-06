@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { Search, ChevronRight, CheckCircle, XCircle, Files } from "lucide-react";
+import { Search, ChevronRight, CheckCircle, XCircle, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { sortItems } from "@/lib/sort";
@@ -23,11 +23,12 @@ type InvoiceRow = {
   order?: { id: string; orderNumber: string; title: string } | null;
 };
 
-const STATUS_TABS = [
-  { key: "ALL",      label: "Alle",      icon: Files },
-  { key: "BEZAHLT",  label: "Bezahlt",   icon: CheckCircle },
-  { key: "STORNIERT",label: "Storniert", icon: XCircle },
+const STATUS_FILTERS = [
+  { key: "BEZAHLT",   label: "Bezahlt",   icon: CheckCircle },
+  { key: "STORNIERT", label: "Storniert", icon: XCircle },
 ] as const;
+
+const ACTIVE_DEFAULT = ["BEZAHLT", "STORNIERT"];
 
 function toNumber(v: number | { toNumber(): number }) {
   return typeof v === "number" ? v : v.toNumber();
@@ -35,7 +36,7 @@ function toNumber(v: number | { toNumber(): number }) {
 
 export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("ALL");
+  const [activeFilters, setActiveFilters] = useState<string[]>(ACTIVE_DEFAULT);
   const [sortKey, setSortKey] = useState<string | null>("invoiceDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -44,8 +45,16 @@ export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
     else { setSortKey(key); setSortDir("asc"); }
   }
 
-  const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: invoices.length };
+  function toggleFilter(key: string) {
+    setActiveFilters(prev =>
+      prev.includes(key)
+        ? prev.length === 1 ? prev : prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  }
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const inv of invoices) {
       counts[inv.status] = (counts[inv.status] ?? 0) + 1;
     }
@@ -54,41 +63,45 @@ export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
 
   const filtered = useMemo(() => {
     const base = invoices.filter((inv) => {
-      const matchesStatus = activeTab === "ALL" || inv.status === activeTab;
+      const matchesStatus = activeFilters.includes(inv.status);
       const matchesText = matchesSearch(search, inv.invoiceNumber, getContactName(inv.contact), inv.order?.title);
       return matchesStatus && matchesText;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "invoiceNumber") return item.invoiceNumber;
-      if (key === "contact") return item.contact.companyName;
+      if (key === "contact") return getContactName(item.contact);
       if (key === "totalAmount") return toNumber(item.totalAmount);
       if (key === "status") return item.status;
       if (key === "invoiceDate") return new Date(item.invoiceDate);
       return (item as Record<string, unknown>)[key];
     });
-  }, [invoices, search, activeTab, sortKey, sortDir]);
+  }, [invoices, search, activeFilters, sortKey, sortDir]);
 
   return (
-    <div className="space-y-4">
-      {/* Tabs */}
-      <div className="flex items-center gap-1">
-        {STATUS_TABS.filter(({ key }) => key === "ALL" || (tabCounts[key] ?? 0) > 0).map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-              activeTab === key
-                ? "bg-white border-gray-300 text-gray-900 shadow-sm"
-                : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-            }`}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            <span>{label}</span>
-            {(tabCounts[key] ?? 0) > 0 && (
-              <span className="text-xs text-gray-400">({tabCounts[key]})</span>
-            )}
-          </button>
-        ))}
+    <div className="max-w-5xl space-y-4">
+      {/* Status Filter */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {STATUS_FILTERS.map(({ key, label, icon: Icon }) => {
+          const active = activeFilters.includes(key);
+          const count = statusCounts[key] ?? 0;
+          return (
+            <button
+              key={key}
+              onClick={() => toggleFilter(key)}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap ${
+                active
+                  ? "bg-white border-gray-300 text-gray-900 shadow-sm"
+                  : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              {label}
+              {count > 0 && (
+                <span className={`text-xs ${active ? "text-gray-500" : "text-gray-400"}`}>{count}</span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Search */}
@@ -132,7 +145,7 @@ export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
 
       {/* Desktop */}
       <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_40px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+        <div className="grid grid-cols-[100px_minmax(0,2fr)_110px_110px_minmax(100px,1fr)_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
           <SortHeader label="Nummer" sortKey="invoiceNumber" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
           <SortHeader label="Empfänger / Auftrag" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
           <SortHeader label="Datum" sortKey="invoiceDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
@@ -145,7 +158,7 @@ export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
           <Link
             key={inv.id}
             href={`/rechnungen/${inv.id}`}
-            className={`grid grid-cols-[minmax(0,1.5fr)_minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_40px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
+            className={`grid grid-cols-[100px_minmax(0,2fr)_110px_110px_minmax(100px,1fr)_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors group ${
               i !== filtered.length - 1 ? "border-b border-gray-100" : ""
             }`}
           >
@@ -170,7 +183,10 @@ export function InvoiceArchive({ invoices }: { invoices: InvoiceRow[] }) {
               {toNumber(inv.totalAmount).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
             </span>
             <StatusBadge status={inv.status} />
-            <ChevronRight className="h-4 w-4 text-gray-200" />
+            <div className="flex items-center justify-end gap-1">
+              <span className="p-1"><Trash2 className="h-3.5 w-3.5 text-gray-200" /></span>
+              <ChevronRight className="h-4 w-4 text-gray-200 group-hover:text-gray-400 transition-colors" />
+            </div>
           </Link>
         ))}
       </div>

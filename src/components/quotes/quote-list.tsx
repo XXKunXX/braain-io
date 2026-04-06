@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
-import { Trash2, Search, ChevronRight, FileText, Plus, Clock, Send, CheckCircle, XCircle, Files } from "lucide-react";
+import { Trash2, Search, ChevronRight, FileText, Plus, Clock, Send, CheckCircle, XCircle } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Input } from "@/components/ui/input";
@@ -30,20 +30,14 @@ type QuoteWithRelations = Omit<Quote, "totalPrice" | "validUntil" | "createdAt" 
   })[];
 };
 
-const STATUS_TABS = [
-  { key: "ALL", label: "Alle", icon: Files },
+const STATUS_FILTERS = [
   { key: "DRAFT", label: "Entwurf", icon: Clock },
   { key: "SENT", label: "Gesendet", icon: Send },
   { key: "ACCEPTED", label: "Angenommen", icon: CheckCircle },
   { key: "REJECTED", label: "Abgelehnt", icon: XCircle },
 ] as const;
 
-const statusLabels: Record<string, string> = {
-  DRAFT: "Entwurf",
-  SENT: "Gesendet",
-  ACCEPTED: "Angenommen",
-  REJECTED: "Abgelehnt",
-};
+const ACTIVE_DEFAULT = ["DRAFT", "SENT"];
 
 export function QuoteList({
   quotes: initialQuotes,
@@ -55,7 +49,9 @@ export function QuoteList({
   const router = useRouter();
   const [quotes] = useState(initialQuotes);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState(currentStatus ?? "ALL");
+  const [activeFilters, setActiveFilters] = useState<string[]>(
+    currentStatus ? [currentStatus] : ACTIVE_DEFAULT
+  );
   const [sortKey, setSortKey] = useState<string | null>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -65,8 +61,16 @@ export function QuoteList({
     else { setSortKey(key); setSortDir("asc"); }
   }
 
-  const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: quotes.length };
+  function toggleFilter(key: string) {
+    setActiveFilters(prev =>
+      prev.includes(key)
+        ? prev.length === 1 ? prev : prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  }
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const q of quotes) {
       counts[q.status] = (counts[q.status] ?? 0) + 1;
     }
@@ -77,7 +81,7 @@ export function QuoteList({
     const base = quotes.filter((q) => {
       const contactName = q.contact.companyName || [q.contact.firstName, q.contact.lastName].filter(Boolean).join(" ");
       const matchesText = matchesSearch(search, q.title, contactName, q.quoteNumber);
-      const matchesStatus = activeTab === "ALL" || q.status === activeTab;
+      const matchesStatus = activeFilters.includes(q.status);
       return matchesText && matchesStatus;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
@@ -88,7 +92,7 @@ export function QuoteList({
       if (key === "createdAt") return new Date(item.createdAt);
       return (item as Record<string, unknown>)[key];
     });
-  }, [quotes, search, activeTab, sortKey, sortDir]);
+  }, [quotes, search, activeFilters, sortKey, sortDir]);
 
   function handleDelete(e: React.MouseEvent, id: string) {
     e.preventDefault();
@@ -112,29 +116,30 @@ export function QuoteList({
         description="Dieses Angebot wird unwiderruflich gelöscht."
         onConfirm={confirmDelete}
       />
-      <div className="space-y-5">
-        {/* Status Tabs */}
-        <div className="overflow-hidden">
-          <div className="flex items-center gap-1">
-            {STATUS_TABS.filter(({ key }) => key === "ALL" || (tabCounts[key] ?? 0) > 0).map(({ key, label, icon: Icon }) => (
+      <div className="max-w-5xl space-y-5">
+        {/* Status Filter */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {STATUS_FILTERS.map(({ key, label, icon: Icon }) => {
+            const active = activeFilters.includes(key);
+            const count = statusCounts[key] ?? 0;
+            return (
               <button
                 key={key}
-                onClick={() => setActiveTab(key)}
-                title={label}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-                  activeTab === key
+                onClick={() => toggleFilter(key)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap ${
+                  active
                     ? "bg-white border-gray-300 text-gray-900 shadow-sm"
                     : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span>{label}</span>
-                {(tabCounts[key] ?? 0) > 0 && (
-                  <span className="text-xs text-gray-400">({tabCounts[key]})</span>
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                {label}
+                {count > 0 && (
+                  <span className={`text-xs ${active ? "text-gray-500" : "text-gray-400"}`}>{count}</span>
                 )}
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
 
         {/* Search + CTA */}
@@ -207,7 +212,7 @@ export function QuoteList({
 
             {/* Desktop Table Layout */}
             <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+              <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_110px_minmax(120px,1fr)_110px_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
                 <SortHeader label="Titel" sortKey="title" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
                 <SortHeader label="Kontakt" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
                 <SortHeader label="Betrag" sortKey="totalPrice" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
@@ -220,7 +225,7 @@ export function QuoteList({
                 <Link
                   key={quote.id}
                   href={`/angebote/${quote.id}`}
-                  className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
+                  className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_110px_minmax(120px,1fr)_110px_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
                     i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                   }`}
                 >

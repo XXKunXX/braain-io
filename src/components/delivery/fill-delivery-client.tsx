@@ -22,7 +22,15 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
   const [driver, setDriver] = useState(dn.driver ?? "");
   const [vehicle, setVehicle] = useState(dn.vehicle ?? "");
   const [licensePlate, setLicensePlate] = useState((dn as DN & { licensePlate?: string }).licensePlate ?? "");
-  const [siteAddress, setSiteAddress] = useState((dn as DN & { siteAddress?: string }).siteAddress ?? "");
+  const [siteAddress, setSiteAddress] = useState(() => {
+    const existing = (dn as DN & { siteAddress?: string }).siteAddress;
+    if (existing) return existing;
+    if (dn.baustelle) {
+      const { address, postalCode, city } = dn.baustelle as typeof dn.baustelle & { address?: string; postalCode?: string; city?: string };
+      return [address, postalCode, city].filter(Boolean).join(", ");
+    }
+    return "";
+  });
   const [vehicleType, setVehicleType] = useState((dn as DN & { vehicleType?: string }).vehicleType ?? "");
   const [isMaut, setIsMaut] = useState((dn as DN & { isMaut?: boolean }).isMaut ?? false);
   const [mautKm, setMautKm] = useState(String((dn as DN & { mautKm?: number }).mautKm ?? ""));
@@ -122,25 +130,11 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
     setSignatureUrl("");
   }
 
-  async function uploadSignature(): Promise<string | null> {
+  function getSignatureDataUrl(): string | null {
     const canvas = canvasRef.current!;
-    return new Promise((resolve) => {
-      canvas.toBlob(async (blob) => {
-        if (!blob) { resolve(null); return; }
-        try {
-          const res = await fetch("/api/upload/signed-url", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fileName: `signature-${dn.id}.png`, contentType: "image/png" }),
-          });
-          const { signedUrl, publicUrl } = await res.json();
-          await fetch(signedUrl, { method: "PUT", body: blob, headers: { "Content-Type": "image/png" } });
-          resolve(publicUrl);
-        } catch {
-          resolve(null);
-        }
-      }, "image/png");
-    });
+    if (!hasSig) return null;
+    const dataUrl = canvas.toDataURL("image/png");
+    return dataUrl === "data:," ? null : dataUrl;
   }
 
   async function handleSubmit() {
@@ -148,8 +142,7 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
     try {
       let finalSignatureUrl = signatureUrl;
       if (hasSig && !signatureUrl) {
-        const url = await uploadSignature();
-        if (url) finalSignatureUrl = url;
+        finalSignatureUrl = getSignatureDataUrl() ?? "";
       }
 
       await fillDeliveryNote(dn.id, {
@@ -171,7 +164,7 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
       });
 
       toast.success("Lieferschein gespeichert");
-      router.push(`/lieferscheine/${dn.id}`);
+      window.location.href = `/lieferscheine/${dn.id}`;
     } catch {
       toast.error("Fehler beim Speichern");
     } finally {

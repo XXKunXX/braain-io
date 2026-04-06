@@ -21,6 +21,7 @@ import {
 import { deleteDeliveryNote } from "@/actions/delivery-notes";
 import { createInvoiceFromDeliveryNotes, deleteInvoice } from "@/actions/invoices";
 import type { BaustelleStatusType } from "@/actions/baustellen";
+import { getContactName } from "@/lib/utils";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -355,8 +356,8 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                         return c ? (
                           <Link href={`/kontakte/${c.id}`} className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
                             <User className="h-3.5 w-3.5" />
-                            {c.companyName}
-                            {(c.firstName || c.lastName) && <span className="text-gray-400">· {[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>}
+                            {getContactName(c)}
+                            {c.companyName && (c.firstName || c.lastName) && <span className="text-gray-400">· {[c.firstName, c.lastName].filter(Boolean).join(" ")}</span>}
                           </Link>
                         ) : (
                           <span className="text-gray-400">–</span>
@@ -487,15 +488,9 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
 
         {/* ── TAB: Disposition ───────────────────────────────────────────── */}
         {tab === "dispo" && (
-          <div>
+          <div className="max-w-3xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">Geplante Einsätze</h2>
-              <Link
-                href={`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 h-8 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/80"
-              >
-                <CalendarDays className="h-4 w-4" />Im Disposition öffnen
-              </Link>
             </div>
             {b.dispositionEntries.length === 0 ? (
               <div className="text-center py-20 text-gray-400 text-sm">Noch keine Einsätze geplant</div>
@@ -507,7 +502,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                   ))}
                 </div>
                 {b.dispositionEntries.map((entry, i) => (
-                  <div key={entry.id} className={`grid grid-cols-[1fr_1fr_2fr_1fr_56px] gap-3 px-5 py-3 items-center hover:bg-gray-50 ${i !== b.dispositionEntries.length - 1 ? "border-b border-gray-100" : ""}`}>
+                  <div key={entry.id} onDoubleClick={() => router.push(`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}&week=${new Date(entry.startDate).toISOString().split("T")[0]}`)} className={`grid grid-cols-[1fr_1fr_2fr_1fr_56px] gap-3 px-5 py-3 items-center hover:bg-gray-50 group cursor-pointer ${i !== b.dispositionEntries.length - 1 ? "border-b border-gray-100" : ""}`}>
                     <p className="text-sm text-gray-900">{fmt(entry.startDate)}</p>
                     <p className="text-sm text-gray-500">{fmt(entry.endDate)}</p>
                     <div className="flex items-center gap-2">
@@ -521,7 +516,12 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                       <button onClick={(ev) => { ev.stopPropagation(); setDeleteDispoId(entry.id); }} className="text-gray-300 hover:text-red-400 transition-colors p-0.5">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
-                      <ChevronRight className="h-4 w-4 text-gray-200 flex-shrink-0" />
+                      <Link
+                        href={`/disposition?baustelleId=${b.id}&baustelleName=${encodeURIComponent(b.name)}&week=${new Date(entry.startDate).toISOString().split("T")[0]}`}
+                        className="text-gray-200 group-hover:text-gray-400 transition-colors"
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
                     </div>
                   </div>
                 ))}
@@ -533,7 +533,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
 
         {/* ── TAB: Bautagebuch ──────────────────────────────────────────── */}
         {tab === "rapporte" && (
-          <div>
+          <div className="max-w-4xl">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-semibold text-gray-900">Bautagebuch</h2>
             </div>
@@ -569,7 +569,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
 
         {/* ── TAB: Lieferscheine ─────────────────────────────────────────── */}
         {tab === "lieferscheine" && (
-          <div className="space-y-3">
+          <div className="max-w-3xl space-y-3">
             {selectionMode ? (
               <>
                 <div className="flex items-center gap-3 bg-white border border-blue-200 rounded-xl px-4 py-3 shadow-sm">
@@ -710,7 +710,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
 
         {/* ── TAB: Rechnungen ────────────────────────────────────────────── */}
         {tab === "rechnungen" && (
-          <div>
+          <div className="max-w-3xl">
             {b.invoices.length === 0 ? (
               <div className="bg-white border border-gray-200 rounded-xl px-5 py-14 flex flex-col items-center gap-2 text-center">
                 <Receipt className="h-8 w-8 text-gray-200" />

@@ -20,8 +20,32 @@ export default async function NeuenLieferscheinPage({
       : Promise.resolve(null),
   ]);
 
+  const orderBaustellen = order
+    ? order.baustellen.map((b) => ({ id: b.id, name: b.name }))
+    : [];
+
   const drivers = allResources.filter((r) => r.type === "FAHRER").map((r) => ({ id: r.id, name: r.name }));
   const vehicles = allResources.filter((r) => r.type === "FAHRZEUG").map((r) => ({ id: r.id, name: r.name }));
+
+  // Disponierte Ressourcen für heute ermitteln (tagesgrenzen-sicher)
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+  const dispositionEntries = params.orderId
+    ? await prisma.dispositionEntry.findMany({
+        where: {
+          orderId: params.orderId,
+          startDate: { lte: todayEnd },
+          endDate: { gte: todayStart },
+          blockType: null,
+        },
+        include: { resource: { select: { id: true, type: true } } },
+      })
+    : [];
+
+  const defaultDriverId = dispositionEntries.find((e) => e.resource.type === "FAHRER")?.resource.id ?? "";
+  const defaultVehicleId = dispositionEntries.find((e) => e.resource.type === "FAHRZEUG")?.resource.id ?? "";
 
   const serializedOrder = order
     ? {
@@ -47,6 +71,9 @@ export default async function NeuenLieferscheinPage({
       vehicles={vehicles}
       baustelleId={baustelle?.id}
       baustelleContactId={baustelle?.contactId ?? undefined}
+      orderBaustellen={orderBaustellen}
+      defaultDriverId={defaultDriverId}
+      defaultVehicleId={defaultVehicleId}
     />
   );
 }

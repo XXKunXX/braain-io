@@ -205,8 +205,9 @@ export async function acceptQuoteAndCreateOrder(quoteId: string) {
   if (quote.requestId) {
     await prisma.request.update({
       where: { id: quote.requestId },
-      data: { status: "ANGEBOT_ERSTELLT" },
+      data: { status: "DONE" },
     });
+    revalidatePath(`/anfragen/${quote.requestId}`);
   }
 
   revalidatePath("/angebote");

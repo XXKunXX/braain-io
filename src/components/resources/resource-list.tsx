@@ -160,7 +160,7 @@ export function ResourceList({ resources, machines = [] }: { resources: Resource
   }
 
   return (
-    <div className="space-y-5">
+    <div className="max-w-5xl space-y-5">
       {/* Type tabs */}
       <div className="overflow-hidden">
         <div ref={tabContainerRef} className="flex items-center gap-1">

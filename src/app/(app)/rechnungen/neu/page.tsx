@@ -10,7 +10,7 @@ export default async function NeueRechnungPage({
 }) {
   const { orderId, contactId } = await searchParams;
 
-  const [contacts, orders, settings] = await Promise.all([
+  const [contacts, orders, settings, quoteItems] = await Promise.all([
     getContacts(),
     prisma.order.findMany({
       where: { status: { in: ["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET", "ABGESCHLOSSEN"] } },
@@ -18,9 +18,24 @@ export default async function NeueRechnungPage({
       orderBy: { createdAt: "desc" },
     }),
     getSettings(),
+    orderId
+      ? prisma.quoteItem.findMany({
+          where: { quote: { orders: { some: { id: orderId } } } },
+          select: { description: true, note: true, quantity: true, unit: true, unitPrice: true },
+          orderBy: { position: "asc" },
+        })
+      : Promise.resolve([]),
   ]);
 
   const prefillOrder = orderId ? orders.find((o) => o.id === orderId) : undefined;
+
+  const prefillItems = quoteItems.map((i) => ({
+    description: i.description,
+    note: i.note ?? "",
+    quantity: String(Number(i.quantity)),
+    unit: i.unit,
+    unitPrice: String(Number(i.unitPrice)),
+  }));
 
   return (
     <CreateInvoiceForm
@@ -29,6 +44,7 @@ export default async function NeueRechnungPage({
       defaultVatRate={Number(settings.vatRate)}
       prefillOrderId={prefillOrder?.id}
       prefillContactId={prefillOrder?.contactId ?? contactId}
+      prefillItems={prefillItems.length > 0 ? prefillItems : undefined}
     />
   );
 }

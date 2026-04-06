@@ -312,7 +312,7 @@ export default async function DashboardPage() {
                   href={`/anfragen/${req.id}`}
                   className="flex items-start gap-2.5 hover:bg-gray-50 rounded-lg p-2 -mx-2 transition-colors"
                 >
-                  <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${req.status === "OPEN" || req.status === "NEU" ? "bg-amber-400" : "bg-gray-300"}`} />
+                  <span className={`mt-1.5 w-2 h-2 rounded-full flex-shrink-0 ${req.status === "NEU" ? "bg-amber-400" : "bg-gray-300"}`} />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate">{req.title}</p>
                     <p className="text-xs text-gray-400">{getContactName(req.contact)}</p>

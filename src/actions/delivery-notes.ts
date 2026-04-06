@@ -5,6 +5,7 @@ import { getNextNumber } from "@/lib/counter";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createNotificationsForUsers, getNonDriverUserIds } from "@/actions/notifications";
+import { currentUser } from "@clerk/nextjs/server";
 
 /**
  * Creates a "Rechnung erstellen" task for a delivery note, if none exists yet.
@@ -54,6 +55,7 @@ export async function createInvoiceTaskForDeliveryNote(deliveryNoteId: string) {
 
 const deliveryNoteSchema = z.object({
   contactId: z.string().min(1, "Kontakt ist erforderlich"),
+  orderId: z.string().optional(),
   baustelleId: z.string().optional(),
   date: z.string().min(1, "Datum ist erforderlich"),
   material: z.string().min(1, "Material ist erforderlich"),
@@ -71,30 +73,39 @@ export async function createDeliveryNote(data: DeliveryNoteFormData) {
   if (!parsed.success) return { error: parsed.error.flatten().fieldErrors };
 
   const { date, ...noteData } = parsed.data;
-  const deliveryNumber = await getNextNumber("delivery");
+  const [deliveryNumber, clerkUser] = await Promise.all([getNextNumber("delivery"), currentUser()]);
+  const createdByName = clerkUser
+    ? `${clerkUser.firstName ?? ""} ${clerkUser.lastName ?? ""}`.trim() || clerkUser.emailAddresses[0]?.emailAddress
+    : null;
 
-  const deliveryNote = await prisma.deliveryNote.create({
-    data: {
-      ...noteData,
-      deliveryNumber,
-      date: new Date(date),
-    },
-  });
-
-  // Automatically advance order status to IN_LIEFERUNG when a delivery note is created
-  if (noteData.baustelleId) {
+  // Derive orderId from baustelleId if not directly provided
+  let resolvedOrderId = noteData.orderId ?? null;
+  if (!resolvedOrderId && noteData.baustelleId) {
     const baustelle = await prisma.baustelle.findUnique({
       where: { id: noteData.baustelleId },
       select: { orderId: true },
     });
-    if (baustelle?.orderId) {
-      await prisma.order.updateMany({
-        where: { id: baustelle.orderId, status: { in: ["OPEN", "DISPONIERT"] } },
-        data: { status: "IN_LIEFERUNG" },
-      });
-      revalidatePath("/auftraege");
-      revalidatePath(`/auftraege/${baustelle.orderId}`);
-    }
+    resolvedOrderId = baustelle?.orderId ?? null;
+  }
+
+  const deliveryNote = await prisma.deliveryNote.create({
+    data: {
+      ...noteData,
+      orderId: resolvedOrderId,
+      deliveryNumber,
+      date: new Date(date),
+      createdByName,
+    },
+  });
+
+  // Automatically advance order status to IN_LIEFERUNG when a delivery note is created
+  if (resolvedOrderId) {
+    await prisma.order.updateMany({
+      where: { id: resolvedOrderId, status: { in: ["OPEN", "DISPONIERT"] } },
+      data: { status: "IN_LIEFERUNG" },
+    });
+    revalidatePath("/auftraege");
+    revalidatePath(`/auftraege/${resolvedOrderId}`);
   }
 
   revalidatePath("/lieferscheine");
@@ -212,12 +223,43 @@ export async function updateDeliveryNotePdfUrl(id: string, pdfUrl: string) {
 export async function deleteDeliveryNote(id: string) {
   const note = await prisma.deliveryNote.findUnique({
     where: { id },
-    select: { invoice: { select: { status: true } } },
+    select: {
+      orderId: true,
+      baustelleId: true,
+      invoice: { select: { status: true } },
+    },
   });
   if (note?.invoice?.status === "VERSENDET" || note?.invoice?.status === "BEZAHLT") {
     return { success: false, error: "Lieferschein kann nicht gelöscht werden, da die verknüpfte Rechnung bereits versendet oder bezahlt ist." };
   }
+
   await prisma.deliveryNote.delete({ where: { id } });
+
+  // Resolve orderId (direkt oder via Baustelle)
+  let orderId = note?.orderId ?? null;
+  if (!orderId && note?.baustelleId) {
+    const baustelle = await prisma.baustelle.findUnique({
+      where: { id: note.baustelleId },
+      select: { orderId: true },
+    });
+    orderId = baustelle?.orderId ?? null;
+  }
+
+  // Wenn kein Lieferschein mehr vorhanden → Status zurück auf DISPONIERT
+  if (orderId) {
+    const remaining = await prisma.deliveryNote.count({
+      where: { OR: [{ orderId }, { baustelle: { orderId } }] },
+    });
+    if (remaining === 0) {
+      await prisma.order.updateMany({
+        where: { id: orderId, status: "IN_LIEFERUNG" },
+        data: { status: "DISPONIERT" },
+      });
+      revalidatePath(`/auftraege/${orderId}`);
+      revalidatePath("/auftraege");
+    }
+  }
+
   revalidatePath("/lieferscheine");
   return { success: true };
 }

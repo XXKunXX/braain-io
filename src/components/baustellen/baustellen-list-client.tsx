@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, Pencil, Trash2, X, ChevronRight, HardHat, Files, Calendar, Zap, AlertCircle, Receipt, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, X, ChevronRight, HardHat, Calendar, Zap, AlertCircle, Receipt, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +21,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { updateBaustelle, deleteBaustelle } from "@/actions/baustellen";
 import type { BaustelleRow, BaustelleStatusType } from "@/actions/baustellen";
 import { sortItems } from "@/lib/sort";
+import { getContactName } from "@/lib/utils";
 import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -31,14 +32,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 
-const STATUS_TABS = [
-  { key: "ALL", label: "Alle", icon: Files },
+const STATUS_FILTERS = [
   { key: "OPEN", label: "Offen", icon: Calendar },
   { key: "DISPONIERT", label: "Disponiert", icon: Zap },
   { key: "IN_LIEFERUNG", label: "In Lieferung", icon: AlertCircle },
   { key: "VERRECHNET", label: "Verrechnet", icon: Receipt },
   { key: "ABGESCHLOSSEN", label: "Abgeschlossen", icon: CheckCircle2 },
 ] as const;
+
+const ACTIVE_DEFAULT = ["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET"];
 
 const STATUS_LABEL: Record<BaustelleStatusType, string> = {
   OPEN: "Offen",
@@ -94,7 +96,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
   const [sortKey, setSortKey] = useState<string | null>("startDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const [activeTab, setActiveTab] = useState("ALL");
+  const [activeFilters, setActiveFilters] = useState<string[]>(ACTIVE_DEFAULT);
   const [filterFrom, setFilterFrom] = useState("");
   const [filterTo, setFilterTo] = useState("");
 
@@ -103,8 +105,16 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
     else { setSortKey(key); setSortDir("asc"); }
   }
 
-  const tabCounts = useMemo(() => {
-    const counts: Record<string, number> = { ALL: baustellen.length };
+  function toggleFilter(key: string) {
+    setActiveFilters(prev =>
+      prev.includes(key)
+        ? prev.length === 1 ? prev : prev.filter(k => k !== key)
+        : [...prev, key]
+    );
+  }
+
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
     for (const b of baustellen) {
       counts[b.status] = (counts[b.status] ?? 0) + 1;
     }
@@ -113,20 +123,20 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
 
   const filtered = useMemo(() => {
     const base = baustellen.filter((b) => {
-      if (activeTab !== "ALL" && b.status !== activeTab) return false;
+      if (!activeFilters.includes(b.status)) return false;
       if (filterFrom && new Date(b.startDate) < new Date(filterFrom)) return false;
       if (filterTo && b.endDate && new Date(b.endDate) > new Date(filterTo)) return false;
       return true;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "name") return item.name;
-      if (key === "contact") return (item.contact ?? item.order.contact)?.companyName ?? "";
+      if (key === "contact") return getContactName(item.contact ?? item.order.contact, "");
       if (key === "city") return item.city ?? "";
       if (key === "startDate") return new Date(item.startDate);
       if (key === "status") return item.status;
       return (item as Record<string, unknown>)[key];
     });
-  }, [baustellen, activeTab, filterFrom, filterTo, sortKey, sortDir]);
+  }, [baustellen, activeFilters, filterFrom, filterTo, sortKey, sortDir]);
 
   const hasExtraFilters = filterFrom || filterTo;
 
@@ -194,35 +204,36 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-5">
+    <div className="p-4 md:p-6 space-y-5 max-w-5xl">
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Baustellen</h1>
         <p className="text-sm text-gray-400 mt-0.5">{baustellen.length} Baustellen gesamt</p>
       </div>
 
-      {/* Status Tabs */}
-      <div className="overflow-hidden">
-        <div className="flex items-center gap-1 flex-wrap">
-          {STATUS_TABS.filter(({ key }) => key === "ALL" || (tabCounts[key] ?? 0) > 0).map(({ key, label, icon: Icon }) => (
+      {/* Status Filter */}
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {STATUS_FILTERS.map(({ key, label, icon: Icon }) => {
+          const active = activeFilters.includes(key);
+          const count = statusCounts[key] ?? 0;
+          return (
             <button
               key={key}
-              onClick={() => setActiveTab(key)}
-              title={label}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
-                activeTab === key
+              onClick={() => toggleFilter(key)}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors border whitespace-nowrap ${
+                active
                   ? "bg-white border-gray-300 text-gray-900 shadow-sm"
                   : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
               }`}
             >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span>{label}</span>
-              {(tabCounts[key] ?? 0) > 0 && (
-                <span className="text-xs text-gray-400">({tabCounts[key]})</span>
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              {label}
+              {count > 0 && (
+                <span className={`text-xs ${active ? "text-gray-500" : "text-gray-400"}`}>{count}</span>
               )}
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
       {/* Date filter + CTA */}
@@ -292,7 +303,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
                     <p className="text-sm font-semibold text-gray-900 truncate">{b.name}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-1">
                       <span className="text-xs text-gray-400 truncate">
-                        {(b.contact ?? b.order.contact)?.companyName ?? "–"}
+                        {getContactName(b.contact ?? b.order.contact)}
                       </span>
                       {b.city && <span className="text-xs text-gray-400">{b.city}</span>}
                     </div>
@@ -319,10 +330,9 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
 
           {/* Desktop Table Layout */}
           <div className="hidden md:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
+            <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_160px_110px_56px] gap-4 px-5 py-2.5 border-b border-gray-100 bg-gray-50/80">
               <SortHeader label="Baustelle" sortKey="name" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Kunde" sortKey="contact" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
-              <SortHeader label="Adresse" sortKey="city" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Zeitraum" sortKey="startDate" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <SortHeader label="Status" sortKey="status" currentKey={sortKey} currentDir={sortDir} onSort={handleSort} className="text-[11px] font-semibold tracking-wider uppercase" />
               <span className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Aktionen</span>
@@ -332,16 +342,13 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
               <Link
                 key={b.id}
                 href={`/baustellen/${b.id}`}
-                className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
+                className={`grid grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_160px_110px_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors ${
                   i !== filtered.length - 1 ? "border-b border-gray-100" : ""
                 }`}
               >
                 <span className="text-sm font-medium text-gray-900 truncate">{b.name}</span>
                 <span className="text-sm text-gray-500 truncate">
-                  {(b.contact ?? b.order.contact)?.companyName ?? "–"}
-                </span>
-                <span className="text-sm text-gray-500 truncate">
-                  {[b.address, [b.postalCode, b.city].filter(Boolean).join(" ")].filter(Boolean).join(", ") || "–"}
+                  {getContactName(b.contact ?? b.order.contact)}
                 </span>
                 <span className="text-sm text-gray-500 whitespace-nowrap">
                   {fmt(b.startDate)}{b.endDate ? ` – ${fmt(b.endDate)}` : ""}
