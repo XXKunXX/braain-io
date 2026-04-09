@@ -118,6 +118,13 @@ export async function createRequest(data: RequestFormData) {
 
 export async function updateRequest(id: string, data: Partial<RequestFormData>) {
   const { inspectionDate, noInspectionRequired, ...rest } = data;
+
+  // Fetch current state to detect transitions
+  const before = await prisma.request.findUnique({
+    where: { id },
+    select: { status: true, inspectionStatus: true, contactId: true, assignedTo: true, contact: { select: { companyName: true, firstName: true, lastName: true } } },
+  });
+
   const request = await prisma.request.update({
     where: { id },
     data: {
@@ -128,6 +135,53 @@ export async function updateRequest(id: string, data: Partial<RequestFormData>) 
       ...(noInspectionRequired !== undefined ? { noInspectionRequired } : {}),
     },
   });
+
+  const contactName = before?.contact?.companyName
+    || [before?.contact?.firstName, before?.contact?.lastName].filter(Boolean).join(" ")
+    || "Unbekannt";
+  const assignedTo = rest.assignedTo ?? before?.assignedTo ?? null;
+
+  // Besichtigung geplant
+  if (rest.status === "BESICHTIGUNG_GEPLANT" && before?.status !== "BESICHTIGUNG_GEPLANT") {
+    await prisma.task.updateMany({
+      where: { requestId: id, title: { startsWith: "Anfrage" }, status: { not: "DONE" } },
+      data: { status: "DONE" },
+    });
+    await prisma.task.create({
+      data: {
+        title: `Besichtigung durchführen – ${contactName}`,
+        description: "Besichtigung wurde geplant. Bitte vor Ort besichtigen und Ergebnis dokumentieren.",
+        contactId: before!.contactId,
+        requestId: id,
+        assignedTo,
+        dueDate: inspectionDate ? new Date(inspectionDate) : null,
+        priority: "HIGH",
+        status: "OPEN",
+      },
+    });
+    revalidatePath("/aufgaben");
+  }
+
+  // Besichtigung abgeschlossen
+  if ((rest as Record<string, unknown>).inspectionStatus === "DONE" && before?.inspectionStatus !== "DONE") {
+    await prisma.task.updateMany({
+      where: { requestId: id, title: { startsWith: "Besichtigung durchführen" }, status: { not: "DONE" } },
+      data: { status: "DONE" },
+    });
+    await prisma.task.create({
+      data: {
+        title: `Angebot erstellen – ${contactName}`,
+        description: "Besichtigung wurde abgeschlossen. Bitte Angebot ausarbeiten und versenden.",
+        contactId: before!.contactId,
+        requestId: id,
+        assignedTo,
+        priority: "HIGH",
+        status: "OPEN",
+      },
+    });
+    revalidatePath("/aufgaben");
+  }
+
   revalidatePath("/anfragen");
   revalidatePath(`/anfragen/${id}`);
   return { request };

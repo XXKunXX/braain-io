@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   Users,
@@ -82,6 +82,10 @@ interface SidebarProps {
 
 export function Sidebar({ openTaskCount = 0, newRequestCount = 0, overduePaymentCount = 0, onClose, onSearchOpen, userRole, showFahrerApp }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const effectivePathname = pathname === "/rechnungen/neu" && searchParams.get("from") === "zahlungen"
+    ? "/zahlungen"
+    : pathname;
 
   function handleNavClick() {
     onClose?.();
@@ -135,7 +139,7 @@ export function Sidebar({ openTaskCount = 0, newRequestCount = 0, overduePayment
             </p>
             <div className="space-y-0.5">
               {items.map(({ href, label: itemLabel, icon: Icon, badgeKey }) => {
-                const active = pathname === href || pathname.startsWith(href + "/");
+                const active = effectivePathname === href || effectivePathname.startsWith(href + "/");
                 const badge =
                   badgeKey === "tasks" && openTaskCount > 0 ? { count: openTaskCount, color: "bg-blue-600" } :
                   badgeKey === "requests" && newRequestCount > 0 ? { count: newRequestCount, color: "bg-amber-500" } :

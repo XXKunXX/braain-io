@@ -58,6 +58,7 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [contactFilter, setContactFilter] = useState("ALL");
+  const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<string | null>("deliveryDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -77,7 +78,9 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
     const base = deliveryNotes.filter((dn) => {
       const matchesContact = contactFilter === "ALL" || dn.contactId === contactFilter;
       const matchesText = matchesSearch(search, dn.deliveryNumber, getContactName(dn.contact), dn.material, dn.driver);
-      return matchesContact && matchesText;
+      const dnStatus = dn.invoice ? "verrechnet" : dn.signatureUrl ? "unterschrieben" : "offen";
+      const matchesStatus = statusFilters.size === 0 || statusFilters.has(dnStatus);
+      return matchesContact && matchesText && matchesStatus;
     });
     return sortItems(base, sortKey, sortDir, (item, key) => {
       if (key === "number") return item.deliveryNumber;
@@ -114,6 +117,34 @@ export function DeliveryList({ deliveryNotes }: { deliveryNotes: DeliveryWithRel
         onConfirm={confirmDelete}
       />
       <div className="max-w-5xl space-y-5">
+        {/* Status Filter Pills */}
+        <div className="flex items-center gap-1 flex-wrap">
+          {([
+            { key: "offen",          label: "Offen" },
+            { key: "unterschrieben", label: "Unterschrieben" },
+            { key: "verrechnet",     label: "Verrechnet" },
+          ] as const).map(({ key, label }) => {
+            const active = statusFilters.has(key);
+            return (
+              <button
+                key={key}
+                onClick={() => setStatusFilters((prev) => {
+                  const next = new Set(prev);
+                  if (active) next.delete(key); else next.add(key);
+                  return next;
+                })}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors border ${
+                  active
+                    ? "bg-white border-gray-300 text-gray-900 shadow-sm"
+                    : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Search + Filter + CTA */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <div className="relative flex-1">

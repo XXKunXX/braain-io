@@ -246,13 +246,24 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
     <div className="p-4 md:p-6 max-w-4xl space-y-5">
       {/* Back + header */}
       <div>
-        <Link
-          href={backHref}
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-4"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          {backLabel}
-        </Link>
+        <div className="flex items-center gap-4 mb-4">
+          <Link
+            href={backHref}
+            className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {backLabel}
+          </Link>
+          {invoice.order && (
+            <Link
+              href={`/auftraege/${invoice.order.id}`}
+              className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Auftrag {invoice.order.orderNumber} – {invoice.order.title}
+            </Link>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -264,11 +275,6 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
               </span>
             </div>
             <p className="text-sm text-gray-500">{invoice.contact.companyName || [invoice.contact.firstName, invoice.contact.lastName].filter(Boolean).join(" ")}</p>
-            {invoice.order && (
-              <Link href={`/auftraege/${invoice.order.id}`} className="text-xs text-blue-600 hover:underline">
-                {invoice.order.orderNumber} – {invoice.order.title}
-              </Link>
-            )}
           </div>
 
           {/* Action buttons */}
@@ -298,9 +304,11 @@ export function InvoiceDetail({ invoice }: { invoice: Invoice }) {
             {invoice.status !== "BEZAHLT" && invoice.status !== "STORNIERT" && (
               <Button
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white gap-1.5"
+                className={invoice.sentAt ? "bg-green-600 hover:bg-green-700 text-white gap-1.5" : "gap-1.5"}
                 onClick={handleMarkPaid}
-                disabled={saving}
+                disabled={saving || !invoice.sentAt}
+                variant={invoice.sentAt ? "default" : "outline"}
+                title={!invoice.sentAt ? "Rechnung muss zuerst per E-Mail versendet werden" : undefined}
               >
                 <CheckCircle className="h-3.5 w-3.5" />
                 Als bezahlt markieren

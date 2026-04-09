@@ -28,6 +28,7 @@ export default async function LieferscheinDetailPage({
           id={deliveryNote.id}
           contactId={deliveryNote.contact.id}
           invoiceId={invoiceId}
+          isSigned={!!deliveryNote.signatureUrl}
         />
       </Header>
       <div className="p-4 md:p-6">

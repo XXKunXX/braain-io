@@ -71,7 +71,7 @@ const quoteStatusColors: Record<string, string> = {
 };
 
 const orderStatusLabels: Record<string, string> = {
-  OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "Verrechnet", ABGESCHLOSSEN: "Abgeschlossen",
+  OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "In Abrechnung", ABGESCHLOSSEN: "Abgeschlossen",
 };
 
 const orderStatusColors: Record<string, string> = {
@@ -678,7 +678,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
                             onClick={() => { setActiveTab("lieferscheine"); setDnFilter("billed"); setSelectionMode(false); }}
                           >
                             <p className={`text-2xl font-bold tabular-nums ${billedCount > 0 ? "text-green-500" : "text-gray-200"}`}>{billedCount}</p>
-                            <p className="text-[11px] text-gray-400 mt-0.5 uppercase tracking-wide">Verrechnet</p>
+                            <p className="text-[11px] text-gray-400 mt-0.5 uppercase tracking-wide">In Abrechnung</p>
                           </button>
                         </div>
                         {/* Row 2: config info only */}
@@ -1040,7 +1040,7 @@ export function ContactDetail({ contact, userNames = [], currentUserName, activi
                         </div>
                         <div className="flex-1" />
                         {(["all", "open", "billed"] as const).map((f) => {
-                          const labels = { all: `Alle (${contact.deliveryNotes.length})`, open: `Offen (${openNotes.length})`, billed: `Verrechnet (${billedNotes.length})` };
+                          const labels = { all: `Alle (${contact.deliveryNotes.length})`, open: `Offen (${openNotes.length})`, billed: `In Abrechnung (${billedNotes.length})` };
                           return (
                             <button key={f} onClick={() => setDnFilter(f)}
                               className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${dnFilter === f ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}>

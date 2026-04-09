@@ -300,6 +300,10 @@ export async function createBaustelleDispositionEntry(data: z.infer<typeof dispo
       where: { id: parsed.data.orderId, status: "OPEN" },
       data: { status: "DISPONIERT" },
     }),
+    db.baustelle.updateMany({
+      where: { id: parsed.data.baustelleId, status: "OPEN" },
+      data: { status: "DISPONIERT" },
+    }),
   ]);
   revalidatePath(`/baustellen/${parsed.data.baustelleId}`);
   revalidatePath("/disposition");

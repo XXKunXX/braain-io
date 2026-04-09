@@ -74,6 +74,7 @@ export function CreateInvoiceForm({
   prefillOrderId,
   prefillContactId,
   prefillItems,
+  from,
 }: {
   contacts: Contact[];
   orders: OrderOption[];
@@ -81,6 +82,7 @@ export function CreateInvoiceForm({
   prefillOrderId?: string;
   prefillContactId?: string;
   prefillItems?: PrefillItem[];
+  from?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -108,6 +110,7 @@ export function CreateInvoiceForm({
     if (contactId) setFooterText(getContactFooterText(contactId));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contactId]);
+
   const [notes, setNotes] = useState("");
   const [vatRate, setVatRate] = useState(String(Math.round(defaultVatRate * 100)));
 
@@ -144,6 +147,10 @@ export function CreateInvoiceForm({
   const vatAmount = totalPrice * vatRateNum;
   const grossAmount = totalPrice + vatAmount;
 
+  const prefillOrder = prefillOrderId ? orders.find((o) => o.id === prefillOrderId) : undefined;
+  const prefillContact = prefillContactId ? contacts.find((c) => c.id === prefillContactId) : undefined;
+  const isLocked = !!prefillOrderId && from === "zahlungen";
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!contactId) { toast.error("Bitte Kontakt auswählen"); return; }
@@ -174,41 +181,33 @@ export function CreateInvoiceForm({
     setLoading(false);
     if ("error" in result) { toast.error("Fehler beim Erstellen der Rechnung"); return; }
     toast.success("Rechnung erstellt");
-    router.push(`/rechnungen/${result.invoice.id}`);
+    router.push(from === "zahlungen" ? `/zahlungen?tab=lieferscheine` : `/rechnungen/${result.invoice.id}`);
   }
 
+  const backHref = from === "zahlungen" ? "/zahlungen?tab=lieferscheine" : "/rechnungen";
+  const backLabel = from === "zahlungen" ? "Zurück zu Offene Posten" : "Zurück zu Rechnungen";
+
   return (
-    <div className="p-4 md:p-6 max-w-4xl">
-      <div className="flex items-center gap-4 mb-5">
-        <Link
-          href="/rechnungen"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Zurück zu Rechnungen
-        </Link>
-        {prefillOrderId && (() => {
-          const order = orders.find((o) => o.id === prefillOrderId);
-          return (
-            <>
-              <span className="text-gray-300">|</span>
-              <Link
-                href={`/auftraege/${prefillOrderId}`}
-                className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                Zurück zu Auftrag {order?.orderNumber}{order?.title ? ` – ${order.title}` : ""}
-              </Link>
-            </>
-          );
-        })()}
-      </div>
+    <div className="p-4 md:p-6 max-w-3xl">
+      {/* Back */}
+      <Link
+        href={backHref}
+        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-5"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        {backLabel}
+      </Link>
 
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900">Neue Rechnung erstellen</h1>
+        {prefillOrder && (
+          <p className="text-sm text-gray-500 mt-0.5">
+            Auftrag: {prefillOrder.orderNumber} – {prefillOrder.title}
+          </p>
+        )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
 
         {/* Verknüpfung */}
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
@@ -216,44 +215,65 @@ export function CreateInvoiceForm({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-gray-700">Auftrag (optional)</Label>
-              <Select value={orderId} onValueChange={(v) => handleOrderChange(v ?? "")}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Auftrag wählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">– Kein Auftrag –</SelectItem>
-                  {orders.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.orderNumber} – {o.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-xs font-medium text-gray-700">
+                Auftrag {isLocked ? "" : "(optional)"}
+              </Label>
+              {isLocked ? (
+                <div className="h-10 px-3 flex items-center border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-900 font-medium">
+                  {prefillOrder ? `${prefillOrder.orderNumber} – ${prefillOrder.title}` : "–"}
+                </div>
+              ) : (
+                <Select value={orderId} onValueChange={(v) => handleOrderChange(v ?? "")}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Auftrag wählen...">
+                      {orderId && orderId !== "_none"
+                        ? (() => { const o = orders.find((x) => x.id === orderId); return o ? `${o.orderNumber} – ${o.title}` : undefined; })()
+                        : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">– Kein Auftrag –</SelectItem>
+                    {orders.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {o.orderNumber} – {o.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-700">Kontakt *</Label>
-              <Select value={contactId} onValueChange={(v) => v && setContactId(v)}>
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Kontakt wählen..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {contacts.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{getContactName(c)}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isLocked ? (
+                <div className="h-10 px-3 flex items-center border border-gray-200 rounded-lg bg-gray-50 text-sm text-gray-900 font-medium">
+                  {prefillContact ? getContactName(prefillContact) : "–"}
+                </div>
+              ) : (
+                <Select value={contactId} onValueChange={(v) => v && setContactId(v)}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Kontakt wählen...">
+                      {contactId
+                        ? (() => { const c = contacts.find((x) => x.id === contactId); return c ? getContactName(c) : undefined; })()
+                        : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contacts.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{getContactName(c)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
-
         </div>
 
         {/* Rechnungsdetails */}
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
           <h3 className="text-sm font-semibold text-gray-900">Rechnungsdetails</h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-700">Rechnungsdatum *</Label>
               <Input
@@ -273,55 +293,19 @@ export function CreateInvoiceForm({
                 className="h-10"
               />
             </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-gray-700">MwSt.-Satz (%)</Label>
-            <Select value={vatRate} onValueChange={(v) => v && setVatRate(v)}>
-              <SelectTrigger className="h-10 w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="20">20 % (Standard)</SelectItem>
-                <SelectItem value="10">10 % (ermäßigt)</SelectItem>
-                <SelectItem value="0">0 % (steuerfrei)</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Freitextfelder */}
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-gray-900">Texte</h3>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-gray-700">Kopftext (optional)</Label>
-            <Textarea
-              value={headerText}
-              onChange={(e) => setHeaderText(e.target.value)}
-              placeholder="z.B. Sehr geehrte Damen und Herren, ..."
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-gray-700">Fußtext / Zahlungsbedingungen</Label>
-            <Textarea
-              value={footerText}
-              onChange={(e) => setFooterText(e.target.value)}
-              placeholder="z.B. Zahlbar netto innerhalb von 14 Tagen..."
-              rows={2}
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-gray-700">Interne Notizen (erscheinen nicht auf der Rechnung)</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Optionale interne Anmerkungen..."
-              rows={2}
-            />
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-gray-700">MwSt.-Satz</Label>
+              <Select value={vatRate} onValueChange={(v) => v && setVatRate(v)}>
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20">20 % (Standard)</SelectItem>
+                  <SelectItem value="10">10 % (ermäßigt)</SelectItem>
+                  <SelectItem value="0">0 % (steuerfrei)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
@@ -416,6 +400,41 @@ export function CreateInvoiceForm({
                 Gesamt: {grossAmount.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Texte */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
+          <h3 className="text-sm font-semibold text-gray-900">Texte</h3>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-gray-700">Kopftext (optional)</Label>
+            <Textarea
+              value={headerText}
+              onChange={(e) => setHeaderText(e.target.value)}
+              placeholder="z.B. Sehr geehrte Damen und Herren, ..."
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-gray-700">Fußtext / Zahlungsbedingungen</Label>
+            <Textarea
+              value={footerText}
+              onChange={(e) => setFooterText(e.target.value)}
+              placeholder="z.B. Zahlbar netto innerhalb von 14 Tagen..."
+              rows={2}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-gray-700">Interne Notizen (erscheinen nicht auf der Rechnung)</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Optionale interne Anmerkungen..."
+              rows={2}
+            />
           </div>
         </div>
 

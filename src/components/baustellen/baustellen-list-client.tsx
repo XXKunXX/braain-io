@@ -36,7 +36,7 @@ const STATUS_FILTERS = [
   { key: "OPEN", label: "Offen", icon: Calendar },
   { key: "DISPONIERT", label: "Disponiert", icon: Zap },
   { key: "IN_LIEFERUNG", label: "In Lieferung", icon: AlertCircle },
-  { key: "VERRECHNET", label: "Verrechnet", icon: Receipt },
+  { key: "VERRECHNET", label: "In Abrechnung", icon: Receipt },
   { key: "ABGESCHLOSSEN", label: "Abgeschlossen", icon: CheckCircle2 },
 ] as const;
 
@@ -46,7 +46,7 @@ const STATUS_LABEL: Record<BaustelleStatusType, string> = {
   OPEN: "Offen",
   DISPONIERT: "Disponiert",
   IN_LIEFERUNG: "In Lieferung",
-  VERRECHNET: "Verrechnet",
+  VERRECHNET: "In Abrechnung",
   ABGESCHLOSSEN: "Abgeschlossen",
 };
 
@@ -437,7 +437,7 @@ export function BaustellenListClient({ baustellen, orders, userNames }: Props) {
                     <SelectItem value="OPEN">Offen</SelectItem>
                     <SelectItem value="DISPONIERT">Disponiert</SelectItem>
                     <SelectItem value="IN_LIEFERUNG">In Lieferung</SelectItem>
-                    <SelectItem value="VERRECHNET">Verrechnet</SelectItem>
+                    <SelectItem value="VERRECHNET">In Abrechnung</SelectItem>
                     <SelectItem value="ABGESCHLOSSEN">Abgeschlossen</SelectItem>
                   </SelectContent>
                 </Select>

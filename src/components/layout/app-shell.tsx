@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { Menu, Search, Brain } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { Sidebar } from "./sidebar";
@@ -39,15 +39,17 @@ export function AppShell({ children, openTaskCount, newRequestCount = 0, overdue
           sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <Sidebar
-          openTaskCount={openTaskCount}
-          newRequestCount={newRequestCount}
-          overduePaymentCount={overduePaymentCount}
-          onClose={() => setSidebarOpen(false)}
-          onSearchOpen={() => setSearchOpen(true)}
-          userRole={userRole}
-          showFahrerApp={showFahrerApp}
-        />
+        <Suspense fallback={null}>
+          <Sidebar
+            openTaskCount={openTaskCount}
+            newRequestCount={newRequestCount}
+            overduePaymentCount={overduePaymentCount}
+            onClose={() => setSidebarOpen(false)}
+            onSearchOpen={() => setSearchOpen(true)}
+            userRole={userRole}
+            showFahrerApp={showFahrerApp}
+          />
+        </Suspense>
       </div>
 
       {/* Content */}

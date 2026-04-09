@@ -49,6 +49,7 @@ interface Props {
   order: OrderInfo | null;
   drivers: ResourceItem[];
   vehicles: ResourceItem[];
+  materialResources?: ResourceItem[];
   baustelleId?: string;
   baustelleContactId?: string;
   orderBaustellen?: ResourceItem[];
@@ -155,7 +156,70 @@ function ResourceCombobox({
   );
 }
 
-export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustelleId: initialBaustelleId, baustelleContactId, orderBaustellen = [], defaultDriverId = "", defaultVehicleId = "" }: Props) {
+function MaterialCombobox({
+  suggestions,
+  value,
+  onChange,
+  placeholder,
+}: {
+  suggestions: string[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filtered = value.trim()
+    ? suggestions.filter((s) => s.toLowerCase().includes(value.toLowerCase()))
+    : suggestions;
+
+  function select(name: string) {
+    onChange(name);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        placeholder={placeholder}
+        className="flex h-10 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+      />
+      {open && filtered.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg">
+          <div className="max-h-48 overflow-y-auto">
+            {filtered.map((name) => (
+              <button
+                key={name}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => select(name)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <Check className={`h-3.5 w-3.5 flex-shrink-0 ${value === name ? "text-blue-600" : "text-transparent"}`} />
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CreateDeliveryForm({ contacts, order, drivers, vehicles, materialResources = [], baustelleId: initialBaustelleId, baustelleContactId, orderBaustellen = [], defaultDriverId = "", defaultVehicleId = "" }: Props) {
   const router = useRouter();
   useEscapeKey(() => router.back(), true);
   const [loading, setLoading] = useState(false);
@@ -180,6 +244,13 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
   const selectedIds = Object.keys(selectedItems);
   const hasOrder = !!order;
   const hasItems = order && order.quoteItems.length > 0;
+
+  // Suggestions: DB PRODUKT resources first, then hardcoded fallbacks (deduplicated)
+  const dbMaterialNames = materialResources.map((r) => r.name);
+  const materialSuggestions = [
+    ...dbMaterialNames,
+    ...MATERIALS.filter((m) => !dbMaterialNames.some((n) => n.toLowerCase() === m.toLowerCase())),
+  ];
 
   function toggleItem(item: QuoteItem) {
     setSelectedItems((prev) => {
@@ -391,17 +462,12 @@ export function CreateDeliveryForm({ contacts, order, drivers, vehicles, baustel
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2 space-y-1.5">
                 <Label className="text-xs font-medium text-gray-700">Material *</Label>
-                <Input
-                  list="materials-list"
-                  placeholder="Sand, Kies, Schotter..."
-                  required={!hasItems}
+                <MaterialCombobox
+                  suggestions={materialSuggestions}
                   value={customMaterial}
-                  onChange={(e) => setCustomMaterial(e.target.value)}
-                  className="h-10"
+                  onChange={setCustomMaterial}
+                  placeholder="Sand, Kies, Schotter..."
                 />
-                <datalist id="materials-list">
-                  {MATERIALS.map((m) => <option key={m} value={m} />)}
-                </datalist>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-gray-700">Einheit</Label>

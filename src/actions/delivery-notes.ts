@@ -108,6 +108,15 @@ export async function createDeliveryNote(data: DeliveryNoteFormData) {
     revalidatePath(`/auftraege/${resolvedOrderId}`);
   }
 
+  // Automatically advance Baustelle status to IN_LIEFERUNG
+  if (noteData.baustelleId) {
+    await prisma.baustelle.updateMany({
+      where: { id: noteData.baustelleId, status: { in: ["OPEN", "DISPONIERT"] } },
+      data: { status: "IN_LIEFERUNG" },
+    });
+    revalidatePath(`/baustellen/${noteData.baustelleId}`);
+  }
+
   revalidatePath("/lieferscheine");
   return { deliveryNote: { ...deliveryNote, quantity: Number(deliveryNote.quantity) } };
 }
@@ -245,7 +254,7 @@ export async function deleteDeliveryNote(id: string) {
     orderId = baustelle?.orderId ?? null;
   }
 
-  // Wenn kein Lieferschein mehr vorhanden → Status zurück auf DISPONIERT
+  // Wenn kein Lieferschein mehr vorhanden → Order-Status zurück auf DISPONIERT
   if (orderId) {
     const remaining = await prisma.deliveryNote.count({
       where: { OR: [{ orderId }, { baustelle: { orderId } }] },
@@ -257,6 +266,22 @@ export async function deleteDeliveryNote(id: string) {
       });
       revalidatePath(`/auftraege/${orderId}`);
       revalidatePath("/auftraege");
+    }
+  }
+
+  // Wenn kein Lieferschein mehr für Baustelle → Status zurück auf DISPONIERT (oder OPEN)
+  if (note?.baustelleId) {
+    const baustelleId = note.baustelleId;
+    const remainingForBaustelle = await prisma.deliveryNote.count({
+      where: { baustelleId },
+    });
+    if (remainingForBaustelle === 0) {
+      const hasDisposition = await prisma.dispositionEntry.count({ where: { baustelleId } });
+      await prisma.baustelle.updateMany({
+        where: { id: baustelleId, status: "IN_LIEFERUNG" },
+        data: { status: hasDisposition > 0 ? "DISPONIERT" : "OPEN" },
+      });
+      revalidatePath(`/baustellen/${baustelleId}`);
     }
   }
 

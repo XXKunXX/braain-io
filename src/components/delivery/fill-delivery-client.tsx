@@ -85,7 +85,6 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
   const onMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     drawing.current = true;
     lastPos.current = getPos(e.nativeEvent);
-    setHasSig(true);
   }, []);
 
   const onMouseMove = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -98,6 +97,7 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
     lastPos.current = pos;
+    setHasSig(true);
   }, []);
 
   const onMouseUp = useCallback(() => { drawing.current = false; lastPos.current = null; }, []);
@@ -106,7 +106,6 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
     e.preventDefault();
     drawing.current = true;
     lastPos.current = getPos(e.touches[0]);
-    setHasSig(true);
   }, []);
 
   const onTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
@@ -120,6 +119,7 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
     ctx.lineTo(pos.x, pos.y);
     ctx.stroke();
     lastPos.current = pos;
+    setHasSig(true);
   }, []);
 
   function clearSignature() {
@@ -309,7 +309,7 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
         </Section>
 
         {/* Unterschrift */}
-        <Section title="Unterschrift des Kunden">
+        <Section title="Unterschrift des Kunden *">
           {dn.signatureUrl && !hasSig ? (
             <div className="space-y-2">
               <img src={dn.signatureUrl} alt="Unterschrift" className="w-full h-36 object-contain border border-gray-200 rounded-lg bg-white" />
@@ -363,10 +363,15 @@ export function FillDeliveryClient({ deliveryNote: dn }: { deliveryNote: DN }) {
         </Section>
 
         {/* Submit */}
+        {!hasSig && (
+          <p className="text-center text-sm text-amber-600 font-medium">
+            Kundenunterschrift erforderlich zum Abschicken
+          </p>
+        )}
         <button
           onClick={handleSubmit}
-          disabled={saving}
-          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-4 rounded-xl text-base"
+          disabled={saving || !hasSig}
+          className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-4 rounded-xl text-base"
         >
           {saving ? "Wird gespeichert..." : "Lieferschein abschicken"}
         </button>

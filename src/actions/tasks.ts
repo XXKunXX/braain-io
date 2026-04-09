@@ -29,13 +29,16 @@ export async function getTasks(filters?: {
       ...(filters?.assignedTo && filters.assignedTo !== "ALL" ? { assignedTo: filters.assignedTo } : {}),
       ...(filters?.search ? { title: { contains: filters.search, mode: "insensitive" as const } } : {}),
     },
-    include: { contact: true, request: true, deliveryNote: true },
+    include: { contact: true, request: true, deliveryNote: true, invoice: true },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
   });
   return tasks.map((task) => ({
     ...task,
     deliveryNote: task.deliveryNote
       ? { ...task.deliveryNote, quantity: task.deliveryNote.quantity.toNumber() }
+      : null,
+    invoice: task.invoice
+      ? { ...task.invoice, subtotal: Number(task.invoice.subtotal), vatAmount: Number(task.invoice.vatAmount), totalAmount: Number(task.invoice.totalAmount) }
       : null,
   }));
 }

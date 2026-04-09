@@ -8,7 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { updateTaskStatus, deleteTask } from "@/actions/tasks";
 import { toast } from "sonner";
-import type { Task, Contact, Request, DeliveryNote } from "@prisma/client";
+import type { Task, Contact, Request, DeliveryNote, Invoice } from "@prisma/client";
 import { TaskDetailDrawer } from "./task-detail-drawer";
 import { sortItems } from "@/lib/sort";
 import { matchesSearch } from "@/lib/phonetic";
@@ -16,7 +16,12 @@ import { SortHeader } from "@/components/ui/sort-header";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { CreateTaskDialog } from "./create-task-dialog";
 
-type TaskWithContact = Task & { contact: Contact | null; request: Request | null; deliveryNote: (Omit<DeliveryNote, "quantity"> & { quantity: number }) | null };
+type TaskWithContact = Task & {
+  contact: Contact | null;
+  request: Request | null;
+  deliveryNote: (Omit<DeliveryNote, "quantity"> & { quantity: number }) | null;
+  invoice: (Omit<Invoice, "subtotal" | "vatAmount" | "totalAmount"> & { subtotal: number; vatAmount: number; totalAmount: number }) | null;
+};
 
 const priorityLabels: Record<string, string> = {
   LOW: "Niedrig",
@@ -40,7 +45,6 @@ const statusLabels: Record<string, string> = {
 
 const STATUS_TABS = [
   { key: "OPEN_AND_IN_PROGRESS", label: "Offen", icon: Circle },
-  { key: "IN_PROGRESS", label: "In Bearbeitung", icon: Clock },
   { key: "DONE", label: "Erledigt", icon: CheckCircle2 },
   { key: "ALL", label: "Alle", icon: LayoutList },
 ] as const;
@@ -60,9 +64,10 @@ function isOverdue(task: Task) {
 interface TaskListProps {
   tasks: TaskWithContact[];
   requests?: Request[];
+  currentUserName?: string;
 }
 
-export function TaskList({ tasks, requests = [] }: TaskListProps) {
+export function TaskList({ tasks, requests = [], currentUserName }: TaskListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("OPEN_AND_IN_PROGRESS");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
@@ -114,7 +119,9 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
     return counts;
   }, [tasks, statusFilter]);
 
-  const openCount = tasks.filter((t) => t.status === "OPEN").length;
+  const openCount = currentUserName
+    ? tasks.filter((t) => t.status !== "DONE" && t.assignedTo === currentUserName).length
+    : tasks.filter((t) => t.status !== "DONE").length;
   const overdueCount = tasks.filter((t) => isOverdue(t)).length;
   const todayCount = tasks.filter((t) => {
     if (!t.dueDate || t.status === "DONE") return false;
@@ -165,7 +172,7 @@ export function TaskList({ tasks, requests = [] }: TaskListProps) {
           icon={<CheckSquare className="h-5 w-5 text-blue-500" />}
           iconBg="bg-blue-50"
           value={openCount}
-          label="Meine offenen Aufgaben"
+          label={currentUserName ? "Meine offenen Aufgaben" : "Offene Aufgaben"}
         />
         <StatCard
           icon={<AlertCircle className="h-5 w-5 text-red-500" />}

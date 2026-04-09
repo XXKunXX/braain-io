@@ -26,7 +26,7 @@ import { getContactName } from "@/lib/utils";
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const STATUS_LABEL: Record<BaustelleStatusType, string> = {
-  OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "Verrechnet", ABGESCHLOSSEN: "Abgeschlossen",
+  OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "In Abrechnung", ABGESCHLOSSEN: "Abgeschlossen",
 };
 const STATUS_COLOR: Record<BaustelleStatusType, string> = {
   OPEN: "border-blue-300 text-blue-700 bg-blue-50",
@@ -410,7 +410,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                         <option value="OPEN">Offen</option>
                         <option value="DISPONIERT">Disponiert</option>
                         <option value="IN_LIEFERUNG">In Lieferung</option>
-                        <option value="VERRECHNET">Verrechnet</option>
+                        <option value="VERRECHNET">In Abrechnung</option>
                         <option value="ABGESCHLOSSEN">Abgeschlossen</option>
                       </select>
                     </Field>
@@ -639,7 +639,7 @@ export function BaustellenDetailClient({ baustelle: init, orders, userNames }: P
                   {(["all", "open", "billed"] as const).map((f) => {
                     const openCount = b.deliveryNotes.filter((dn) => !dn.invoice).length;
                     const billedCount = b.deliveryNotes.filter((dn) => dn.invoice).length;
-                    const labels = { all: `Alle (${b.deliveryNotes.length})`, open: `Offen (${openCount})`, billed: `Verrechnet (${billedCount})` };
+                    const labels = { all: `Alle (${b.deliveryNotes.length})`, open: `Offen (${openCount})`, billed: `In Abrechnung (${billedCount})` };
                     return (
                       <button key={f} onClick={() => setDnFilter(f)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${dnFilter === f ? "bg-gray-900 text-white border-gray-900" : "bg-white border-gray-200 text-gray-500 hover:border-gray-300"}`}>

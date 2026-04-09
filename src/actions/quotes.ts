@@ -69,6 +69,38 @@ export async function createQuote(data: QuoteFormData) {
       where: { id: quoteData.requestId },
       data: { status: "ANGEBOT_ERSTELLT" },
     });
+
+    // Close "Angebot erstellen" task, create "Angebot nachfassen"
+    await prisma.task.updateMany({
+      where: { requestId: quoteData.requestId, title: { startsWith: "Angebot erstellen" }, status: { not: "DONE" } },
+      data: { status: "DONE" },
+    });
+
+    const contact = await prisma.contact.findUnique({
+      where: { id: quoteData.contactId },
+      select: { companyName: true, firstName: true, lastName: true },
+    });
+    const contactName = contact?.companyName
+      || [contact?.firstName, contact?.lastName].filter(Boolean).join(" ")
+      || "Unbekannt";
+
+    // Due date: validUntil or 14 days from now
+    const followUpDate = validUntil ? new Date(validUntil) : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
+
+    await prisma.task.create({
+      data: {
+        title: `Angebot nachfassen – ${contactName}`,
+        description: "Angebot wurde erstellt. Bitte beim Kunden nachfassen ob Interesse besteht.",
+        contactId: quoteData.contactId,
+        requestId: quoteData.requestId,
+        assignedTo: quoteData.assignedTo ?? null,
+        dueDate: followUpDate,
+        priority: "NORMAL",
+        status: "OPEN",
+      },
+    });
+
+    revalidatePath("/aufgaben");
     revalidatePath(`/anfragen/${quoteData.requestId}`);
   }
 
@@ -161,6 +193,12 @@ export async function updateQuoteStatus(
       where: { id: quote.requestId },
       data: { status: "DONE" },
     });
+    // Close "Angebot nachfassen" task
+    await prisma.task.updateMany({
+      where: { requestId: quote.requestId, title: { startsWith: "Angebot nachfassen" }, status: { not: "DONE" } },
+      data: { status: "DONE" },
+    });
+    revalidatePath("/aufgaben");
     revalidatePath(`/anfragen/${quote.requestId}`);
   }
 
@@ -207,6 +245,12 @@ export async function acceptQuoteAndCreateOrder(quoteId: string) {
       where: { id: quote.requestId },
       data: { status: "DONE" },
     });
+    // Close "Angebot nachfassen" task
+    await prisma.task.updateMany({
+      where: { requestId: quote.requestId, title: { startsWith: "Angebot nachfassen" }, status: { not: "DONE" } },
+      data: { status: "DONE" },
+    });
+    revalidatePath("/aufgaben");
     revalidatePath(`/anfragen/${quote.requestId}`);
   }
 

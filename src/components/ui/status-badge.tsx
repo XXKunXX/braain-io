@@ -36,7 +36,7 @@ const STATUS_CONFIG: Record<StatusVariant, { label: string; className: string; i
   OPEN:           { label: "Offen",         className: "bg-zinc-100 text-zinc-600 border border-zinc-200",       icon: Circle },
   DISPONIERT:     { label: "Disponiert",    className: "bg-blue-50 text-blue-700 border border-blue-200",        icon: CalendarCheck },
   IN_LIEFERUNG:   { label: "In Lieferung",  className: "bg-emerald-50 text-emerald-700 border border-emerald-200", icon: Truck },
-  VERRECHNET:     { label: "Verrechnet",    className: "bg-emerald-100 text-emerald-800 border border-emerald-300", icon: Receipt },
+  VERRECHNET:     { label: "In Abrechnung", className: "bg-emerald-100 text-emerald-800 border border-emerald-300", icon: Receipt },
   ABGESCHLOSSEN:  { label: "Abgeschlossen", className: "bg-green-100 text-green-800 border border-green-300",    icon: CheckCircle2 },
   // Quotes
   DRAFT:      { label: "Entwurf",           className: "bg-gray-100 text-gray-600 border border-gray-200" },

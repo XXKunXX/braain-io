@@ -12,7 +12,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { ContactCombobox } from "@/components/requests/contact-combobox";
 import { toast } from "sonner";
 import { createBaustelle } from "@/actions/baustellen";
-import type { BaustelleStatusType } from "@/actions/baustellen";
 import type { Contact } from "@prisma/client";
 
 type OrderOption = {
@@ -107,7 +106,6 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
   const [city, setCity] = useState(prefillOrder?.contact.city ?? "");
   const [startDate, setStartDate] = useState(toDateInput(prefillOrder?.startDate));
   const [endDate, setEndDate] = useState(toDateInput(prefillOrder?.endDate));
-  const [status, setStatus] = useState<BaustelleStatusType>("OPEN");
   const [bauleiter, setBauleiter] = useState("");
   const [contactPerson, setContactPerson] = useState([prefillOrder?.contact.firstName, prefillOrder?.contact.lastName].filter(Boolean).join(" "));
   const [phone, setPhone] = useState(prefillOrder?.contact.phone ?? "");
@@ -148,7 +146,7 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
       city: city || undefined,
       startDate,
       endDate: endDate || undefined,
-      status,
+      status: "OPEN",
       bauleiter: bauleiter || undefined,
       contactPerson: contactPerson || undefined,
       phone: phone || undefined,
@@ -280,7 +278,7 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
           <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
             <h2 className="text-base font-semibold text-gray-900">Zeitraum &amp; Verantwortliche</h2>
             <div className="border-t border-gray-100 pt-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Startdatum *</Label>
                   <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="h-10 rounded-lg border-gray-200" required />
@@ -289,26 +287,12 @@ export function NeueBaustelleClient({ orders, userNames, contacts: initialContac
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Enddatum</Label>
                   <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="h-10 rounded-lg border-gray-200" />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Bauleiter</Label>
                   <select className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={bauleiter} onChange={(e) => setBauleiter(e.target.value)}>
                     <option value="">– Kein Bauleiter –</option>
                     {userNames.map((n) => <option key={n} value={n}>{n}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase">Status</Label>
-                  <select className="w-full h-10 rounded-lg border border-gray-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    value={status} onChange={(e) => setStatus(e.target.value as BaustelleStatusType)}>
-                    <option value="OPEN">Offen</option>
-                    <option value="DISPONIERT">Disponiert</option>
-                    <option value="IN_LIEFERUNG">In Lieferung</option>
-                    <option value="VERRECHNET">Verrechnet</option>
-                    <option value="ABGESCHLOSSEN">Abgeschlossen</option>
                   </select>
                 </div>
               </div>

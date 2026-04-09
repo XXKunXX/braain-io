@@ -47,6 +47,8 @@ export default async function OffenePostenPage({ searchParams }: { searchParams:
     order: dn.order,
   }));
 
+  const dnGroupCount = new Set(deliveryNotes.map((dn) => `${dn.contactId}__${dn.order?.id ?? "none"}`)).size;
+
   const totalOutstanding = serializedInvoices.reduce((s, i) => s + i.totalAmount, 0);
   const totalOverdue = serializedInvoices
     .filter((i) => i.status === "VERSENDET" && i.dueDate && new Date(i.dueDate) < now)
@@ -57,7 +59,7 @@ export default async function OffenePostenPage({ searchParams }: { searchParams:
       <div>
         <h1 className="text-xl font-semibold text-gray-900">Offene Posten</h1>
         <p className="text-sm text-gray-400 mt-0.5">
-          {invoices.length} offene Rechnungen · {deliveryNotes.length} nicht verrechnet
+          {invoices.length} offene Rechnungen · {dnGroupCount} nicht verrechnet
         </p>
       </div>
 
@@ -97,7 +99,7 @@ export default async function OffenePostenPage({ searchParams }: { searchParams:
           <Link href="/zahlungen?tab=lieferscheine" className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 hover:shadow-sm transition-all group">
             <p className="text-xs text-gray-400 mb-1 group-hover:text-gray-500">Noch nicht verrechnet</p>
             <p className="text-lg font-bold text-blue-600">
-              {deliveryNotes.length} Lieferschein{deliveryNotes.length !== 1 ? "e" : ""}
+              {dnGroupCount} Gruppe{dnGroupCount !== 1 ? "n" : ""}
             </p>
           </Link>
         ) : (

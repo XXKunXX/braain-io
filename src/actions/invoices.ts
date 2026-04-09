@@ -55,6 +55,26 @@ function calcTotals(items: InvoiceItemInput[], vatRate: number) {
   return { subtotal, vatAmount, totalAmount };
 }
 
+// ─── Task Helpers ─────────────────────────────────────────────────────────────
+
+async function closeTasksByTitle(invoiceId: string, titlePrefix: string) {
+  await prisma.task.updateMany({
+    where: { invoiceId, title: { startsWith: titlePrefix }, status: { not: "DONE" } },
+    data: { status: "DONE" },
+  });
+}
+
+async function getInvoiceContext(invoiceId: string) {
+  return prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    select: {
+      contactId: true,
+      dueDate: true,
+      order: { select: { title: true, quote: { select: { assignedTo: true } } } },
+    },
+  });
+}
+
 // ─── CRUD ─────────────────────────────────────────────────────────────────────
 
 export async function getInvoices() {
@@ -143,6 +163,33 @@ export async function createInvoice(data: CreateInvoiceInput) {
       revalidatePath(`/auftraege/${data.orderId}`);
     }
 
+    // Close "Rechnung erstellen" tasks for the order, create "Rechnung prüfen & versenden"
+    const orderTitle = data.orderId
+      ? (await prisma.order.findUnique({ where: { id: data.orderId }, select: { title: true, quote: { select: { assignedTo: true } } } }))
+      : null;
+    const label = orderTitle?.title ?? "Auftrag";
+    const assignedTo = orderTitle?.quote?.assignedTo ?? null;
+
+    if (data.orderId) {
+      await prisma.task.updateMany({
+        where: { title: { startsWith: "Rechnung erstellen" }, status: { not: "DONE" } },
+        data: { status: "DONE" },
+      });
+    }
+
+    await prisma.task.create({
+      data: {
+        title: `Rechnung prüfen & versenden – ${label}`,
+        description: "Rechnungsentwurf wurde erstellt. Bitte prüfen und an den Kunden versenden.",
+        contactId: data.contactId,
+        invoiceId: invoice.id,
+        assignedTo,
+        priority: "HIGH",
+        status: "OPEN",
+      },
+    });
+
+    revalidatePath("/aufgaben");
     revalidatePath("/rechnungen");
     return { invoice: { id: invoice.id } };
   } catch (err) {
@@ -158,7 +205,7 @@ export async function createInvoiceFromDeliveryNotes(
 ) {
   if (deliveryNoteIds.length === 0) return { error: "Keine Lieferscheine ausgewählt" };
 
-  const [settings, contact, quoteItems] = await Promise.all([
+  const [settings, contact, orderQuoteItems, contactQuoteItems] = await Promise.all([
     getSettings(),
     prisma.contact.findUnique({ where: { id: contactId }, select: { paymentTermDays: true, paymentTermSkonto: true, paymentTermCustom: true } }),
     orderId
@@ -167,7 +214,14 @@ export async function createInvoiceFromDeliveryNotes(
           select: { description: true, unitPrice: true },
         })
       : Promise.resolve([]),
+    prisma.quoteItem.findMany({
+      where: { quote: { contactId } },
+      select: { description: true, unitPrice: true },
+      orderBy: { quote: { createdAt: "desc" } },
+    }),
   ]);
+  // Order-level quote items take priority; fall back to any quote for this contact
+  const quoteItems = orderQuoteItems.length > 0 ? orderQuoteItems : contactQuoteItems;
   const vatRate = Number(settings.vatRate);
   const invoiceNumber = await getNextNumber("invoice");
 
@@ -212,28 +266,29 @@ export async function createInvoiceFromDeliveryNotes(
       orderBy: { date: "asc" },
     });
 
+    const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+
     // Delete placeholder items and create real ones from delivery notes
     await tx.invoiceItem.deleteMany({ where: { invoiceId: inv.id } });
-    await tx.invoiceItem.createMany({
-      data: notes.map((dn, idx) => {
-        const matchedItem = quoteItems.find(
-          (qi) => qi.description.toLowerCase() === dn.material.toLowerCase()
-        );
-        const unitPrice = matchedItem ? Number(matchedItem.unitPrice) : 0;
-        const total = Number(dn.quantity) * unitPrice;
-        return {
-          invoiceId: inv.id,
-          position: idx + 1,
-          description: dn.material,
-          note: `Lieferschein ${dn.deliveryNumber} – ${new Date(dn.date).toLocaleDateString("de-DE")}`,
-          quantity: Number(dn.quantity),
-          unit: dn.unit,
-          unitPrice,
-          vatRate,
-          total,
-        };
-      }),
+    const itemRows = notes.map((dn, idx) => {
+      const matchedItem = quoteItems.find(
+        (qi) => normalize(qi.description) === normalize(dn.material)
+      );
+      const unitPrice = matchedItem ? Number(matchedItem.unitPrice) : 0;
+      const qty = Number(dn.quantity);
+      return {
+        invoiceId: inv.id,
+        position: idx + 1,
+        description: dn.material,
+        note: `Lieferschein ${dn.deliveryNumber} – ${new Date(dn.date).toLocaleDateString("de-DE")}`,
+        quantity: qty,
+        unit: dn.unit,
+        unitPrice,
+        vatRate,
+        total: qty * unitPrice,
+      };
     });
+    await tx.invoiceItem.createMany({ data: itemRows });
 
     // Link delivery notes to this invoice
     await tx.deliveryNote.updateMany({
@@ -242,15 +297,8 @@ export async function createInvoiceFromDeliveryNotes(
     });
 
     // Update invoice totals based on actual items
-    const itemsForTotals = notes.map((dn) => {
-      const matchedItem = quoteItems.find(
-        (qi) => qi.description.toLowerCase() === dn.material.toLowerCase()
-      );
-      const unitPrice = matchedItem ? Number(matchedItem.unitPrice) : 0;
-      return { quantity: Number(dn.quantity), unitPrice };
-    });
     const { subtotal, vatAmount, totalAmount } = calcTotals(
-      itemsForTotals.map((i) => ({ ...i, description: "", unit: "" })),
+      itemRows.map((i) => ({ description: i.description, unit: i.unit, quantity: i.quantity, unitPrice: i.unitPrice })),
       vatRate
     );
     await tx.invoice.update({
@@ -271,6 +319,62 @@ export async function createInvoiceFromDeliveryNotes(
     revalidatePath(`/auftraege/${orderId}`);
   }
 
+  // Check if any Baustellen are now fully invoiced → set VERRECHNET
+  const affectedNotes = await prisma.deliveryNote.findMany({
+    where: { id: { in: deliveryNoteIds }, baustelleId: { not: null } },
+    select: { baustelleId: true },
+  });
+  const baustelleIds = [...new Set(affectedNotes.map((n) => n.baustelleId!))];
+  for (const baustelleId of baustelleIds) {
+    const [total, unlinked] = await Promise.all([
+      prisma.deliveryNote.count({ where: { baustelleId } }),
+      prisma.deliveryNote.count({ where: { baustelleId, invoiceId: null } }),
+    ]);
+    if (total > 0 && unlinked === 0) {
+      await prisma.baustelle.updateMany({
+        where: { id: baustelleId, status: { notIn: ["ABGESCHLOSSEN"] } },
+        data: { status: "VERRECHNET" },
+      });
+      revalidatePath(`/baustellen/${baustelleId}`);
+    }
+  }
+
+  // Close "Rechnung erstellen" tasks, create "Rechnung prüfen & versenden"
+  const orderInfo = orderId
+    ? await prisma.order.findUnique({ where: { id: orderId }, select: { title: true, quote: { select: { assignedTo: true } } } })
+    : null;
+  const label = orderInfo?.title ?? "Auftrag";
+  const assignedTo = orderInfo?.quote?.assignedTo ?? null;
+
+  if (orderId) {
+    await prisma.task.updateMany({
+      where: { title: { startsWith: "Rechnung erstellen" }, status: { not: "DONE" } },
+      data: { status: "DONE" },
+    });
+  } else {
+    await prisma.task.updateMany({
+      where: {
+        deliveryNoteId: { in: deliveryNoteIds },
+        title: { startsWith: "Rechnung erstellen" },
+        status: { not: "DONE" },
+      },
+      data: { status: "DONE" },
+    });
+  }
+
+  await prisma.task.create({
+    data: {
+      title: `Rechnung prüfen & versenden – ${label}`,
+      description: "Rechnungsentwurf wurde erstellt. Bitte prüfen und an den Kunden versenden.",
+      contactId,
+      invoiceId: invoice.id,
+      assignedTo,
+      priority: "HIGH",
+      status: "OPEN",
+    },
+  });
+
+  revalidatePath("/aufgaben");
   revalidatePath("/rechnungen");
   revalidatePath("/lieferscheine");
   return { invoice: { id: invoice.id } };
@@ -328,20 +432,14 @@ export async function markInvoicePaid(id: string) {
     data: { status: "BEZAHLT", paidAt: new Date() },
   });
 
-  revalidatePath("/rechnungen");
-  revalidatePath("/zahlungen");
-  revalidatePath(`/rechnungen/${id}`);
+  await closeTasksByTitle(id, "Zahlungseingang prüfen");
+
+  revalidatePath("/", "layout");
   return { success: true };
 }
 
 export async function getOffenePostenCount() {
-  const now = new Date();
-  const [overdue, drafts, unInvoiced] = await Promise.all([
-    prisma.invoice.count({ where: { status: "VERSENDET", dueDate: { lt: now } } }),
-    prisma.invoice.count({ where: { status: "ENTWURF" } }),
-    prisma.deliveryNote.count({ where: { invoiceId: null } }),
-  ]);
-  return overdue + drafts + unInvoiced;
+  return prisma.invoice.count({ where: { status: { in: ["ENTWURF", "VERSENDET"] } } });
 }
 
 export async function deleteInvoice(id: string) {
@@ -349,6 +447,13 @@ export async function deleteInvoice(id: string) {
     where: { id },
     select: { orderId: true },
   });
+
+  // Find Baustellen affected by this invoice before unlinking
+  const affectedNotes = await prisma.deliveryNote.findMany({
+    where: { invoiceId: id, baustelleId: { not: null } },
+    select: { baustelleId: true },
+  });
+  const affectedBaustelleIds = [...new Set(affectedNotes.map((n) => n.baustelleId!))];
 
   await prisma.$transaction([
     prisma.deliveryNote.updateMany({ where: { invoiceId: id }, data: { invoiceId: null } }),
@@ -369,6 +474,15 @@ export async function deleteInvoice(id: string) {
       revalidatePath(`/auftraege/${invoice.orderId}`);
       revalidatePath("/auftraege");
     }
+  }
+
+  // Revert Baustelle status from VERRECHNET → IN_LIEFERUNG (now has unlinked delivery notes again)
+  for (const baustelleId of affectedBaustelleIds) {
+    await prisma.baustelle.updateMany({
+      where: { id: baustelleId, status: "VERRECHNET" },
+      data: { status: "IN_LIEFERUNG" },
+    });
+    revalidatePath(`/baustellen/${baustelleId}`);
   }
 
   revalidatePath("/rechnungen");
@@ -442,6 +556,26 @@ export async function sendInvoiceEmail(invoiceId: string, toEmail: string) {
       data: { status: "VERSENDET", sentAt: new Date() },
     });
 
+    // Close "Rechnung prüfen & versenden", create "Zahlungseingang prüfen"
+    await closeTasksByTitle(invoiceId, "Rechnung prüfen & versenden");
+    const ctx = await getInvoiceContext(invoiceId);
+    if (ctx) {
+      const label = ctx.order?.title ?? "Auftrag";
+      await prisma.task.create({
+        data: {
+          title: `Zahlungseingang prüfen – ${label}`,
+          description: "Rechnung wurde versendet. Bitte Zahlungseingang überwachen.",
+          contactId: ctx.contactId,
+          invoiceId,
+          assignedTo: ctx.order?.quote?.assignedTo ?? null,
+          dueDate: ctx.dueDate ?? null,
+          priority: "NORMAL",
+          status: "OPEN",
+        },
+      });
+    }
+
+    revalidatePath("/aufgaben");
     revalidatePath("/rechnungen");
     revalidatePath(`/rechnungen/${invoiceId}`);
     return { success: true };

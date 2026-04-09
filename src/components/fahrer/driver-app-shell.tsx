@@ -25,7 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
   OPEN: "Offen",
   DISPONIERT: "Disponiert",
   IN_LIEFERUNG: "In Lieferung",
-  VERRECHNET: "Verrechnet",
+  VERRECHNET: "In Abrechnung",
   ABGESCHLOSSEN: "Abgeschlossen",
 };
 

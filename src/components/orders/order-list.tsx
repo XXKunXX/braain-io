@@ -28,7 +28,7 @@ const STATUS_FILTERS = [
   { key: "OPEN", label: "Offen", icon: Calendar },
   { key: "DISPONIERT", label: "Disponiert", icon: Zap },
   { key: "IN_LIEFERUNG", label: "In Lieferung", icon: AlertCircle },
-  { key: "VERRECHNET", label: "Verrechnet", icon: Receipt },
+  { key: "VERRECHNET", label: "In Abrechnung", icon: Receipt },
   { key: "ABGESCHLOSSEN", label: "Abgeschlossen", icon: CheckCircle2 },
 ] as const;
 

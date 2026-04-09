@@ -8,9 +8,14 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { updateTaskStatus } from "@/actions/tasks";
 import { toast } from "sonner";
-import type { Task, Contact, Request, DeliveryNote } from "@prisma/client";
+import type { Task, Contact, Request, DeliveryNote, Invoice } from "@prisma/client";
 
-type TaskWithRelations = Task & { contact: Contact | null; request: Request | null; deliveryNote: (Omit<DeliveryNote, "quantity"> & { quantity: number | null }) | null };
+type TaskWithRelations = Task & {
+  contact: Contact | null;
+  request: Request | null;
+  deliveryNote: (Omit<DeliveryNote, "quantity"> & { quantity: number | null }) | null;
+  invoice: (Omit<Invoice, "subtotal" | "vatAmount" | "totalAmount"> & { subtotal: number; vatAmount: number; totalAmount: number }) | null;
+};
 
 const priorityLabels: Record<string, string> = {
   LOW: "Niedrig",
@@ -28,13 +33,11 @@ const priorityColors: Record<string, string> = {
 
 const statusLabels: Record<string, string> = {
   OPEN: "Offen",
-  IN_PROGRESS: "In Bearbeitung",
   DONE: "Erledigt",
 };
 
 const statusColors: Record<string, string> = {
   OPEN: "bg-blue-50 text-blue-700 border border-blue-200",
-  IN_PROGRESS: "bg-purple-50 text-purple-700 border border-purple-200",
   DONE: "bg-green-50 text-green-700 border border-green-200",
 };
 
@@ -175,8 +178,28 @@ export function TaskDetailDrawer({ task, fallbackRequest, onClose }: TaskDetailD
             </div>
           )}
 
+          {/* Verknüpfte Rechnung */}
+          {task.invoice && (
+            <div>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Verknüpfte Rechnung</p>
+              <Link
+                href={`/rechnungen/${task.invoice.id}`}
+                onClick={onClose}
+                className="flex items-center justify-between bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 hover:bg-violet-100 transition-colors group"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-violet-900 truncate">{task.invoice.invoiceNumber}</p>
+                  {task.contact && (
+                    <p className="text-xs text-violet-600 mt-0.5">{task.contact.companyName || [task.contact.firstName, task.contact.lastName].filter(Boolean).join(" ")}</p>
+                  )}
+                </div>
+                <ExternalLink className="h-4 w-4 text-violet-400 group-hover:text-violet-600 flex-shrink-0 ml-3" />
+              </Link>
+            </div>
+          )}
+
           {/* Verknüpfte Anfrage */}
-          {!task.deliveryNote && (task.request ?? fallbackRequest) && (
+          {!task.deliveryNote && !task.invoice && (task.request ?? fallbackRequest) && (
             <div>
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Verknüpfte Anfrage</p>
               <Link

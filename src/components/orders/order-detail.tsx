@@ -70,7 +70,7 @@ const statusLabels: Record<string, string> = {
   OPEN: "Offen",
   DISPONIERT: "Disponiert",
   IN_LIEFERUNG: "In Lieferung",
-  VERRECHNET: "Verrechnet",
+  VERRECHNET: "In Abrechnung",
   ABGESCHLOSSEN: "Abgeschlossen",
 };
 
@@ -297,7 +297,8 @@ export function OrderDetail({
             )
               .filter((s) => s.key !== "OPEN")
               .map((step) => {
-                const isActive = (step.activeWhen as readonly string[]).includes(order.status);
+                const isActive = (step.activeWhen as readonly string[]).includes(order.status) &&
+                  (step.key !== "VERRECHNET" || openDeliveryNotes.length > 0);
                 const isDone = (() => {
                   const order_steps = ["OPEN", "DISPONIERT", "IN_LIEFERUNG", "VERRECHNET", "ABGESCHLOSSEN"];
                   return order_steps.indexOf(order.status) > order_steps.indexOf(step.key);
@@ -605,7 +606,7 @@ export function OrderDetail({
                     {(["open", "billed"] as const).map((f) => {
                       const openCount = order.deliveryNotes.filter((dn) => !dn.invoice).length;
                       const billedCount = order.deliveryNotes.filter((dn) => dn.invoice).length;
-                      const labels = { open: `Offen (${openCount})`, billed: `Verrechnet (${billedCount})` };
+                      const labels = { open: `Offen (${openCount})`, billed: `In Abrechnung (${billedCount})` };
                       const active = dnFilters.includes(f);
                       return (
                         <button key={f}
@@ -768,7 +769,7 @@ export function OrderDetail({
                     ABGESCHLOSSEN: "bg-green-50 text-green-700",
                   };
                   const statusLabelsB: Record<string, string> = {
-                    OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "Verrechnet", ABGESCHLOSSEN: "Abgeschlossen",
+                    OPEN: "Offen", DISPONIERT: "Disponiert", IN_LIEFERUNG: "In Lieferung", VERRECHNET: "In Abrechnung", ABGESCHLOSSEN: "Abgeschlossen",
                   };
                   return (
                     <Link key={b.id} href={`/baustellen/${b.id}`} className={`grid grid-cols-[minmax(0,2fr)_1fr_1fr_1fr_56px] gap-4 px-5 py-3.5 items-center hover:bg-gray-50 transition-colors group ${i !== order.baustellen.length - 1 ? "border-b border-gray-100" : ""}`}>

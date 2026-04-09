@@ -166,7 +166,7 @@ const ORDER_STEPS: { key: string; label: string; shortLabel: string; icon: Lucid
   { key: "OPEN",          label: "Offen",         shortLabel: "Offen",    icon: Circle,       color: "text-zinc-500" },
   { key: "DISPONIERT",    label: "Disponiert",    shortLabel: "Dispo",    icon: CalendarCheck, color: "text-blue-600" },
   { key: "IN_LIEFERUNG",  label: "In Lieferung",  shortLabel: "Liefer.",  icon: Truck,        color: "text-emerald-600" },
-  { key: "VERRECHNET",    label: "Verrechnet",    shortLabel: "Verrech.", icon: Receipt,      color: "text-emerald-700" },
+  { key: "VERRECHNET",    label: "In Abrechnung",    shortLabel: "In Abr.", icon: Receipt,      color: "text-emerald-700" },
   { key: "ABGESCHLOSSEN", label: "Abgeschlossen", shortLabel: "Fertig",   icon: CheckCircle2, color: "text-green-700" },
 ];
 

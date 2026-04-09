@@ -9,10 +9,12 @@ export function DeliveryDetailActions({
   id,
   contactId,
   invoiceId,
+  isSigned,
 }: {
   id: string;
   contactId: string;
   invoiceId?: string;
+  isSigned?: boolean;
 }) {
   const router = useRouter();
 
@@ -37,6 +39,8 @@ export function DeliveryDetailActions({
         <Button
           size="sm"
           className="gap-1.5"
+          disabled={!isSigned}
+          title={!isSigned ? "Lieferschein muss zuerst unterschrieben werden" : undefined}
           onClick={() => router.push(`/rechnungen/neu?contactId=${contactId}`)}
         >
           <Receipt className="h-3.5 w-3.5" />

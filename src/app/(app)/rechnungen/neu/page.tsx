@@ -6,9 +6,9 @@ import { CreateInvoiceForm } from "@/components/invoices/create-invoice-form";
 export default async function NeueRechnungPage({
   searchParams,
 }: {
-  searchParams: Promise<{ orderId?: string; contactId?: string }>;
+  searchParams: Promise<{ orderId?: string; contactId?: string; from?: string }>;
 }) {
-  const { orderId, contactId } = await searchParams;
+  const { orderId, contactId, from } = await searchParams;
 
   const [contacts, orders, settings, quoteItems] = await Promise.all([
     getContacts(),
@@ -45,6 +45,7 @@ export default async function NeueRechnungPage({
       prefillOrderId={prefillOrder?.id}
       prefillContactId={prefillOrder?.contactId ?? contactId}
       prefillItems={prefillItems.length > 0 ? prefillItems : undefined}
+      from={from}
     />
   );
 }

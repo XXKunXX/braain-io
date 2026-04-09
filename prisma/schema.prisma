@@ -274,6 +274,7 @@ model Task {
   contactId      String?
   requestId      String?
   deliveryNoteId String?
+  invoiceId      String?
   assignedTo     String?
   dueDate        DateTime?
   priority       TaskPriority @default(NORMAL)
@@ -284,6 +285,7 @@ model Task {
   contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
   request      Request?      @relation(fields: [requestId], references: [id], onDelete: SetNull)
   deliveryNote DeliveryNote? @relation(fields: [deliveryNoteId], references: [id], onDelete: SetNull)
+  invoice      Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
 }
 
 enum TaskPriority {
@@ -431,6 +433,7 @@ model Invoice {
   contact            Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
   items              InvoiceItem[]
   deliveryNotes      DeliveryNote[]
+  tasks              Task[]
 }
 
 model InvoiceItem {

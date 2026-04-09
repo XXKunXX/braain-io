@@ -26,6 +26,7 @@ export default async function NeuenLieferscheinPage({
 
   const drivers = allResources.filter((r) => r.type === "FAHRER").map((r) => ({ id: r.id, name: r.name }));
   const vehicles = allResources.filter((r) => r.type === "FAHRZEUG").map((r) => ({ id: r.id, name: r.name }));
+  const materialResources = allResources.filter((r) => r.type === "PRODUKT").map((r) => ({ id: r.id, name: r.name }));
 
   // Disponierte Ressourcen für heute ermitteln (tagesgrenzen-sicher)
   const todayStart = new Date();
@@ -69,6 +70,7 @@ export default async function NeuenLieferscheinPage({
       order={serializedOrder}
       drivers={drivers}
       vehicles={vehicles}
+      materialResources={materialResources}
       baustelleId={baustelle?.id}
       baustelleContactId={baustelle?.contactId ?? undefined}
       orderBaustellen={orderBaustellen}
