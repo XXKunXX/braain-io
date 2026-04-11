@@ -346,9 +346,14 @@ function ChatTab({
                       h1: ({ children }) => <p className="font-semibold text-sm mb-1">{children}</p>,
                       h2: ({ children }) => <p className="font-semibold mb-1">{children}</p>,
                       h3: ({ children }) => <p className="font-medium mb-1">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-0.5">{children}</ul>,
+                      ul: ({ children }) => <ul className="mb-2 space-y-1.5 pl-0 list-none">{children}</ul>,
                       ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
-                      li: ({ children }) => <li>{children}</li>,
+                      li: ({ children }) => (
+                        <li className="flex items-start gap-1.5 bg-white/60 rounded-lg px-2 py-1.5 border border-gray-200 text-[11px] leading-snug">
+                          <span className="mt-0.5 text-gray-300 flex-shrink-0">›</span>
+                          <span className="flex-1 min-w-0">{children}</span>
+                        </li>
+                      ),
                       code: ({ children }) => <code className="bg-gray-200 rounded px-1 font-mono text-[11px]">{children}</code>,
                       a: ({ href, children }) => {
                         const isInternal = href?.startsWith("/");
@@ -356,7 +361,7 @@ function ChatTab({
                           <button
                             type="button"
                             onClick={() => onNavigate(href!)}
-                            className="inline-flex items-center gap-0.5 text-blue-600 underline hover:text-blue-800"
+                            className="font-medium text-blue-600 hover:text-blue-800 hover:underline text-left"
                           >
                             {children}
                           </button>

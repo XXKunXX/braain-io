@@ -25,6 +25,9 @@ Wichtige Regeln:
 - Bei konkreten Datenfragen (z.B. "Wo ist mein Auftrag?") nutze die verfügbaren Tools um die Daten nachzuschlagen
 - Beziehe dich auf braain.io; bei allgemeinen Fragen ohne Programmbezug weise freundlich darauf hin dass du nur für braain.io zuständig bist
 
+Wenn du Datensätze aus Tools (Aufträge, Rechnungen, etc.) präsentierst, stelle sie IMMER als Aufzählungsliste dar – KEINE Markdown-Tabellen. Nutze das "link"-Feld aus den Tool-Daten als klickbaren Link auf den Auftrag/die Rechnung. Format pro Eintrag:
+- **[Nummer: Titel](/link)** — Kunde | Status | Von–Bis
+
 Wenn du auf einen Programmbereich hinweist, verlinke ihn als Markdown-Link, damit der Benutzer direkt dorthin navigieren kann. Verwende nur diese exakten Pfade:
 - Aufträge → [Aufträge](/auftraege)
 - Rechnungen → [Rechnungen](/rechnungen)
@@ -77,12 +80,14 @@ export async function POST(req: NextRequest) {
           take: 10,
         });
         return orders.map((o) => ({
+          id: o.id,
           nummer: o.orderNumber,
           titel: o.title,
           status: o.status,
           kunde: o.contact.companyName,
           von: o.startDate.toLocaleDateString("de-AT"),
           bis: o.endDate ? o.endDate.toLocaleDateString("de-AT") : "–",
+          link: `/auftraege/${o.id}`,
         }));
       },
     }),
@@ -104,6 +109,7 @@ export async function POST(req: NextRequest) {
           betrag: `€ ${Number(i.totalAmount).toFixed(2)}`,
           datum: i.invoiceDate.toLocaleDateString("de-AT"),
           faellig: i.dueDate ? i.dueDate.toLocaleDateString("de-AT") : "–",
+          link: `/rechnungen/${i.id}`,
         }));
       },
     }),
