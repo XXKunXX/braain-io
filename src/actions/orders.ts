@@ -145,7 +145,10 @@ export async function getOrders(status?: string) {
   return prisma.order.findMany({
     where: status ? { status: status as "OPEN" | "DISPONIERT" | "IN_LIEFERUNG" | "VERRECHNET" | "ABGESCHLOSSEN" } : undefined,
     orderBy: { startDate: "asc" },
-    include: { contact: true, quote: true },
+    include: {
+      contact: true,
+      quote: { select: { id: true, totalPrice: true, assignedTo: true } },
+    },
   });
 }
 
