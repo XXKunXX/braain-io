@@ -103,7 +103,7 @@ export async function getInvoices() {
 }
 
 export async function getInvoice(id: string) {
-  return prisma.invoice.findUnique({
+  const inv = await prisma.invoice.findUnique({
     where: { id },
     include: {
       contact: true,
@@ -115,6 +115,25 @@ export async function getInvoice(id: string) {
       },
     },
   });
+  if (!inv) return null;
+  return {
+    ...inv,
+    subtotal: Number(inv.subtotal),
+    vatRate: Number(inv.vatRate),
+    vatAmount: Number(inv.vatAmount),
+    totalAmount: Number(inv.totalAmount),
+    items: inv.items.map((item) => ({
+      ...item,
+      quantity: Number(item.quantity),
+      unitPrice: Number(item.unitPrice),
+      vatRate: Number(item.vatRate),
+      total: Number(item.total),
+    })),
+    deliveryNotes: inv.deliveryNotes.map((dn) => ({
+      ...dn,
+      quantity: Number(dn.quantity),
+    })),
+  };
 }
 
 export async function createInvoice(data: CreateInvoiceInput) {
@@ -171,8 +190,16 @@ export async function createInvoice(data: CreateInvoiceInput) {
     const assignedTo = orderTitle?.quote?.assignedTo ?? null;
 
     if (data.orderId) {
+      const orderDnIds = await prisma.deliveryNote.findMany({
+        where: { orderId: data.orderId },
+        select: { id: true },
+      });
       await prisma.task.updateMany({
-        where: { title: { startsWith: "Rechnung erstellen" }, status: { not: "DONE" } },
+        where: {
+          deliveryNoteId: { in: orderDnIds.map((d) => d.id) },
+          title: { startsWith: "Rechnung erstellen" },
+          status: { not: "DONE" },
+        },
         data: { status: "DONE" },
       });
     }
@@ -325,19 +352,21 @@ export async function createInvoiceFromDeliveryNotes(
     select: { baustelleId: true },
   });
   const baustelleIds = [...new Set(affectedNotes.map((n) => n.baustelleId!))];
-  for (const baustelleId of baustelleIds) {
-    const [total, unlinked] = await Promise.all([
-      prisma.deliveryNote.count({ where: { baustelleId } }),
-      prisma.deliveryNote.count({ where: { baustelleId, invoiceId: null } }),
-    ]);
-    if (total > 0 && unlinked === 0) {
-      await prisma.baustelle.updateMany({
-        where: { id: baustelleId, status: { notIn: ["ABGESCHLOSSEN"] } },
-        data: { status: "VERRECHNET" },
-      });
-      revalidatePath(`/baustellen/${baustelleId}`);
-    }
-  }
+  await Promise.all(
+    baustelleIds.map(async (baustelleId) => {
+      const [total, unlinked] = await Promise.all([
+        prisma.deliveryNote.count({ where: { baustelleId } }),
+        prisma.deliveryNote.count({ where: { baustelleId, invoiceId: null } }),
+      ]);
+      if (total > 0 && unlinked === 0) {
+        await prisma.baustelle.updateMany({
+          where: { id: baustelleId, status: { notIn: ["ABGESCHLOSSEN"] } },
+          data: { status: "VERRECHNET" },
+        });
+        revalidatePath(`/baustellen/${baustelleId}`);
+      }
+    })
+  );
 
   // Close "Rechnung erstellen" tasks, create "Rechnung prüfen & versenden"
   const orderInfo = orderId
@@ -346,21 +375,14 @@ export async function createInvoiceFromDeliveryNotes(
   const label = orderInfo?.title ?? "Auftrag";
   const assignedTo = orderInfo?.quote?.assignedTo ?? null;
 
-  if (orderId) {
-    await prisma.task.updateMany({
-      where: { title: { startsWith: "Rechnung erstellen" }, status: { not: "DONE" } },
-      data: { status: "DONE" },
-    });
-  } else {
-    await prisma.task.updateMany({
-      where: {
-        deliveryNoteId: { in: deliveryNoteIds },
-        title: { startsWith: "Rechnung erstellen" },
-        status: { not: "DONE" },
-      },
-      data: { status: "DONE" },
-    });
-  }
+  await prisma.task.updateMany({
+    where: {
+      deliveryNoteId: { in: deliveryNoteIds },
+      title: { startsWith: "Rechnung erstellen" },
+      status: { not: "DONE" },
+    },
+    data: { status: "DONE" },
+  });
 
   await prisma.task.create({
     data: {
@@ -477,13 +499,15 @@ export async function deleteInvoice(id: string) {
   }
 
   // Revert Baustelle status from VERRECHNET → IN_LIEFERUNG (now has unlinked delivery notes again)
-  for (const baustelleId of affectedBaustelleIds) {
-    await prisma.baustelle.updateMany({
-      where: { id: baustelleId, status: "VERRECHNET" },
-      data: { status: "IN_LIEFERUNG" },
-    });
-    revalidatePath(`/baustellen/${baustelleId}`);
-  }
+  await Promise.all(
+    affectedBaustelleIds.map(async (baustelleId) => {
+      await prisma.baustelle.updateMany({
+        where: { id: baustelleId, status: "VERRECHNET" },
+        data: { status: "IN_LIEFERUNG" },
+      });
+      revalidatePath(`/baustellen/${baustelleId}`);
+    })
+  );
 
   revalidatePath("/rechnungen");
   revalidatePath("/kontakte");

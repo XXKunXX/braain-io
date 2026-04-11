@@ -220,7 +220,6 @@ export async function acceptQuoteAndCreateOrder(quoteId: string) {
   const startDate = quote.request?.inspectionDate ?? today;
   const endDate = quote.validUntil ?? today;
 
-  const { getNextNumber } = await import("@/lib/counter");
   const orderNumber = await getNextNumber("order");
 
   const [, order] = await Promise.all([

@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
           status: o.status,
           kunde: o.contact.companyName,
           von: o.startDate.toLocaleDateString("de-AT"),
-          bis: o.endDate.toLocaleDateString("de-AT"),
+          bis: o.endDate ? o.endDate.toLocaleDateString("de-AT") : "–",
         }));
       },
     }),
