@@ -7,11 +7,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   await reportBetaError(
-    { message: body.message ?? "Unbekannter Client-Fehler", stack: body.stack },
+    body.message ?? "Unbekannter Client-Fehler",
     {
       location: body.location ?? "Client Error Boundary",
       userId:   user?.id,
-      extra:    { url: body.url, userAgent: req.headers.get("user-agent") },
+      extra:    { url: body.url, stack: body.stack, userAgent: req.headers.get("user-agent") },
     }
   );
 

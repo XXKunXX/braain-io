@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { updateSettings } from "@/actions/settings";
 import type { AppSettingsData } from "@/actions/settings";
 
@@ -43,6 +44,7 @@ export function ProgrammeinstellungenClient({ settings }: Props) {
     deliveryPrefix:      settings.deliveryPrefix,
     defaultPaymentTerms: settings.defaultPaymentTerms,
     defaultQuoteNotes:   settings.defaultQuoteNotes,
+    mahnungCronEnabled:  settings.mahnungCronEnabled ?? true,
   };
   const [form, setForm] = useState<AppSettingsData>(initial);
   const [saving, setSaving] = useState(false);
@@ -205,6 +207,27 @@ export function ProgrammeinstellungenClient({ settings }: Props) {
               rows={3}
               value={form.defaultQuoteNotes}
               onChange={(e) => set("defaultQuoteNotes", e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Automatisierung ── */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Automatisierung</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Mahnungs-Erinnerungen</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Erstellt täglich automatisch Aufgaben für überfällige Rechnungen
+              </p>
+            </div>
+            <Switch
+              checked={form.mahnungCronEnabled}
+              onCheckedChange={(checked) => setForm((prev) => ({ ...prev, mahnungCronEnabled: checked }))}
             />
           </div>
         </CardContent>

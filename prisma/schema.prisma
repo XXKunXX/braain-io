@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_DIRECT")
 }
 
 // ─── Contacts ───────────────────────────────────────────────────────────────
@@ -637,6 +638,9 @@ model AppSettings {
   // Rollen & Berechtigungen
   rolePermissions     Json    @default("{}")
 
+  // Automatisierung
+  mahnungCronEnabled  Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -726,4 +730,20 @@ model PushSubscription {
   createdAt   DateTime @default(now())
 
   @@index([clerkUserId])
+}
+
+// ─── Support Chat ─────────────────────────────────────────────────────────────
+
+model SupportConversation {
+  id          String   @id @default(cuid())
+  clerkUserId String
+  userName    String?
+  userEmail   String?
+  messages    Json     // Array<{ role: "user"|"assistant", text: string, ts: string }>
+  escalated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clerkUserId])
+  @@index([createdAt])
 }

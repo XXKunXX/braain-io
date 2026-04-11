@@ -37,12 +37,14 @@ export const PERMISSION_GROUPS = {
     "users.manage":  "Benutzer verwalten",
     "settings.edit": "Einstellungen bearbeiten",
   },
+  "Support-Widget": {
+    "support.view":     "Hilfe-Chatbot anzeigen",
+    "support.feedback": "Fehler & Features melden",
+  },
 } as const;
 
-export type PermissionKey = keyof {
-  [G in keyof typeof PERMISSION_GROUPS]: {
-    [K in keyof typeof PERMISSION_GROUPS[G]]: true;
-  }
+export type PermissionKey = {
+  [G in keyof typeof PERMISSION_GROUPS]: keyof typeof PERMISSION_GROUPS[G]
 }[keyof typeof PERMISSION_GROUPS];
 
 export type RolePermissions = Record<Role, Record<PermissionKey, boolean>>;
@@ -83,12 +85,16 @@ export const DEFAULT_PERMISSIONS: RolePermissions = {
     "users.invite":          false,
     "users.manage":          false,
     "settings.edit":         false,
+    "support.view":          true,
+    "support.feedback":      true,
   },
 
   Fahrer: {
     ...allFalse(),
     "deliveryNotes.create": true,
     "deliveryNotes.sign":   true,
+    "support.view":         false,
+    "support.feedback":     false,
   },
 };
 

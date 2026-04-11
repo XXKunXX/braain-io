@@ -3,12 +3,20 @@ import { prisma } from "@/lib/prisma";
 
 // Runs daily – creates "Mahnung versenden" tasks for overdue invoices that don't have one yet.
 export async function GET(request: Request) {
+  // Secret ist immer erforderlich
   const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  if (!secret) {
+    return NextResponse.json({ error: "CRON_SECRET not configured" }, { status: 500 });
+  }
+  const auth = request.headers.get("authorization");
+  if (auth !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Prüfen ob Mahnungs-Cron in den Programmeinstellungen aktiviert ist
+  const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
+  if (!settings?.mahnungCronEnabled) {
+    return NextResponse.json({ ok: true, skipped: true, reason: "Mahnungs-Cron ist deaktiviert" });
   }
 
   const now = new Date();

@@ -33,6 +33,8 @@ const settingsSchema = z.object({
   deliveryPrefix:      z.string().min(1).max(10),
   defaultPaymentTerms: z.string(),
   defaultQuoteNotes:   z.string(),
+  // Automatisierung
+  mahnungCronEnabled:  z.boolean(),
 });
 
 export type AppSettingsData = z.infer<typeof settingsSchema>;

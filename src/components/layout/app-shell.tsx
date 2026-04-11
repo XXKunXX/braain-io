@@ -7,6 +7,7 @@ import { Sidebar } from "./sidebar";
 import { GlobalSearch, useGlobalSearch } from "./global-search";
 import { NotificationBell } from "./notification-bell";
 import { MobileBottomNav } from "./mobile-bottom-nav";
+import { SupportWidget } from "@/components/support/support-widget";
 import { cn } from "@/lib/utils";
 
 interface AppShellProps {
@@ -16,9 +17,11 @@ interface AppShellProps {
   overduePaymentCount?: number;
   userRole?: string;
   showFahrerApp?: boolean;
+  canViewSupport?: boolean;
+  canSubmitFeedback?: boolean;
 }
 
-export function AppShell({ children, openTaskCount, newRequestCount = 0, overduePaymentCount = 0, userRole, showFahrerApp }: AppShellProps) {
+export function AppShell({ children, openTaskCount, newRequestCount = 0, overduePaymentCount = 0, userRole, showFahrerApp, canViewSupport = false, canSubmitFeedback = false }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
 
@@ -100,6 +103,8 @@ export function AppShell({ children, openTaskCount, newRequestCount = 0, overdue
       </div>
 
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+
+      <SupportWidget canViewSupport={canViewSupport} canSubmitFeedback={canSubmitFeedback} />
 
       {/* Mobile Bottom Navigation — only visible on mobile, invisible on md+ */}
       <MobileBottomNav
