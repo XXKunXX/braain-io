@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback, useReducer } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isTextUIPart } from "ai";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   MessageCircleQuestion,
   X,
@@ -37,6 +37,7 @@ export function SupportWidget({ canViewSupport, canSubmitFeedback }: SupportWidg
   const [activeTab, setActiveTab] = useState<Tab>("hilfe");
   const [proactiveShown, setProactiveShown] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const proactiveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -207,6 +208,7 @@ export function SupportWidget({ canViewSupport, canSubmitFeedback }: SupportWidg
                 messagesEndRef={messagesEndRef}
                 canSubmitFeedback={canSubmitFeedback}
                 onSwitchToFeedback={() => setActiveTab("feedback")}
+                onNavigate={(href) => { router.push(href); }}
               />
             ) : (
               <FeedbackTab />
@@ -225,11 +227,13 @@ function ChatTab({
   messagesEndRef,
   canSubmitFeedback,
   onSwitchToFeedback,
+  onNavigate,
 }: {
   pathname: string;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   canSubmitFeedback: boolean;
   onSwitchToFeedback: () => void;
+  onNavigate: (href: string) => void;
 }) {
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState<string | undefined>();
@@ -346,7 +350,20 @@ function ChatTab({
                       ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-0.5">{children}</ol>,
                       li: ({ children }) => <li>{children}</li>,
                       code: ({ children }) => <code className="bg-gray-200 rounded px-1 font-mono text-[11px]">{children}</code>,
-                      a: ({ href, children }) => <a href={href} className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                      a: ({ href, children }) => {
+                        const isInternal = href?.startsWith("/");
+                        return isInternal ? (
+                          <button
+                            type="button"
+                            onClick={() => onNavigate(href!)}
+                            className="inline-flex items-center gap-0.5 text-blue-600 underline hover:text-blue-800"
+                          >
+                            {children}
+                          </button>
+                        ) : (
+                          <a href={href} className="text-blue-600 underline" target="_blank" rel="noopener noreferrer">{children}</a>
+                        );
+                      },
                     }}
                   >
                     {textContent}
