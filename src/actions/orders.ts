@@ -147,7 +147,7 @@ export async function getOrders(status?: string) {
     orderBy: { startDate: "asc" },
     include: {
       contact: true,
-      quote: { select: { id: true, totalPrice: true, assignedTo: true } },
+      quote: true,
     },
   });
 }
