@@ -347,23 +347,23 @@ export async function sendTagesplan(dateISO: string) {
     if (e.baustelle?.name) byResource[e.resourceId].baustellenNames.push(e.baustelle.name);
   }
 
-  let sent = 0;
-  for (const { resource, baustellenNames } of Object.values(byResource)) {
-    if (!resource.clerkUserId) continue;
-    const msg = baustellenNames.length > 0
-      ? `Einsätze: ${[...new Set(baustellenNames)].join(", ")}`
-      : "Kein Einsatz geplant";
-    await prisma.notification.create({
-      data: {
-        clerkUserId: resource.clerkUserId,
-        title: `Tagesplan ${dateStr}`,
-        message: msg,
-        type: "TAGESPLAN",
-        link: "/fahrer/tagesplan",
-      },
-    });
-    sent++;
-  }
+  const resourceEntries = Object.values(byResource).filter((e) => e.resource.clerkUserId != null);
+  await Promise.all(
+    resourceEntries.map(({ resource, baustellenNames }) => {
+      const msg = baustellenNames.length > 0
+        ? `Einsätze: ${[...new Set(baustellenNames)].join(", ")}`
+        : "Kein Einsatz geplant";
+      return prisma.notification.create({
+        data: {
+          clerkUserId: resource.clerkUserId!,
+          title: `Tagesplan ${dateStr}`,
+          message: msg,
+          type: "TAGESPLAN",
+          link: "/fahrer/tagesplan",
+        },
+      });
+    })
+  );
 
-  return { sent };
+  return { sent: entries.length };
 }
